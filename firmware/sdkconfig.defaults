@@ -1,0 +1,11 @@
+# Settings that differ from ESP-IDF's defaults. The generated `sdkconfig` is not versioned;
+# delete it (or run `idf.py fullclean`) after changing this file.
+
+CONFIG_IDF_TARGET="esp32c6"
+
+# ESP32-C6-WROOM-1-N8: 8 MB flash.
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+
+# Console and logs on the chip's native USB (USB Serial/JTAG). UART0 is not brought out on the board.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y

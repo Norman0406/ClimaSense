@@ -30,6 +30,14 @@ The BME680 from the breadboard prototypes is dropped.
 
 Ideas for later revisions — a different microcontroller, deep sleep, separate power control for the SCD41 — are collected in [`hardware/next-revision.md`](hardware/next-revision.md). None of them is decided.
 
+## Firmware (decided 2026-11-19)
+
+| Topic | Decision | Notes |
+| --- | --- | --- |
+| Framework | **ESP-IDF**, version **6.1** (6.1.1 at the start) | Chosen over ESPHome and Arduino. Sensirion and Bosch publish their drivers and Sensirion's VOC/NOx index algorithm in C, which ESP-IDF builds as-is. ESP-IDF gives direct control over what this board needs: the sensors on the low-power I2C controller and Qwiic on the normal one, releasing the bus pins before switching a rail off, SCD41 single-shot mode, and the low-power core if deep sleep is ever needed. MQTT client, HTTP server and OTA are part of ESP-IDF. |
+| Language | **C++** (ESP-IDF 6.1 compiles with `-std=gnu++26`), restricted | No exceptions and no RTTI (ESP-IDF's defaults), no heap-allocating containers in the measurement path. Chosen for classes with a shared interface for the sensors, automatic release of locks and bus handles, and `std::optional`/`std::expected` for readings that may not exist. Vendor drivers stay C files and are called from C++. |
+| Build | `idf.py` from the ESP-IDF tools | Project in `firmware/`; `sdkconfig.defaults` is versioned, the generated `sdkconfig` is not. |
+
 ## Schematic-level choices (accepted 2026-11-19)
 
 Made while drawing the first schematic and accepted afterwards; rationale in [`hardware/schematic.md`](hardware/schematic.md).

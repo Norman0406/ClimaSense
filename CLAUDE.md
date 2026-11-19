@@ -62,7 +62,8 @@ docs/       Design notes, research, decisions
 
 - Periodic measurement → publish via MQTT.
 - Captive portal (SoftAP) for Wi-Fi provisioning.
-- Framework not decided yet (see `docs/`).
+- Framework: **ESP-IDF 6.1, in C++** (decided, see `docs/decisions.md`): no exceptions, no RTTI, no heap-allocating containers in the measurement path; vendor drivers stay C. Project in `firmware/`, built with `idf.py`; build and flash steps in `firmware/README.md`.
+- Pin map in code: `firmware/main/board.h`. Keep it in step with `docs/hardware/schematic.md`.
 
 ## Decisions
 

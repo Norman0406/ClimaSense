@@ -13,6 +13,7 @@ fp-info-cache
 # --- Firmware (ESP-IDF / PlatformIO) ---
 build/
 managed_components/
+firmware/sdkconfig
 sdkconfig.old
 .pio/
 dependencies.lock
