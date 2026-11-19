@@ -15358,7 +15358,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "2.2uF"
 			(at 280.67 226.06 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15402,7 +15402,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C52923"
+		(property "LCSC" "C12530"
 			(at 276.86 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -15413,7 +15413,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05A105KA5NQNC"
+		(property "MPN" "CL05A225MQ5NSNC"
 			(at 276.86 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -16856,7 +16856,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C89653"
+		(property "LCSC" "C371166"
 			(at 67.31 38.1 0)
 			(hide yes)
 			(show_name no)
@@ -16867,7 +16867,7 @@
 				)
 			)
 		)
-		(property "MPN" "MF-NSMF075-2"
+		(property "MPN" "1206L075/16WR"
 			(at 67.31 38.1 0)
 			(hide yes)
 			(show_name no)

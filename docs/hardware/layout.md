@@ -13,7 +13,7 @@ File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), cr
 | Parts | 49, all on the top side |
 | Mounting | four M3 holes (3.2 mm), one in each corner |
 | Use | on a wall, landscape, USB cable hanging down, components facing the room |
-| Copper | 461 track segments, 81 vias (36 of them ground) |
+| Copper | 463 track segments, 81 vias (36 of them ground) |
 
 ## Arrangement
 
@@ -53,7 +53,7 @@ Set for JLCPCB's standard 2-layer process, with margin.
 - **Nothing is routed under the ESP32 module on the top layer.**
 - **A few connections are drawn by hand**, not by the router (`PREROUTED` in `gen_pcb.py`): the whole buck converter (input capacitor, ground, switch node, inductor to output capacitor, feedback), the SCD41's supply from its capacitor through both supply pins, its ground pins to their capacitors, the SHT45's supply pads to its capacitor, the ESP32's supply pin to its capacitors, and the whole Qwiic block: its supply line and its three signals from the module's corner pins to the connector, side by side and without a via.
 - **The two push buttons' paired pads count as joined inside the part** (they are). KiCad is told so and no track is drawn between them, which leaves the space under the buttons free for the Qwiic tracks.
-- **Small parts stand in line with the pins they serve**, so their connections are straight and centred: capacitors directly above or below their pins at the buck converter, the sensor regulator, the SCD41 and the ESP32; the USB-C configuration resistors centred over their connector pads; the three LED resistors in the order of the LED's pads (the red and green LED pins were swapped in the schematic for this); the I2C pull-ups hanging from the sensor supply track; the SGP41's filter parts stacked so that pads on the same net are neighbours.
+- **Small parts stand in line with the pins they serve**, so their connections are straight and centred: capacitors directly above or below their pins at the buck converter, the sensor regulator, the SCD41 and the ESP32; the USB-C configuration resistors centred over their connector pads; the three LED resistors in the order of the LED's pads (the red and green LED pins were swapped in the schematic for this); the I2C pull-ups hanging from the sensor supply track; the SGP41's filter capacitor directly beside its supply and ground pins.
 - **The ESP32's supply** runs from the buck converter as one 0.6 mm track, routed before any signal.
 - **No tracks on the bottom layer under the buck converter**, so its ground stays unbroken.
 - **Silkscreen:** BOOT, RESET and QWIIC labels, the name of each sensor next to it (SCD41, SGP41, BMP580, SHT45) and the board name. Reference designators are not printed; with parts this small they would overlap. They remain on the fabrication drawing.
@@ -101,8 +101,10 @@ Three independent reviews of the schematic against the datasheets, and a compari
 1. **The two enable signals swapped module pins** (reason in [`schematic.md`](schematic.md)). Each now starts on the far side of the module from the regulator it controls. `SENS_EN` runs along the top with the two Qwiic lines, drops down between the buck converter and the sensor regulator, passes its pull-up R5 (moved there from below the module) and ducks under the regulator's input for 3 mm. `QWIIC_EN` runs on the bottom layer from under the module to the same gap and comes up next to its pull-down. Both are static signals, so their length does not matter.
 2. **No copper under the BMP580** any more: a supply track used to cross under the package. The footprint now carries a keep-out.
 3. The green and blue LED resistors went from 220 Ω to 100 Ω (value only).
+4. **The SGP41's filter capacitor C11 moved next to the pins it serves**, into the gap between SCD41 and SGP41: 1.5 mm of track to the supply pin instead of 11 mm round the part.
+5. Two part changes without layout change: the fuse is now a Littelfuse 1206L075/16WR (16 V; the Bourns part was a 6 V type marked "not recommended for new designs"), and the Qwiic regulator's output capacitor C16 is 2.2 µF instead of 1 µF, the regulator's minimum.
 
-Looked at and left alone: the SCD41's supply link runs under the package 0.2 mm from its ground pad, which is the board's normal clearance and covered by solder mask; the SGP41's 1 µF filter capacitor is 11 mm of track from its pin, on the far side of the part; the USB connector sits exactly where its drawing puts the board edge (5.79 mm from the locating pegs).
+Looked at and left alone: the SCD41's supply link runs under the package 0.2 mm from its ground pad, which is the board's normal clearance and covered by solder mask; the USB connector sits exactly where its drawing puts the board edge (5.79 mm from the locating pegs).
 
 ### Not as short as possible, but harmless
 
@@ -117,7 +119,7 @@ Looked at and left alone: the SCD41's supply link runs under the package 0.2 mm 
 | Sensor enable | 34 mm | 25 mm | 1.39 | Goes round the buck converter instead of under it. |
 | Pressure interrupt | 50 mm | 35 mm | 1.41 | |
 | Qwiic clock, data, enable | 32–33 mm | 23 mm | 1.4 | Drawn by hand: the three run round the BOOT pull-up and down in front of the connector so that none of them needs a via. |
-| SGP41 filtered supply | 11 mm | 7 mm | 1.62 | Has to go round the chip to its pin 1. |
+| SGP41 filtered supply | 11 mm | 7 mm | 1.60 | The filter resistor is on the right of the chip, the supply pin on the left, so the track goes round. The capacitor sits 1.5 mm from the pin, which is the part that matters. |
 
 All other nets are within 40 % of the shortest possible connection, most within 10 %.
 

@@ -121,7 +121,7 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 | U2 | TPS62A01DRLR | SOT-563 | C5157937 | extended |
 | U3, U9 | TLV75533PDBVR | SOT-23-5 | C404027 | extended |
 | L1 | 1 µH, DFE252012F-1R0M | 2520 | C435392 | extended |
-| F1 | Resettable fuse MF-NSMF075-2, 0.75 A, 6 V | 1206 | C89653 | extended |
+| F1 | Resettable fuse Littelfuse 1206L075/16WR, 0.75 A, 16 V | 1206 | C371166 | extended |
 | D1 | RGB LED 19-337/R6GHBHC-A01/2T | 1.6×1.6 | C264519 | extended |
 | J1 | USB-C receptacle TYPE-C-31-M-12 | 16-pin SMD | C165948 | extended |
 | J2 | JST SH 4-pin SM04B-SRSS-TB (Qwiic) | 1 mm pitch | C160404 | extended |
@@ -136,7 +136,8 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 | R4 | 15 kΩ | 0402 | C25756 | basic |
 | R5, R15 | 100 kΩ | 0402 | C25741 | basic |
 | C6, C8, C10, C13, C14 | 100 nF | 0402 | C1525 | basic |
-| C3, C4, C7, C11, C12, C15, C16 | 1 µF | 0402 | C52923 | basic |
+| C3, C4, C7, C11, C12, C15 | 1 µF | 0402 | C52923 | basic |
+| C16 | 2.2 µF | 0402 | C12530 | basic |
 | C1, C5, C9 | 10 µF | 0805 | C15850 | basic |
 | C2 | 22 µF | 0805 | C45783 | basic |
 

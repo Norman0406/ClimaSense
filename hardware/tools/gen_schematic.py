@@ -53,6 +53,7 @@ RES = {  # value -> (LCSC, MPN)
 CAP = {  # value -> (footprint, LCSC, MPN)
     "100nF": (C0402, "C1525", "CL05B104KO5NNNC"),
     "1uF": (C0402, "C52923", "CL05A105KA5NQNC"),
+    "2.2uF": (C0402, "C12530", "CL05A225MQ5NSNC"),
     "10uF": (C0805, "C15850", "CL21A106KAYNNNE"),
     "22uF": (C0805, "C45783", "CL21A226MAQNNNE"),
 }
@@ -204,7 +205,7 @@ def build(lib: Library) -> Schematic:
     sch.power_at(*n_raw, "VBUS", (0, -1))
     f1 = sch.add("Device:Polyfuse", "F1", "0.75A", n_raw[0] + 8.89, vb[1], 90,
                  footprint="Fuse:Fuse_1206_3216Metric",
-                 fields={"LCSC": "C89653", "MPN": "MF-NSMF075-2"},
+                 fields={"LCSC": "C371166", "MPN": "1206L075/16WR"},
                  ref_at=(-3.81, -3.81, "left"), value_at=(1.27, -3.81, "left"))
     sch.wire(n_raw, f1.pos(1))
     sch.wire(f1.pos(2), (vb[0] + 30.48, vb[1]))
@@ -497,7 +498,9 @@ def build(lib: Library) -> Schematic:
     sch.wire((276.86, qout[1]), (287.02, qout[1]))
     sch.junction(276.86, qout[1])
     sch.power_at(287.02, qout[1], "+3V3_QWIIC", (0, -1))
-    c_qout = cap("1uF", 276.86, qout[1] + 3.81)
+    # 2.2 uF: this output has no other capacitor on it, and the regulator wants 0.47 uF that is
+    # really there under voltage
+    c_qout = cap("2.2uF", 276.86, qout[1] + 3.81)
     sch.power_at(*c_qout.pos(2), "GND", (0, 1))
     # pulled low: the Qwiic supply is off until the firmware turns it on
     r_qen = res("100k", 304.8, 226.06)

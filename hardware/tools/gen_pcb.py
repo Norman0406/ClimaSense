@@ -157,11 +157,13 @@ PLACEMENT = {
     "C9": (55.125, 14.6, 180),   # 10 uF below pins 6 and 7
     "C10": (55.125, 1.4, 180),   # 100 nF above pins 20 and 19
     "U7": (66.0, 10.0, 0),       # SGP41, next to the SCD41
-    # Supply filter of the SGP41, top to bottom, so that pads on the same net are neighbours:
-    # left column 3V3, 3V3, ground; right column ground, filtered supply, filtered supply.
+    # Heater supply capacitor and filter resistor on the right, one above the other, so that
+    # their 3.3 V pads are neighbours.
     "C12": (69.6, 8.6, 0),       # heater supply capacitor
     "R14": (69.6, 10.0, 0),      # filter resistor
-    "C11": (69.6, 11.4, 180),    # filter capacitor
+    # The filter capacitor stands on the other side, in the gap towards the SCD41, right
+    # beside the supply pin (1) and the ground pin (2) it works for.
+    "C11": (63.3, 9.68, 270),
     "U8": (55.05, 25.0, 0),      # BMP580; .05 for the same reason as the USB connector
     "C13": (58.0, 25.7, 0),
     "C14": (58.0, 24.3, 0),
@@ -237,6 +239,13 @@ PREROUTED = (
     )),
     dict(net="GND", pads=("U6.20", "C10.2"), tracks=(
         (0.3, ((54.5, 3.3), (54.5, 1.4))),                       # ground pin straight up into the 100 nF
+    )),
+    # SGP41 filter capacitor: straight across into the supply pin and the ground pin
+    dict(net="SGP_VDD", pads=("C11.1", "U7.1"), tracks=(
+        (0.3, ((63.3, 9.2), (64.8, 9.2))),
+    )),
+    dict(net="GND", pads=("C11.2", "U7.2"), tracks=(
+        (0.3, ((63.3, 10.2), (63.9, 10.2), (64.1, 10.0), (64.8, 10.0))),
     )),
     # SHT45: its capacitor sits beyond the sensor, level with the two supply pads. The
     # links start at the outer end of the pads, clear of the no-track area under the part.
