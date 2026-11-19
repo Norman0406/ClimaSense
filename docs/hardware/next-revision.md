@@ -77,7 +77,7 @@ Cost: one small regulator or load switch, two resistors, a capacitor, two GPIOs 
 
 ## Smaller items noticed along the way
 
-- **Status LED on 3.3 V.** Green and blue LEDs need 2.7–3.8 V; with a 3.3 V supply they may turn out dim even with the 100 Ω resistors of revision 1.0. Check on the first board; the fix would be an LED with a lower forward voltage or feeding the LED from 5 V.
+- **Status LED on 3.3 V.** The calculation in [`schematic.md`](schematic.md) covers a typical LED. A green or blue LED at the top of its forward-voltage range would be dim or dark on 3.3 V. If that shows up on the first boards, feed the green and blue LEDs from 5 V (their anodes are separate pads) or choose an LED specified with a lower maximum forward voltage.
 - **Capacitance on the USB supply** is 12 µF nominal (10 + 1 + 1); the USB specification asks for at most 10 µF. Under voltage the real value is below that. A 4.7 µF buck input capacitor would settle it.
 - **USB data lines** have no footprints for series resistors, which Espressif suggests reserving; their own development board leaves them out too.
 - **Thermal tracks could be thinner.** The tracks across the slot and into the SHT45 tongue are 0.2 mm; 0.15 mm is allowed and would remove a quarter of the copper that carries heat. See the review in [`layout.md`](layout.md).

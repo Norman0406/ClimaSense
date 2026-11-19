@@ -16709,7 +16709,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "330R"
 			(at 168.91 180.34 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16753,7 +16753,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C11702"
+		(property "LCSC" "C25104"
 			(at 166.37 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -16764,7 +16764,7 @@
 				)
 			)
 		)
-		(property "MPN" "0402WGF1001TCE"
+		(property "MPN" "0402WGF3300TCE"
 			(at 166.37 182.88 0)
 			(hide yes)
 			(show_name no)

@@ -42,7 +42,7 @@ C0805 = "Capacitor_SMD:C_0805_2012Metric"
 RES = {  # value -> (LCSC, MPN)
     "4.7R": ("C25121", "0402WGF470KTCE"),
     "100R": ("C25076", "0402WGF1000TCE"),
-    "1k": ("C11702", "0402WGF1001TCE"),
+    "330R": ("C25104", "0402WGF3300TCE"),
     "4.7k": ("C25900", "0402WGF4701TCE"),
     "5.1k": ("C25905", "0402WGF5101TCE"),
     "10k": ("C25744", "0402WGF1002TCE"),
@@ -390,7 +390,7 @@ def build(lib: Library) -> Schematic:
     sch.junction(xa, ya[1])
     sch.wire((xa, ya[0]), (xa, ya[0] - 5.08))
     sch.power_at(xa, ya[0] - 5.08, "+3V3", (0, -1))
-    for pin, value, net in (("2", "1k", "LED_R"), ("3", "100R", "LED_G"), ("1", "100R", "LED_B")):
+    for pin, value, net in (("2", "330R", "LED_R"), ("3", "100R", "LED_G"), ("1", "100R", "LED_B")):
         k = led.pos(pin)
         r = res(value, k[0] - 11.43, k[1], horizontal=True)
         sch.wire(r.pos(2), k)

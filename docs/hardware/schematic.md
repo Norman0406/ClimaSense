@@ -55,7 +55,7 @@ These went beyond what had been decided beforehand; all were accepted on 2026-11
 | 17 | IO19 | `QWIIC_SDA` | Qwiic connector, 4.7 kΩ pull-up to +3V3_QWIIC |
 | 18 | IO20 | `QWIIC_SCL` | Qwiic connector, 4.7 kΩ pull-up to +3V3_QWIIC |
 | 19 | IO21 | `LED_G` | green, active low, 100 Ω |
-| 20 | IO22 | `LED_R` | red, active low, 1 kΩ |
+| 20 | IO22 | `LED_R` | red, active low, 330 Ω |
 | 21 | IO23 | `LED_B` | blue, active low, 100 Ω |
 | 4, 5, 8, 9, 23, 24, 25, 26, 27 | IO4, IO5, IO0, IO1, IO15, IO17 (RXD0), IO16 (TXD0), IO3, IO2 | — | unused, marked no-connect |
 
@@ -128,7 +128,7 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 | SW1, SW2 | TS-1187A-B-A-B push button | 5.1×5.1 | C318884 | basic |
 | R14 | 4.7 Ω | 0402 | C25121 | extended |
 | R3 | 68 kΩ | 0402 | C36871 | extended (preferred, no fee) |
-| R9 | 1 kΩ | 0402 | C11702 | basic |
+| R9 | 330 Ω | 0402 | C25104 | basic |
 | R10, R11 | 100 Ω | 0402 | C25076 | basic |
 | R12, R13, R16, R17 | 4.7 kΩ | 0402 | C25900 | basic |
 | R1, R2 | 5.1 kΩ | 0402 | C25905 | basic |
@@ -150,7 +150,7 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 - Mounting holes and the board outline depend on the enclosure, which is undecided.
 - Thermal layout rules from [`../research/hardware-options.md`](../research/hardware-options.md) apply: sensors at a board edge behind milled slots, away from U2, U3, U4 and the SGP41.
 - Keep the SCD41's "do not connect" pads on isolated pads, as its datasheet requires.
-- LED resistor values are a first guess for brightness balance; expect to tune them (or the PWM duty) on the first board. Green and blue need 2.7–3.8 V (Everlight datasheet) from a 3.3 V supply, so their resistors are small (100 Ω, changed from 220 Ω on 2026-11-19): about 4 mA with a typical LED, 6 mA at most, and still dim or dark with an LED at the upper end of the range.
+- LED resistor values were calculated on 2026-11-19 from the curves in the Everlight datasheet (typical part, 3.3 V supply, about 20 Ω assumed for the ESP32 pin): green 100 Ω → 3.7 mA, about 21 mcd; blue 100 Ω → 4.7 mA, about 8 mcd; red 330 Ω → 4.2 mA, about 13 mcd (with the earlier 1 kΩ: 1.5 mA, about 3 mcd). Read off small log-scale graphs, so ±30 %. Each colour is made about as bright as its supply headroom reasonably allows; the firmware evens them out and dims them with PWM, which can only reduce brightness. Shown one colour at a time at equal brightness, the limit is blue, about 8 mcd. What the datasheet cannot settle: green and blue are specified at 2.7–3.8 V forward voltage with no typical value and no voltage classes. A part 0.3 V above the typical curve still gives about 7 mcd green and 4 mcd blue; at the 3.8 V limit green is practically dark. Only feeding those two LEDs from 5 V would remove that case.
 - The Qwiic connector must not be used with a device that has its own supply: with USB unplugged, 3.3 V on the connector would flow backwards through the Qwiic regulator into the 5 V rail, which the regulator's datasheet warns against. Ordinary Qwiic sensor boards are powered from the connector and are fine.
 - The Qwiic supply is good for about 200 mA continuously (the regulator dissipates the drop from 5 V in a small package); it limits at about 0.5 A and shuts down when too hot.
 - The 4.7 Ω resistor is the only passive with a loading fee. A basic-library value such as 10 Ω would likely work as well for the SGP41 supply filter, but the datasheet specifies 4.7 Ω, so it is kept for now.
