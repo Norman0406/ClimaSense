@@ -13,7 +13,7 @@ File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), cr
 | Parts | 49, all on the top side |
 | Mounting | four M3 holes (3.2 mm), one in each corner |
 | Use | on a wall, landscape, USB cable hanging down, components facing the room |
-| Copper | 463 track segments, 81 vias (36 of them ground) |
+| Copper | 462 track segments, 89 vias (44 of them ground) |
 
 ## Arrangement
 
@@ -103,6 +103,7 @@ Three independent reviews of the schematic against the datasheets, and a compari
 3. The green and blue LED resistors went from 220 Ω to 100 Ω (value only).
 4. **The SGP41's filter capacitor C11 moved next to the pins it serves**, into the gap between SCD41 and SGP41: 1.5 mm of track to the supply pin instead of 11 mm round the part.
 5. Two part changes without layout change: the fuse is now a Littelfuse 1206L075/16WR (16 V; the Bourns part was a 6 V type marked "not recommended for new designs"), and the Qwiic regulator's output capacitor C16 is 2.2 µF instead of 1 µF, the regulator's minimum.
+6. **The ESP32 module's ground pad follows Espressif's drawing exactly**: nine separate 0.8 mm squares with twelve vias in the gaps, instead of one bare 3.3 mm pad with four vias (details in [`footprints.md`](footprints.md)).
 
 Looked at and left alone: the SCD41's supply link runs under the package 0.2 mm from its ground pad, which is the board's normal clearance and covered by solder mask; the USB connector sits exactly where its drawing puts the board edge (5.79 mm from the locating pegs).
 

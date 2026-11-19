@@ -19,7 +19,7 @@ Status: **drawn from the manufacturers' land-pattern drawings and checked agains
 
 - The pad positions come out identical to KiCad's own footprint for the sibling ESP32-S3-WROOM-1 (same outline, same pad size and pitch, same first-pad position). That is an independent confirmation of the reading of the drawing.
 - The antenna end (top 6 mm) carries a keep-out area on all copper layers: no tracks, vias or copper fill underneath. For best range the antenna should also sit at or beyond the board edge.
-- The ground pad is one solid copper pad with the solder paste split into a 3 × 3 grid, as the datasheet shows. No thermal vias are included; the module draws too little power to need them.
+- The ground pad is drawn exactly as figure 11-1 and Espressif's own KiCad footprint show it: nine copper squares of 0.8 mm with 0.45 mm gaps, each with its own solder mask opening and paste. The figure's twelve thermal vias are placed by the board generator in the middle of every gap between two neighbouring squares; their copper rings overlap the squares and join them. The vias are the board's normal ones (0.3 mm hole), the smallest JLCPCB makes on a two-layer board at the standard price; their holes end 0.075 mm from the squares, so some solder may run into them. Espressif notes that soldering this pad is not required and only helps heat removal. Until 2026-11-19 this was one solid 3.3 mm pad, bare all over, with four vias.
 - The 3D model is the ESP32-S3-WROOM-1 model as a visual stand-in. The outline is the same; details of the shield can differ.
 
 **SGP41**

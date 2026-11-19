@@ -150,7 +150,8 @@ def esp32_c6_wroom_1() -> Footprint:
     COL_X = 17.5 / 2                  # pad columns are 17.5 mm apart, so pads overhang the edge by 0.5 mm
     Y_PAD1 = -H / 2 + 7.49            # pad 1 centre is 7.49 mm below the top edge
     ANT = 6.0                         # antenna area: top 6 mm
-    EP = 3.3                          # ground pad 3.3 x 3.3 mm
+    EP = 3.3                          # ground pad 3.3 x 3.3 mm over all,
+    EP_SQUARE, EP_GAP = 0.8, 0.45     # made of 3 x 3 squares of 0.8 mm with 0.45 mm gaps
     EP_X = -W / 2 + 7.495             # 7.495 mm from the left module edge
     EP_Y = H / 2 - 12.29              # 12.29 mm above the bottom module edge
 
@@ -166,11 +167,15 @@ def esp32_c6_wroom_1() -> Footprint:
         fp.pad(28 - i, COL_X, round(Y_PAD1 + i * PITCH, 4), PAD_W, PAD_H)
     assert abs((Y_PAD1 + 13 * PITCH) - (H / 2 - 1.5)) < 1e-6  # pad 14 sits 1.5 mm above the bottom edge
 
-    # ground pad: solid copper, paste split into a 3 x 3 grid of 0.8 mm squares (0.45 mm gaps)
-    fp.pad(29, EP_X, EP_Y, EP, EP, paste=False, heatsink=True)
+    # Ground pad, exactly as figure 11-1 and Espressif's own KiCad footprint draw it: nine
+    # copper squares of 0.8 mm with 0.45 mm gaps (3.3 mm over all), each with its own solder
+    # mask opening and paste. The figure's twelve thermal vias sit in the gaps between the
+    # squares and join them; they are placed by the board generator (route_board.py).
+    assert abs(3 * EP_SQUARE + 2 * EP_GAP - EP) < 1e-9
     for ix in (-1, 0, 1):
         for iy in (-1, 0, 1):
-            fp.paste(round(EP_X + ix * 1.25, 4), round(EP_Y + iy * 1.25, 4), 0.8, 0.8)
+            fp.pad(29, round(EP_X + ix * (EP_SQUARE + EP_GAP), 4), round(EP_Y + iy * (EP_SQUARE + EP_GAP), 4),
+                   EP_SQUARE, EP_SQUARE, heatsink=True)
 
     fp.body(W, H)
     fp.line((-W / 2, -H / 2 + ANT), (W / 2, -H / 2 + ANT), "F.Fab", FAB_W)

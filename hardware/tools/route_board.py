@@ -275,12 +275,17 @@ def run(board, origin, geo, log=print):
             pad=None, pts=[(x_a, y), (x_b, y)],
             nodes={R.node(x_a + k * R.step, y, TOP) for k in range(steps + 1)}))
 
-    # --- ESP32 ground pad: vias in the gaps of its paste pattern -------------
+    # --- ESP32 ground pad: the twelve thermal vias of Espressif's land pattern ---
+    # The pad is nine squares on a 1.25 mm pitch. A via sits in the middle of every gap
+    # between two neighbouring squares; its copper ring overlaps both and joins them, and
+    # takes the pad down to the ground pour on the bottom.
     gnd = nid("GND")
-    epad = next(p for p in pads if p["ref"] == geo["module_ref"] and p["num"] == geo["module_epad"])
-    for dx in (-0.625, 0.625):
-        for dy in (-0.625, 0.625):
-            R.add_via(gnd, round(epad["x"] + dx, 3), round(epad["y"] + dy, 3))
+    epads = [p for p in pads if p["ref"] == geo["module_ref"] and p["num"] == geo["module_epad"]]
+    ex, ey = sum(p["x"] for p in epads) / len(epads), sum(p["y"] for p in epads) / len(epads)
+    for a in (-1.25, 0.0, 1.25):
+        for b in (-0.625, 0.625):
+            R.add_via(gnd, round(ex + a, 3), round(ey + b, 3))
+            R.add_via(gnd, round(ex + b, 3), round(ey + a, 3))
 
     # --- pads are entered, left and crossed along their centre lines only -------
     # Inside every connected pad all nodes except those on the horizontal and the vertical
@@ -367,7 +372,7 @@ def run(board, origin, geo, log=print):
             by_net.setdefault(p["name"], []).append(p)
     island_x = bx1
     gnd_pads = by_net.pop("GND", [])
-    main_gnd = [p for p in gnd_pads if p["x"] <= island_x and p["smd"] and p is not epad]
+    main_gnd = [p for p in gnd_pads if p["x"] <= island_x and p["smd"] and not any(p is q for q in epads)]
     groups = dict(by_net)
     groups[ISLAND_GND] = [p for p in gnd_pads if p["x"] > island_x]
 
