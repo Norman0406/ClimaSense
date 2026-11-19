@@ -41,7 +41,7 @@ C0402 = "Capacitor_SMD:C_0402_1005Metric"
 C0805 = "Capacitor_SMD:C_0805_2012Metric"
 RES = {  # value -> (LCSC, MPN)
     "4.7R": ("C25121", "0402WGF470KTCE"),
-    "220R": ("C25091", "0402WGF2200TCE"),
+    "100R": ("C25076", "0402WGF1000TCE"),
     "1k": ("C11702", "0402WGF1001TCE"),
     "4.7k": ("C25900", "0402WGF4701TCE"),
     "5.1k": ("C25905", "0402WGF5101TCE"),
@@ -325,9 +325,13 @@ def build(lib: Library) -> Schematic:
     mcu_nets = {
         "3": "EN", "15": "BOOT", "10": "IO8", "13": "USB_DN", "14": "USB_DP",
         "6": "I2C_SDA", "7": "I2C_SCL",
-        "12": "SENS_EN", "11": "BMP_INT", "19": "LED_G", "20": "LED_R", "21": "LED_B",
-        # the three pins nearest the Qwiic connector
-        "16": "QWIIC_EN", "17": "QWIIC_SDA", "18": "QWIIC_SCL",
+        "11": "BMP_INT", "19": "LED_G", "20": "LED_R", "21": "LED_B",
+        # IO18 to IO23 have a weak pull-up while the chip is in reset (chip datasheet table 2-1),
+        # IO10 and IO11 have none. An enable that must stay low in reset (QWIIC_EN, held by
+        # a 100 k pull-down) therefore sits on IO11; SENS_EN, which is pulled high anyway,
+        # sits on IO18.
+        "12": "QWIIC_EN", "16": "SENS_EN",
+        "17": "QWIIC_SDA", "18": "QWIIC_SCL",
     }
     for pin, net in mcu_nets.items():
         sch.label(u_mcu, pin, net)
@@ -385,7 +389,7 @@ def build(lib: Library) -> Schematic:
     sch.junction(xa, ya[1])
     sch.wire((xa, ya[0]), (xa, ya[0] - 5.08))
     sch.power_at(xa, ya[0] - 5.08, "+3V3", (0, -1))
-    for pin, value, net in (("2", "1k", "LED_R"), ("3", "220R", "LED_G"), ("1", "220R", "LED_B")):
+    for pin, value, net in (("2", "1k", "LED_R"), ("3", "100R", "LED_G"), ("1", "100R", "LED_B")):
         k = led.pos(pin)
         r = res(value, k[0] - 11.43, k[1], horizontal=True)
         sch.wire(r.pos(2), k)
@@ -511,7 +515,8 @@ def build(lib: Library) -> Schematic:
     sch.label(j2, "4", "QWIIC_SCL")
     sch.power(j2, "MP", "GND")
     sch.text(213.36, 243.84,
-             "QWIIC_EN is pulled low: the Qwiic supply is off by default.\\n"
+             "QWIIC_EN is pulled low: the Qwiic supply is off by default. It is on IO11,\\n"
+             "which has no pull-up while the ESP32 is in reset.\\n"
              "The regulator limits the current, so a short on the connector cannot pull down the board.", size=1.27)
     return sch
 

@@ -77,7 +77,12 @@ Cost: one small regulator or load switch, two resistors, a capacitor, two GPIOs 
 
 ## Smaller items noticed along the way
 
-- **Status LED on 3.3 V.** Green and blue LEDs need about 3 V; with a 3.3 V supply they may turn out dim. Check on the first board before changing anything.
+- **Status LED on 3.3 V.** Green and blue LEDs need 2.7–3.8 V; with a 3.3 V supply they may turn out dim even with the 100 Ω resistors of revision 1.0. Check on the first board; the fix would be an LED with a lower forward voltage or feeding the LED from 5 V.
+- **Fuse.** The MF-NSMF075 is marked "not recommended for new designs" by Bourns and is the 6 V type, 0.5 V above the highest USB voltage. Fine for the first boards (in stock); pick the 8 V successor or another make when ordering more.
+- **Qwiic regulator output capacitor.** 1 µF is the regulator's stated minimum and a ceramic capacitor loses part of its value under voltage. It is enough, but with little margin on a connector that gets cables plugged in; 2.2 µF or 4.7 µF in the same size would be more comfortable.
+- **Capacitance on the USB supply** is 12 µF nominal (10 + 1 + 1); the USB specification asks for at most 10 µF. Under voltage the real value is below that. A 4.7 µF buck input capacitor would settle it.
+- **SGP41 filter capacitor** could move to the left of the sensor, next to its supply pin.
+- **USB data lines** have no footprints for series resistors, which Espressif suggests reserving; their own development board leaves them out too.
 - **Thermal tracks could be thinner.** The tracks across the slot and into the SHT45 tongue are 0.2 mm; 0.15 mm is allowed and would remove a quarter of the copper that carries heat. See the review in [`layout.md`](layout.md).
 - Still deferred from before: ambient light sensor, microphone, battery operation, 5 GHz Wi-Fi.
 

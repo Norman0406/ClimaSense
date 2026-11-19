@@ -55,6 +55,8 @@ docs/       Design notes, research, decisions
 - When passing a net name such as `/I2C_SDA` to a script from Git Bash, set `MSYS_NO_PATHCONV=1`, or the leading slash is rewritten into a Windows path.
 - `"C:\Program Files\KiCad\10.0\bin\python.exe" hardware/tools/audit_pcb.py` — measures what DRC does not: track length against the shortest possible connection, widths, supply-path resistance, parallel runs, and tidiness (it fails if a net crosses itself or has a loop; it lists off-centre pad entries and right-angle corners). Run it after every re-route, and look at a KiCad plot of the result as well: several router defects were only found by looking.
 - Board concept, zones, design rules, routing approach and the open review findings: `docs/hardware/layout.md`.
+- `python hardware/tools/gen_fab.py` — writes the JLCPCB order files (Gerber archive, BOM, placement file) into `hardware/fab/` after running the board check. The placement file carries rotation and centre corrections for the parts JLCPCB draws differently from KiCad (`CORRECTIONS` in the script); they are measured, but only JLCPCB's placement preview confirms them. Ordering steps and the preview checklist: `docs/hardware/ordering.md`.
+- The ESP32-C6 pulls IO18–IO23 high while it is in reset; IO10 and IO11 float. Check `docs/hardware/schematic.md` before moving a signal that must be low at power-up.
 
 ## Firmware ground rules
 

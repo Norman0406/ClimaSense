@@ -13,7 +13,7 @@ File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), cr
 | Parts | 49, all on the top side |
 | Mounting | four M3 holes (3.2 mm), one in each corner |
 | Use | on a wall, landscape, USB cable hanging down, components facing the room |
-| Copper | 442 track segments, 75 vias (34 of them ground) |
+| Copper | 461 track segments, 81 vias (36 of them ground) |
 
 ## Arrangement
 
@@ -94,12 +94,22 @@ Every track was measured with [`audit_pcb.py`](../../hardware/tools/audit_pcb.py
 3. **The ESP32's supply track was long and narrow.** It was 0.4 mm wide with the last 2 mm into the module's pin only 0.2 mm: 52 mΩ. Now it is routed before any signal and is 0.6 mm wide all the way, pin included: 46 mm, 37 mΩ. It runs through the centres of the two pull-up resistors' supply pads on the way. A Wi-Fi transmit burst of about 350 mA drops 12 mV instead of 18 mV.
 4. **Power pins of small parts were reached with 0.2 mm stubs.** Supply pins now get stubs of power width wherever the pad is wide enough. The USB supply is 0.4 mm throughout (8 mΩ from the nearer of the connector's two supply pads to the fuse, 25 mΩ from the farther one). The only 0.2 mm left in a 5 V path is the 1.3 mm link to the buck converter's enable pin, which carries no current.
 
+### Changes after the pinout review (2026-11-19)
+
+Three independent reviews of the schematic against the datasheets, and a comparison of every footprint with the one JLCPCB publishes for the same part, found no wrong pin and no wrong footprint. They led to these changes:
+
+1. **The two enable signals swapped module pins** (reason in [`schematic.md`](schematic.md)). Each now starts on the far side of the module from the regulator it controls. `SENS_EN` runs along the top with the two Qwiic lines, drops down between the buck converter and the sensor regulator, passes its pull-up R5 (moved there from below the module) and ducks under the regulator's input for 3 mm. `QWIIC_EN` runs on the bottom layer from under the module to the same gap and comes up next to its pull-down. Both are static signals, so their length does not matter.
+2. **No copper under the BMP580** any more: a supply track used to cross under the package. The footprint now carries a keep-out.
+3. The green and blue LED resistors went from 220 Ω to 100 Ω (value only).
+
+Looked at and left alone: the SCD41's supply link runs under the package 0.2 mm from its ground pad, which is the board's normal clearance and covered by solder mask; the SGP41's 1 µF filter capacitor is 11 mm of track from its pin, on the far side of the part; the USB connector sits exactly where its drawing puts the board edge (5.79 mm from the locating pegs).
+
 ### Not as short as possible, but harmless
 
 | Net | Routed | Shortest possible | Factor | Comment |
 | --- | --- | --- | --- | --- |
-| I2C data | 94 mm | 75 mm | 1.24 | The bus has to visit six pads across the whole board, so even the ideal route is 75 mm. Bus capacitance stays far below the limit. 6 vias. |
-| I2C clock | 97 mm | 77 mm | 1.26 | 9 vias. Two of them take it under the SGP41: that sensor's two I2C pins are on opposite corners, with its supply pins between them, so one line has to change layer. |
+| I2C data | 93 mm | 75 mm | 1.24 | The bus has to visit six pads across the whole board, so even the ideal route is 75 mm. Bus capacitance stays far below the limit. 6 vias. |
+| I2C clock | 105 mm | 77 mm | 1.35 | 11 vias. Two take it under the SGP41: that sensor's two I2C pins are on opposite corners, with its supply pins between them, so one line has to change layer. Since the enable pins were swapped (see below) it goes round the USB connector on the top layer instead of under the module beside the data line: 8 mm longer, two more vias. |
 | USB D− | 32 mm | 17 mm | 1.88 | 13 mm longer than D+ (19 mm). The two are not routed as a pair. At full-speed USB (12 Mbit/s), the only speed this chip has, that is far inside the tolerance. |
 | USB supply | 24 mm | 17 mm | 1.41 | The connector has two supply pads: 8 mΩ to the fuse from the near one, 25 mΩ from the far one. |
 | Sensor supply | 92 mm | 73 mm | 1.26 | |
@@ -124,7 +134,7 @@ Signal tracks elsewhere are 0.2 mm. Making them thinner would gain nothing.
 - **Antenna:** no copper on either layer within the keep-out, no track left of x = 6.9 mm.
 - **Buck feedback track:** drawn by hand, 4.6 mm long, 2.2 mm of it beside the 5 V track, on the far side of the converter from the switch node.
 - **Sensor side:** its ground joins the main ground at one point only (the bridge), so no ground loop. The SCD41's current pulses return through that one 0.2 mm track and shift the island's ground by a few millivolts; the sensors are digital and do not care.
-- **I2C:** data and clock run side by side for 11 mm, data beside the sensor supply for 15 mm. At I2C speeds the coupling stays far below a tenth of a volt.
+- **I2C:** data and clock run side by side for 12 mm. The clock runs beside the pressure sensor's interrupt line for 32 mm, round the USB connector. At I2C speeds, and with an interrupt line that changes at most once per measurement, the coupling stays far below a tenth of a volt.
 - **Sensor supply:** has its own regulator, so Wi-Fi bursts on the 3.3 V rail do not reach the sensors directly.
 
 ## Things a reviewer should look at

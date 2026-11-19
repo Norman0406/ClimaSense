@@ -37,6 +37,14 @@ Runs KiCad's design rule check, compares the board with the schematic, fails on 
 
 Measures what the rule check does not: track lengths against the shortest possible connection, track widths, supply-path resistance and parallel runs. Writes `build/audit.txt`. Fails if a net crosses itself or has a loop in it.
 
+## Order files
+
+```bash
+python hardware/tools/gen_fab.py
+```
+
+Runs the board check, then writes the Gerber archive, the parts list and the placement file for JLCPCB into `fab/`. How to order with them, and what to check in JLCPCB's placement preview: [`../docs/hardware/ordering.md`](../docs/hardware/ordering.md).
+
 ## Regenerating
 
 ```bash

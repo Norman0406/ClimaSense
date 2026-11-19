@@ -5629,7 +5629,7 @@
 		)
 		(uuid "14e1fed1-6ecf-58b1-a8c1-774cacc8f5f0")
 	)
-	(text "QWIIC_EN is pulled low: the Qwiic supply is off by default.\nThe regulator limits the current, so a short on the connector cannot pull down the board."
+	(text "QWIIC_EN is pulled low: the Qwiic supply is off by default. It is on IO11,\nwhich has no pull-up while the ESP32 is in reset.\nThe regulator limits the current, so a short on the connector cannot pull down the board."
 		(exclude_from_sim no)
 		(at 213.36 243.84 0)
 		(effects
@@ -6017,7 +6017,7 @@
 	)
 	(wire
 		(pts
-			(xy 116.84 165.1) (xy 119.38 165.1)
+			(xy 116.84 167.64) (xy 119.38 167.64)
 		)
 		(stroke
 			(width 0)
@@ -6547,7 +6547,7 @@
 	)
 	(wire
 		(pts
-			(xy 116.84 149.86) (xy 119.38 149.86)
+			(xy 116.84 165.1) (xy 119.38 165.1)
 		)
 		(stroke
 			(width 0)
@@ -6897,7 +6897,7 @@
 	)
 	(wire
 		(pts
-			(xy 116.84 167.64) (xy 119.38 167.64)
+			(xy 116.84 170.18) (xy 119.38 170.18)
 		)
 		(stroke
 			(width 0)
@@ -6977,7 +6977,7 @@
 	)
 	(wire
 		(pts
-			(xy 116.84 170.18) (xy 119.38 170.18)
+			(xy 116.84 152.4) (xy 119.38 152.4)
 		)
 		(stroke
 			(width 0)
@@ -7137,7 +7137,7 @@
 	)
 	(wire
 		(pts
-			(xy 116.84 152.4) (xy 119.38 152.4)
+			(xy 116.84 149.86) (xy 119.38 149.86)
 		)
 		(stroke
 			(width 0)
@@ -7475,8 +7475,8 @@
 		)
 		(uuid "69e0a298-8919-58b0-8835-367791f6b55a")
 	)
-	(label "LED_B"
-		(at 119.38 170.18 0)
+	(label "QWIIC_EN"
+		(at 119.38 152.4 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7495,8 +7495,8 @@
 		)
 		(uuid "760d338f-f2e7-56ac-9f55-6e89fd9e1298")
 	)
-	(label "SENS_EN"
-		(at 119.38 152.4 0)
+	(label "BMP_INT"
+		(at 119.38 149.86 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7505,8 +7505,8 @@
 		)
 		(uuid "7cea7e9f-e195-558f-8c19-c416131f26b8")
 	)
-	(label "BMP_INT"
-		(at 119.38 149.86 0)
+	(label "LED_G"
+		(at 119.38 165.1 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7535,8 +7535,8 @@
 		)
 		(uuid "8082bced-e31e-5e9b-b916-bb7d4857afa6")
 	)
-	(label "LED_R"
-		(at 119.38 167.64 0)
+	(label "LED_B"
+		(at 119.38 170.18 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7565,8 +7565,8 @@
 		)
 		(uuid "97ae44fa-e594-5653-9b2a-b9d8d9701d9a")
 	)
-	(label "LED_G"
-		(at 119.38 165.1 0)
+	(label "LED_R"
+		(at 119.38 167.64 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7665,7 +7665,7 @@
 		)
 		(uuid "dc915a97-1e74-5502-a30c-b780f33c1d27")
 	)
-	(label "QWIIC_EN"
+	(label "SENS_EN"
 		(at 119.38 157.48 0)
 		(effects
 			(font
@@ -13920,7 +13920,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "220R"
+		(property "Value" "100R"
 			(at 168.91 190.5 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13964,7 +13964,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C25091"
+		(property "LCSC" "C25076"
 			(at 166.37 193.04 0)
 			(hide yes)
 			(show_name no)
@@ -13975,7 +13975,7 @@
 				)
 			)
 		)
-		(property "MPN" "0402WGF2200TCE"
+		(property "MPN" "0402WGF1000TCE"
 			(at 166.37 193.04 0)
 			(hide yes)
 			(show_name no)
@@ -17662,7 +17662,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "220R"
+		(property "Value" "100R"
 			(at 168.91 185.42 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17706,7 +17706,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C25091"
+		(property "LCSC" "C25076"
 			(at 166.37 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -17717,7 +17717,7 @@
 				)
 			)
 		)
-		(property "MPN" "0402WGF2200TCE"
+		(property "MPN" "0402WGF1000TCE"
 			(at 166.37 187.96 0)
 			(hide yes)
 			(show_name no)

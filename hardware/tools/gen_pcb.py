@@ -103,7 +103,6 @@ PLACEMENT = {
     "R10": (pin_x(19), 5.4, 90),             # LED green
     "R11": (pin_x(21), 5.4, 90),             # LED blue
     "D1": (pin_x(20), 2.1, 90),              # status LED
-    "R5": (pin_x(12), 28.7, 90),             # SENS_EN pull-up, below its pin; supply pad on the trunk
     "R7": (pin_x(15), 5.4, 270),             # BOOT pull-up, its signal pad towards the pin
     "SW2": (29.6, 4.5, 90),                  # BOOT / USER
     "SW1": (29.6, 13.5, 90),                 # RESET
@@ -127,6 +126,9 @@ PLACEMENT = {
     "C2": (35.05, 9.0, 180),     # buck output, its supply pad centred over the inductor
     "R3": (38.0, 14.9, 270),     # feedback top
     "R4": (38.0, 17.3, 270),     # feedback bottom
+    # SENS_EN pull-up: its supply pad on the 3.3 V line that runs down to the feedback
+    # divider, its signal pad on the SENS_EN track that comes down beside it.
+    "R5": (38.48, 13.2, 0),
     # The regulator's capacitors stand in line with its pins: input below the input and
     # ground pins, output above the output pin.
     "C3": (40.68, 18.6, 0),      # LDO input
@@ -266,9 +268,18 @@ PREROUTED = (
                (43.0, 7.3))),
         (0.2, ((43.0, 7.3), (43.0, 5.3))),
     )),
-    dict(net="QWIIC_EN", pads=("U4.16", "R15.1", "U9.3"), tracks=(
-        (0.2, ((23.0, 8.2), (23.0, 4.7), (23.5, 4.2), (37.2, 4.2), (39.2, 6.2), (39.2, 8.6), (39.6, 9.0), (41.3, 9.0),
-               (42.3, 10.0), (42.3, 11.5), (45.9, 11.5), (45.9, 12.6))),
+    # SENS_EN shares that run (it comes from the fourth corner pin) and then drops down
+    # between the buck converter and the sensor regulator to its pull-up.
+    dict(net="SENS_EN", pads=("U4.16", "R5.2"), tracks=(
+        (0.2, ((23.0, 8.2), (23.0, 4.7), (23.5, 4.2), (37.0, 4.2), (39.0, 6.2), (39.0, 13.2))),
+    )),
+    dict(net="+3V3", pads=("R5.1", "R3.1"), tracks=(
+        (0.2, ((38.0, 13.2), (38.0, 14.4))),
+    )),
+    # Qwiic enable: pull-down and regulator pin joined above the regulator; the track from
+    # the module (pin 12, on the far side) is left to the router.
+    dict(net="QWIIC_EN", pads=("R15.1", "U9.3"), tracks=(
+        (0.2, ((42.3, 11.5), (45.9, 11.5), (45.9, 12.6))),
     )),
     # ESP32 supply pin to its two capacitors, as wide as the pin
     dict(net="+3V3", pads=("U4.2", "C5.1", "C6.1"), tracks=(
@@ -278,9 +289,9 @@ PREROUTED = (
 )
 # The supply from the buck converter's output capacitor to the ESP32's capacitor is
 # routed before any signal, 0.6 mm wide where that fits.
-# It passes through the centres of three pull-up resistors' supply pads on its way.
+# It passes through the centres of two pull-up resistors' supply pads on its way.
 # It starts at the inductor's output pad, where the output capacitor is attached too.
-TRUNKS = (("L1.2", "R5.1"), ("R5.1", "R8.1"), ("R8.1", "R6.1"), ("R6.1", "C5.1"))
+TRUNKS = (("L1.2", "R8.1"), ("R8.1", "R6.1"), ("R6.1", "C5.1"))
 # No tracks on the bottom layer under the buck converter: its ground stays unbroken.
 BUCK_AREA = (33.0, 8.2, 38.6, 18.2)
 

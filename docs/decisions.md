@@ -39,10 +39,11 @@ Made while drawing the first schematic and accepted afterwards; rationale in [`h
 | Power | Buck converter (TPS62A01) for the MCU rail `+3V3`; separate LDO (TLV75533) from 5 V for the sensor rail `+3V3_SENS`, as the SCD41 datasheet recommends |
 | Sensor power control | MCU can switch the sensor rail off via `SENS_EN` (default on) to recover a hung sensor |
 | Qwiic | Own I2C bus on IO19/IO20; own regulator (second TLV75533) switched by `QWIIC_EN`, off by default |
+| Enable pins | `QWIIC_EN` on IO11, `SENS_EN` on IO18 (swapped 2026-11-19): IO18 has a pull-up while the chip is in reset, which would have switched the Qwiic supply on |
 | Status LED | Discrete RGB LED on three GPIOs with PWM, not an addressable LED (those are out of spec at 3.3 V) |
 | I2C pins | IO6 (SDA) / IO7 (SCL), the ESP32-C6 low-power I2C pins |
 | Protection | ESD diodes on USB data; USB shield tied to GND; resettable fuse (0.75 A) on the USB supply |
-| BMP580 interrupt | Wired to IO19 |
+| BMP580 interrupt | Wired to IO10 |
 
 ## Cost estimate for 5 boards (2026-11-19)
 

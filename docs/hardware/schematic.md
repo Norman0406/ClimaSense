@@ -32,7 +32,7 @@ These went beyond what had been decided beforehand; all were accepted on 2026-11
 | **Sensor rail can be switched off** by the MCU (`SENS_EN`, default on) | Lets firmware power-cycle a hung sensor or I2C bus without anyone touching the device. Costs one resistor and one GPIO. |
 | **Discrete RGB LED** on three GPIOs instead of an addressable (WS2812-type) LED | WS2812B-2020 is specified for 3.7–5.3 V supply and its data input is not guaranteed to accept 3.3 V logic when run from 5 V. A plain LED with three resistors has no such issue and is dimmed with PWM. |
 | **I2C on IO6/IO7** | These are the ESP32-C6 low-power I2C pins, so the low-power core could read sensors in a future battery variant. |
-| **BMP580 interrupt wired** to IO19 | Free to add; allows data-ready interrupts. |
+| **BMP580 interrupt wired** to IO10 | Free to add; allows data-ready interrupts. |
 | **Qwiic has its own I2C bus and its own switched supply** — decided 2026-11-19, replacing "Qwiic on the sensor rail" | Nothing plugged in can disturb the on-board sensors: not their bus (a stuck device, a long cable, an address clash) and not their supply (the SCD41 wants a supply that other loads do not move). The supply is a second TLV75533 from 5 V, off by default (`QWIIC_EN` pulled low), and current-limited, so a short on the connector cannot pull down the board. Costs one regulator, two capacitors, three resistors, all of types already on the board, and three GPIOs. |
 | **Resettable fuse on the USB supply** (0.75 A hold, 1.5 A trip) — decided 2026-11-19 | The device runs unattended on arbitrary chargers that can deliver 2–3 A into a board fault. `VBUS` is the raw connector supply, `+5V` the rail behind the fuse; both regulators run from `+5V`. 0.75 A was chosen over 0.5 A so a warm enclosure or a long Wi-Fi transfer cannot trip it. |
 | **USB shield tied directly to GND** | Best path for static discharge; no ground loop exists on a wall charger. |
@@ -50,16 +50,18 @@ These went beyond what had been decided beforehand; all were accepted on 2026-11
 | 6 | IO6 | `I2C_SDA` | the four sensors, 4.7 kΩ pull-up to +3V3_SENS |
 | 7 | IO7 | `I2C_SCL` | the four sensors, 4.7 kΩ pull-up to +3V3_SENS |
 | 11 | IO10 | `BMP_INT` | BMP580 interrupt |
-| 12 | IO11 | `SENS_EN` | sensor LDO enable, 100 kΩ pull-up |
-| 16 | IO18 | `QWIIC_EN` | Qwiic LDO enable, 100 kΩ pull-down (off by default) |
+| 12 | IO11 | `QWIIC_EN` | Qwiic LDO enable, 100 kΩ pull-down (off by default) |
+| 16 | IO18 | `SENS_EN` | sensor LDO enable, 100 kΩ pull-up |
 | 17 | IO19 | `QWIIC_SDA` | Qwiic connector, 4.7 kΩ pull-up to +3V3_QWIIC |
 | 18 | IO20 | `QWIIC_SCL` | Qwiic connector, 4.7 kΩ pull-up to +3V3_QWIIC |
-| 19 | IO21 | `LED_G` | green, active low, 220 Ω |
+| 19 | IO21 | `LED_G` | green, active low, 100 Ω |
 | 20 | IO22 | `LED_R` | red, active low, 1 kΩ |
-| 21 | IO23 | `LED_B` | blue, active low, 220 Ω |
+| 21 | IO23 | `LED_B` | blue, active low, 100 Ω |
 | 4, 5, 8, 9, 23, 24, 25, 26, 27 | IO4, IO5, IO0, IO1, IO15, IO17 (RXD0), IO16 (TXD0), IO3, IO2 | — | unused, marked no-connect |
 
-The Qwiic signals are on the three module pins nearest the connector. `SENS_EN` and `BMP_INT` were on IO18 and IO19 before 2026-11-19 and moved to make room.
+The Qwiic data and clock lines are on the two module pins nearest the connector.
+
+**Which pin gets which enable signal depends on what the pin does while the ESP32 is in reset.** IO18 to IO23 have a weak pull-up (about 45 kΩ) during reset; IO10 and IO11 have none (ESP32-C6 datasheet, table 2-1). `QWIIC_EN` has to stay low in reset, held only by a 100 kΩ pull-down, so it is on IO11. On IO18, where it was until the pinout review of 2026-11-19, the internal pull-up would have won against the pull-down (2.3 V at the regulator's enable pin, which switches at 1.0 V) and the Qwiic supply would have come on at every reset. `SENS_EN` is pulled high anyway, so the pull-up on IO18 does not matter there.
 
 Two buses, one normal I2C controller: the ESP32-C6 has one ordinary I2C controller and one low-power controller that only works on IO6/IO7. With the sensors on IO6/IO7 the natural split is sensors on the low-power controller and Qwiic on the ordinary one. This has **not** been tried in a specific firmware framework yet; a software I2C bus for Qwiic is the fallback.
 
@@ -87,7 +89,7 @@ Reviewed on 2026-11-19 against the netlist and the datasheets: every pin that ne
 | `IO8` | R8, 10 kΩ to +3V3 | Strapping pin that floats by default and must be high for download mode to work. Without it, flashing over USB can fail. |
 | `I2C_SDA`, `I2C_SCL` | R12, R13, 4.7 kΩ to +3V3_SENS | Required by I2C. 4.7 kΩ gives a rise time of about 0.2 µs with the bus as built, fast enough for 400 kHz. |
 | `SENS_EN` | R5, 100 kΩ to +3V3 | Keeps the sensor regulator on while the ESP32 is in reset or has not configured the pin. |
-| `QWIIC_EN` | R15, 100 kΩ to ground | Keeps the Qwiic regulator off until the firmware turns it on. |
+| `QWIIC_EN` | R15, 100 kΩ to ground | Keeps the Qwiic regulator off until the firmware turns it on, including while the ESP32 is in reset (IO11 has no pull-up of its own then). |
 | `QWIIC_SDA`, `QWIIC_SCL` | R16, R17, 4.7 kΩ to +3V3_QWIIC | Required by I2C; to the Qwiic rail, so they are unpowered together with the connector. |
 | `CC1`, `CC2` | R1, R2, 5.1 kΩ to ground | Tell a USB-C charger or port that a device is attached; without them a C-to-C cable delivers no power. |
 | Buck feedback | R3 68 kΩ / R4 15 kΩ | Not a pull-up: the divider that sets the output to 3.32 V. |
@@ -100,7 +102,7 @@ Deliberately without a resistor:
 - **`BMP_INT`**: the BMP580 drives it actively once configured. Until then it floats, so the firmware should enable the ESP32's internal pull-down on IO10.
 - **Strapping pins IO4, IO5, IO15** (unused): they float, which is their documented default. They only matter for an SDIO host or an external JTAG adapter, neither of which is used.
 - **Buck converter enable**: tied to its input, always on. Its power-good output is left open.
-- **LED lines**: with the ESP32 in reset the pins float and the LED is off.
+- **LED lines**: with the ESP32 in reset the pins are pulled high by weak internal pull-ups. The LED is wired active low, so it stays off.
 
 One thing for the firmware: the pull-ups of each bus go to that bus's switchable rail. Before it switches a rail off (`SENS_EN` low, or `QWIIC_EN` low), the firmware must stop driving that bus's I2C pins, otherwise the pins feed the unpowered devices through their inputs.
 
@@ -127,7 +129,7 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 | R14 | 4.7 Ω | 0402 | C25121 | extended |
 | R3 | 68 kΩ | 0402 | C36871 | extended (preferred, no fee) |
 | R9 | 1 kΩ | 0402 | C11702 | basic |
-| R10, R11 | 220 Ω | 0402 | C25091 | basic |
+| R10, R11 | 100 Ω | 0402 | C25076 | basic |
 | R12, R13, R16, R17 | 4.7 kΩ | 0402 | C25900 | basic |
 | R1, R2 | 5.1 kΩ | 0402 | C25905 | basic |
 | R6, R7, R8 | 10 kΩ | 0402 | C25744 | basic |
@@ -147,7 +149,9 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 - Mounting holes and the board outline depend on the enclosure, which is undecided.
 - Thermal layout rules from [`../research/hardware-options.md`](../research/hardware-options.md) apply: sensors at a board edge behind milled slots, away from U2, U3, U4 and the SGP41.
 - Keep the SCD41's "do not connect" pads on isolated pads, as its datasheet requires.
-- LED resistor values are a first guess for brightness balance; expect to tune them (or the PWM duty) on the first board.
+- LED resistor values are a first guess for brightness balance; expect to tune them (or the PWM duty) on the first board. Green and blue need 2.7–3.8 V (Everlight datasheet) from a 3.3 V supply, so their resistors are small (100 Ω, changed from 220 Ω on 2026-11-19): about 4 mA with a typical LED, 6 mA at most, and still dim or dark with an LED at the upper end of the range.
+- The Qwiic connector must not be used with a device that has its own supply: with USB unplugged, 3.3 V on the connector would flow backwards through the Qwiic regulator into the 5 V rail, which the regulator's datasheet warns against. Ordinary Qwiic sensor boards are powered from the connector and are fine.
+- The Qwiic supply is good for about 200 mA continuously (the regulator dissipates the drop from 5 V in a small package); it limits at about 0.5 A and shuts down when too hot.
 - The 4.7 Ω resistor is the only passive with a loading fee. A basic-library value such as 10 Ω would likely work as well for the SGP41 supply filter, but the datasheet specifies 4.7 Ω, so it is kept for now.
 
 ## How the schematic is produced

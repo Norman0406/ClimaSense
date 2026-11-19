@@ -268,6 +268,12 @@ def bmp580() -> Footprint:
         fp.polyline([(sx * (o - n), sy * o), (sx * o, sy * o), (sx * o, sy * (o - n))], "F.SilkS", SILK_W)
     fp.pin1_triangle(-BODY / 2 - 0.25, -0.25)
     fp.courtyard(BODY / 2 + 0.25, BODY / 2 + 0.25)
+
+    # Bosch "BST-BMP5xy-HS000-00" (handling, soldering and mounting), section 3.2: "not
+    # recommended to have vias or traces under the BMP580". The area inside the ring of
+    # pads is closed on both layers; tracks reach the pads from outside.
+    k = R - LONG / 2 - 0.05
+    fp.keepout("No tracks under the pressure sensor", [(-k, -k), (k, -k), (k, k), (-k, k)])
     return fp
 
 

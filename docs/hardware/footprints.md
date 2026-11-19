@@ -29,7 +29,8 @@ Status: **drawn from the manufacturers' land-pattern drawings and checked agains
 
 **BMP580**
 
-- Bosch publishes only a bottom view and recommends using the package pads themselves as the landing pattern. The footprint follows that exactly, mirrored into the top view. Pin numbers run counter-clockwise from the top-left corner: 1–2 down the left, 3–5 along the bottom, 6–7 up the right, 8–10 along the top.
+- Bosch dimensions the pads in a bottom view (figure 25) and recommends using the package pads themselves as the landing pattern. The footprint follows that exactly, mirrored into the top view; the datasheet's own top views (figures 18 and 24) agree with it. Pin numbers run counter-clockwise from the top-left corner: 1–2 down the left, 3–5 along the bottom, 6–7 up the right, 8–10 along the top.
+- The area inside the ring of pads is a keep-out on both copper layers: Bosch's mounting instruction (BST-BMP5xy-HS000-00, section 3.2) advises against tracks or vias under the sensor. The four supply-side pads are therefore joined outside the package.
 - These are the smallest pads on the board (0.25 × 0.275 mm). They are within JLCPCB's capability but leave the least margin.
 
 **RGB LED**
