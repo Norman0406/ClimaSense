@@ -66,7 +66,8 @@ docs/       Design notes, research, decisions
 - Structure (tasks, sensor schedule, components, testing): `docs/firmware/architecture.md`.
 - Pin map in code: `firmware/components/board/include/board/pins.h`. Keep it in step with `docs/hardware/schematic.md`.
 - Build: in PowerShell, `. C:\Espressif\tools\Microsoft.v6.1.1.PowerShell_profile.ps1`, then `idf.py build` in `firmware/`. Run it after every firmware change.
-- Keep hardware-independent logic free of ESP-IDF includes and cover it in `firmware/test/host/` (built with g++ in WSL, command in `firmware/README.md`). Until g++ is installed there, at least compile-check the tests with the ESP32 compiler, and say they have not run.
+- Keep hardware-independent logic free of ESP-IDF includes and cover it with GoogleTest unit tests in `firmware/test/host/` (built with g++ in WSL, command in `firmware/README.md`). Until g++ is installed there, at least compile-check the tests with the ESP32 compiler (with `-D_GNU_SOURCE` and GoogleTest's headers), and say they have not run.
+- GitHub Actions (`.github/workflows/firmware.yml`) runs the unit tests and `idf.py build` in `espressif/idf:v6.1.1`. Keep that image tag on the same ESP-IDF version as the local install.
 - No dev board or sensor breakouts are at hand (2026-11-19); the drivers first meet real sensors on the JLCPCB board. Say clearly what has only been built and not run.
 
 ## Decisions

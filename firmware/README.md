@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 2 of the plan below. Builds with ESP-IDF 6.1.1; **not yet run on hardware**, and the PC tests are written and compile but have not been run (no PC compiler installed yet, see below).
+Step 2 of the plan below. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests compile but have not been run yet (no PC compiler installed here; GitHub Actions runs them once the workflow is pushed, see below).
 
 What the firmware does now:
 
@@ -25,7 +25,7 @@ sdkconfig.defaults     settings that differ from ESP-IDF's defaults (versioned; 
 main/main.cpp          entry point
 components/board/      pin map (include/board/pins.h, mirrored from docs/hardware/schematic.md),
                        supply rails, status LED, button
-test/host/             tests of the hardware-independent logic, built for the PC
+test/host/             unit tests of the hardware-independent logic (GoogleTest), built for the PC
 ```
 
 ## Build and flash
@@ -50,7 +50,9 @@ If the board does not show up or flashing fails: hold BOOT, press and release RE
 
 ## Tests on the PC
 
-`test/host/` checks the logic that does not touch hardware (button press detection, LED colour balance; later sensor CRCs, conversions and parsing). It is built with the PC's own compiler, not ESP-IDF. On this machine that means g++ in WSL; install it once:
+`test/host/` holds unit tests for the logic that does not touch hardware (button press detection, LED colour balance; later sensor CRCs, conversions and command/response parsing). They use **GoogleTest** and **GoogleMock** (1.18.0, downloaded by CMake on the first configure and pinned by hash) and are built with the PC's own compiler, not ESP-IDF. The mocks are meant for the sensor drivers: a mock of the I2C interface checks the bytes a driver sends and replays responses from the datasheets.
+
+On this machine that means g++ in WSL; install it once:
 
 ```powershell
 wsl -d Ubuntu -- sudo apt install -y g++ cmake ninja-build
@@ -59,8 +61,17 @@ wsl -d Ubuntu -- sudo apt install -y g++ cmake ninja-build
 Then, from the repository root:
 
 ```powershell
-wsl -d Ubuntu -- bash -c "cmake -S firmware/test/host -B firmware/build/host -G Ninja && cmake --build firmware/build/host && firmware/build/host/host_tests"
+wsl -d Ubuntu -- bash -c "cmake -S firmware/test/host -B firmware/build/host -G Ninja && cmake --build firmware/build/host && ctest --test-dir firmware/build/host --output-on-failure"
 ```
+
+## Continuous integration
+
+`.github/workflows/firmware.yml` runs on every push and pull request that touches `firmware/`:
+
+- **Unit tests (PC):** configures, builds and runs `test/host` on Ubuntu.
+- **Build (ESP-IDF 6.1.1):** `idf.py build` in Espressif's `espressif/idf:v6.1.1` Docker image, the same ESP-IDF version as on this PC.
+
+When ESP-IDF is updated here, update the image tag there too.
 
 ## Plan
 

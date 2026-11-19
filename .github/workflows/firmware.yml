@@ -1,0 +1,52 @@
+# Firmware checks: unit tests on the PC, and the ESP-IDF build.
+name: Firmware
+
+on:
+  push:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware.yml"
+  pull_request:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    name: Unit tests (PC)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Configure
+        run: cmake -S firmware/test/host -B build/host -G Ninja
+
+      - name: Build
+        run: cmake --build build/host
+
+      - name: Run
+        run: ctest --test-dir build/host --output-on-failure
+
+  build:
+    name: Build (ESP-IDF 6.1.1)
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v6.1.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Build
+        working-directory: firmware
+        shell: bash
+        run: |
+          # The container runs as root on a checkout owned by the runner; without this,
+          # `git describe` (the app version) fails.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          . "$IDF_PATH/export.sh"
+          idf.py build
