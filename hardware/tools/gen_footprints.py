@@ -204,7 +204,7 @@ def esp32_c6_wroom_1() -> Footprint:
 def sgp41() -> Footprint:
     BODY = 2.44
     PAD_W, PAD_H, PITCH = 0.55, 0.4, 0.8
-    X = (2.3 - PAD_W) / 2             # pads span 2.3 mm outer edge to outer edge
+    X = 2.3 / 2                       # pad CENTRES are 2.3 mm apart (figure 18); pads reach 0.2 mm past the package
     EP_W, EP_H, EP_CHAMFER = 1.25, 1.7, 0.3
     PASTE_W, PASTE_H = 1.05, 1.5
 
@@ -219,6 +219,7 @@ def sgp41() -> Footprint:
         fp.pad(1 + i, -X, (i - 1) * PITCH, PAD_W, PAD_H)
         fp.pad(6 - i, X, (i - 1) * PITCH, PAD_W, PAD_H)
     fp.pad(7, 0, 0, EP_W, EP_H, paste=False, chamfer_top_left=EP_CHAMFER)
+    assert (X - PAD_W / 2) - EP_W / 2 >= 0.2   # side pads must clear the centre pad
     fp.paste(0, 0, PASTE_W, PASTE_H)
 
     fp.body(BODY, BODY, chamfer=0.6)

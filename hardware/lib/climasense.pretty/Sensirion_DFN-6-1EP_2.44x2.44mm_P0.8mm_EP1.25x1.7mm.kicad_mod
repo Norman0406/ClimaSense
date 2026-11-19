@@ -79,7 +79,7 @@
 	)
 	(fp_poly
 		(pts
-			(xy -1.45 -0.8) (xy -1.85 -1.1) (xy -1.85 -0.5)
+			(xy -1.725 -0.8) (xy -2.125 -1.1) (xy -2.125 -0.5)
 		)
 		(stroke
 			(width 0.12)
@@ -90,8 +90,8 @@
 		(uuid "4721bcf4-6bbb-5047-9dc9-65574ed949ad")
 	)
 	(fp_line
-		(start -1.4 -1.47)
-		(end 1.4 -1.47)
+		(start -1.675 -1.47)
+		(end 1.675 -1.47)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -100,8 +100,8 @@
 		(uuid "882a51dc-20ed-5ff0-835f-67728505fdf9")
 	)
 	(fp_line
-		(start -1.4 1.47)
-		(end -1.4 -1.47)
+		(start -1.675 1.47)
+		(end -1.675 -1.47)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -110,8 +110,8 @@
 		(uuid "b579620b-c18d-5311-8a3f-f9fe96d01da3")
 	)
 	(fp_line
-		(start 1.4 -1.47)
-		(end 1.4 1.47)
+		(start 1.675 -1.47)
+		(end 1.675 1.47)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -120,8 +120,8 @@
 		(uuid "8ef1fde5-d981-5ed6-8bd0-c5d8c4cef955")
 	)
 	(fp_line
-		(start 1.4 1.47)
-		(end -1.4 1.47)
+		(start 1.675 1.47)
+		(end -1.675 1.47)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -198,37 +198,37 @@
 		(uuid "2216e79d-e874-5670-bf96-0a0be77cbe52")
 	)
 	(pad "1" smd rect
-		(at -0.875 -0.8)
+		(at -1.15 -0.8)
 		(size 0.55 0.4)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "d63a66d7-0229-51a6-9623-e05d043b8ac3")
 	)
 	(pad "2" smd rect
-		(at -0.875 0)
+		(at -1.15 0)
 		(size 0.55 0.4)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "9bb352e3-d723-50db-bca4-865f2941162b")
 	)
 	(pad "3" smd rect
-		(at -0.875 0.8)
+		(at -1.15 0.8)
 		(size 0.55 0.4)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "3c73a936-becc-56d9-b571-b6e0d17da170")
 	)
 	(pad "4" smd rect
-		(at 0.875 0.8)
+		(at 1.15 0.8)
 		(size 0.55 0.4)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "4c826e51-62ea-5c0d-a95b-6b5334416fc5")
 	)
 	(pad "5" smd rect
-		(at 0.875 0)
+		(at 1.15 0)
 		(size 0.55 0.4)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "1a7349aa-f47c-5967-9111-5534cf80e13c")
 	)
 	(pad "6" smd rect
-		(at 0.875 -0.8)
+		(at 1.15 -0.8)
 		(size 0.55 0.4)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "08219993-5d45-5eea-8270-017c4ecc79d5")

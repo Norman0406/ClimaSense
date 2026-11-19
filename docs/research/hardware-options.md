@@ -1,6 +1,6 @@
 # Hardware options research
 
-Date: 2026-11-19 · Status: **research; the resulting choices are recorded in [`../decisions.md`](../decisions.md)** (notably: ESP32-C6 instead of the C5 proposed here, no light sensor or microphone in revision A)
+Date: 2026-11-19 · Status: **research; the resulting choices are recorded in [`../decisions.md`](../decisions.md)** (notably: ESP32-C6 instead of the C5 proposed here, no light sensor or microphone in revision 1.0)
 
 Scope: component selection for the ClimaSense PCB (USB-powered first revision, fully assembled by a PCBA service). Stock and prices are a snapshot of the JLCPCB assembly parts library on 2026-11-19 (unit price at quantity 1, USD) and will move — re-check before ordering.
 
@@ -159,7 +159,7 @@ What that means for a 2,000 mAh LiPo:
 - Adding the SGP41: **~3 weeks**. Marginal.
 - Adding continuous sound monitoring: **a few days**. Not sensible.
 
-**Conclusion:** battery operation is only sensible for a reduced sensor set (T/RH + CO2, no VOC, no mic), and would favour the STCC4 and Thread/Zigbee/BLE over Wi-Fi. That is effectively a different product. Recommendation: build revision A as USB-only, and treat a battery version as a separate later variant rather than compromising this one. Parts for it are readily available when the time comes (BQ24074 power-path charger, MAX17048 fuel gauge — both stocked).
+**Conclusion:** battery operation is only sensible for a reduced sensor set (T/RH + CO2, no VOC, no mic), and would favour the STCC4 and Thread/Zigbee/BLE over Wi-Fi. That is effectively a different product. Recommendation: build revision 1.0 as USB-only, and treat a battery version as a separate later variant rather than compromising this one. Parts for it are readily available when the time comes (BQ24074 power-path charger, MAX17048 fuel gauge — both stocked).
 
 ## 7. What else would be interesting to have?
 

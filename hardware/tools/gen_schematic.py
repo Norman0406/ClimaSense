@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the ClimaSense revision A schematic.
+"""Generate the ClimaSense revision 1.0 schematic.
 
 Writes, relative to hardware/:
     lib/climasense.kicad_sym   project symbols (ESP32-C6-WROOM-1, SGP41, BMP580, ...)
@@ -130,26 +130,30 @@ def project_symbols(lib: Library) -> list[list]:
         if p[1] == "Description":
             p[2] = "RGB LED, six pins, separate anodes and cathodes, Everlight 19-337 pinout"
 
-    # Power symbol for the sensor rail
-    rail = copy.deepcopy(lib.raw("power", "+3V3"))
-    rail[1] = "+3V3_SENS"
-    for unit in find(rail, "symbol"):
-        unit[1] = unit[1].replace("+3V3", "+3V3_SENS", 1)
-    for p in find(rail, "property"):
-        if p[1] == "Value":
-            p[2] = "+3V3_SENS"
-        if p[1] == "Description":
-            p[2] = 'Power symbol creates a global label with name \\"+3V3_SENS\\" (sensor rail)'
+    # Power symbols for the two switched 3.3 V rails
+    rails = []
+    for name, what in (("+3V3_SENS", "sensor rail"), ("+3V3_QWIIC", "Qwiic rail")):
+        rail = copy.deepcopy(lib.raw("power", "+3V3"))
+        rail[1] = name
+        for unit in find(rail, "symbol"):
+            unit[1] = unit[1].replace("+3V3", name, 1)
+        for p in find(rail, "property"):
+            if p[1] == "Value":
+                p[2] = name
+            if p[1] == "Description":
+                p[2] = f'Power symbol creates a global label with name \\"{name}\\" ({what})'
+        rails.append(rail)
 
-    return [esp, sgp41, bmp580, led, rail]
+    return [esp, sgp41, bmp580, led, *rails]
 
 
 # --------------------------------------------------------------------------
 # Schematic
 # --------------------------------------------------------------------------
 def build(lib: Library) -> Schematic:
-    sch = Schematic(lib, PROJECT, "ClimaSense", "A", "2026-11-19", paper="A3")
+    sch = Schematic(lib, PROJECT, "ClimaSense", "1.0", "2026-11-19", paper="A3")
     sch.power_libs["+3V3_SENS"] = "climasense:+3V3_SENS"
+    sch.power_libs["+3V3_QWIIC"] = "climasense:+3V3_QWIIC"
     sch.power_libs["+5V"] = "power:+5V"
     counters = {"R": 0, "C": 0}
 
@@ -320,12 +324,14 @@ def build(lib: Library) -> Schematic:
                     fields={"LCSC": "C5366877", "MPN": "ESP32-C6-WROOM-1-N8"})
     mcu_nets = {
         "3": "EN", "15": "BOOT", "10": "IO8", "13": "USB_DN", "14": "USB_DP",
-        "25": "UART_TX", "24": "UART_RX", "6": "I2C_SDA", "7": "I2C_SCL",
-        "16": "SENS_EN", "17": "BMP_INT", "19": "LED_R", "20": "LED_G", "21": "LED_B",
+        "6": "I2C_SDA", "7": "I2C_SCL",
+        "12": "SENS_EN", "11": "BMP_INT", "19": "LED_G", "20": "LED_R", "21": "LED_B",
+        # the three pins nearest the Qwiic connector
+        "16": "QWIIC_EN", "17": "QWIIC_SDA", "18": "QWIIC_SCL",
     }
     for pin, net in mcu_nets.items():
         sch.label(u_mcu, pin, net)
-    for pin in ("23", "4", "5", "8", "9", "27", "26", "11", "12", "18"):
+    for pin in ("23", "4", "5", "8", "9", "27", "26", "25", "24"):
         sch.nc(u_mcu, pin)
     sch.power(u_mcu, "2", "+3V3")
     g = [sch.stub(u_mcu, p)[0] for p in ("1", "28", "29")]
@@ -365,17 +371,6 @@ def build(lib: Library) -> Schematic:
     # strapping: GPIO8 must be high to enter download mode
     pullup("10k", 27.94, 172.72, "+3V3", "IO8")
 
-    # UART0 test pads
-    for i, (ref, net) in enumerate((("TP1", "UART_TX"), ("TP2", "UART_RX"))):
-        tp = sch.add("Connector:TestPoint", ref, net, 27.94 + i * 20.32, 195.58,
-                     footprint="TestPoint:TestPoint_Pad_D1.5mm", in_bom=False,
-                     ref_at=(2.54, -3.81, "left"), value_at=(2.54, -1.27, "left"), hide_value=True)
-        sch.label(tp, "1", net)
-    tp = sch.add("Connector:TestPoint", "TP3", "GND", 68.58, 195.58,
-                 footprint="TestPoint:TestPoint_Pad_D1.5mm", in_bom=False,
-                 ref_at=(2.54, -3.81, "left"), value_at=(2.54, -1.27, "left"), hide_value=True)
-    sch.power(tp, "1", "GND")
-
     # status LED, active low
     led = sch.add("climasense:LED_RGB_19-337", "D1", "19-337/R6GHBHC-A01/2T", 182.88, 187.96,
                   fields={"LCSC": "C264519", "MPN": "19-337/R6GHBHC-A01/2T"},
@@ -405,7 +400,7 @@ def build(lib: Library) -> Schematic:
     # ======================================================================
     # Sensors (I2C, powered from +3V3_SENS)
     # ======================================================================
-    title(213.36, 96.52, "SENSORS - I2C ON +3V3_SENS")
+    title(213.36, 96.52, "SENSORS - I2C ON +3V3_SENS (IO6 / IO7)")
     pullup("4.7k", 220.98, 116.84, "+3V3_SENS", "I2C_SDA")
     pullup("4.7k", 238.76, 116.84, "+3V3_SENS", "I2C_SCL")
 
@@ -471,21 +466,53 @@ def build(lib: Library) -> Schematic:
     cap_between("100nF", 378.46, 167.64, "+3V3_SENS")
     cap_between("100nF", 393.7, 167.64, "+3V3_SENS")
 
-    j2 = sch.add("Connector_Generic_MountingPin:Conn_01x04_MountingPin", "J2", "Qwiic", 289.56, 213.36,
-                 footprint="Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
-                 fields={"LCSC": "C160404", "MPN": "SM04B-SRSS-TB(LF)(SN)"})
-    sch.power(j2, "1", "GND", 5.08)
-    sch.power(j2, "2", "+3V3_SENS", 20.32)
-    sch.label(j2, "3", "I2C_SDA")
-    sch.label(j2, "4", "I2C_SCL")
-    sch.power(j2, "MP", "GND")
-
-    sch.text(325.12, 208.28,
+    sch.text(350.52, 187.96,
              "I2C addresses\\n"
              "0x44  SHT45   temperature / humidity\\n"
              "0x47  BMP580  pressure (SDO high)\\n"
              "0x59  SGP41   VOC / NOx\\n"
              "0x62  SCD41   CO2", size=1.27)
+
+    # ======================================================================
+    # Qwiic: its own I2C bus and its own switched 3.3 V supply
+    # ======================================================================
+    # Nothing plugged in here shares a bus or a supply with the on-board sensors.
+    # (These parts come last so that the numbering of the earlier ones stays as it was.)
+    title(213.36, 203.2, "QWIIC - OWN I2C BUS (IO19 / IO20), OWN SWITCHED SUPPLY")
+    u_q = sch.add("Regulator_Linear:TLV75533PDBV", "U9", "TLV75533PDBV", 256.54, 223.52,
+                  fields={"LCSC": "C404027", "MPN": "TLV75533PDBVR"})
+    qin = u_q.pos(1)
+    sch.wire(qin, (218.44, qin[1]))
+    sch.power_at(218.44, qin[1], "+5V", (0, -1))
+    c_qin = cap("1uF", 218.44, qin[1] + 3.81)
+    sch.power_at(*c_qin.pos(2), "GND", (0, 1))
+    sch.label(u_q, "3", "QWIIC_EN")
+    sch.power(u_q, "2", "GND")
+    qout = u_q.pos(5)
+    sch.wire(qout, (276.86, qout[1]))
+    sch.wire((276.86, qout[1]), (287.02, qout[1]))
+    sch.junction(276.86, qout[1])
+    sch.power_at(287.02, qout[1], "+3V3_QWIIC", (0, -1))
+    c_qout = cap("1uF", 276.86, qout[1] + 3.81)
+    sch.power_at(*c_qout.pos(2), "GND", (0, 1))
+    # pulled low: the Qwiic supply is off until the firmware turns it on
+    r_qen = res("100k", 304.8, 226.06)
+    sch.label_at(*r_qen.pos(1), "QWIIC_EN", 0)
+    sch.power_at(*r_qen.pos(2), "GND", (0, 1))
+    pullup("4.7k", 325.12, 220.98, "+3V3_QWIIC", "QWIIC_SDA")
+    pullup("4.7k", 345.44, 220.98, "+3V3_QWIIC", "QWIIC_SCL")
+
+    j2 = sch.add("Connector_Generic_MountingPin:Conn_01x04_MountingPin", "J2", "Qwiic", 391.16, 223.52,
+                 footprint="Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
+                 fields={"LCSC": "C160404", "MPN": "SM04B-SRSS-TB(LF)(SN)"})
+    sch.power(j2, "1", "GND", 5.08)
+    sch.power(j2, "2", "+3V3_QWIIC", 17.78)
+    sch.label(j2, "3", "QWIIC_SDA")
+    sch.label(j2, "4", "QWIIC_SCL")
+    sch.power(j2, "MP", "GND")
+    sch.text(213.36, 243.84,
+             "QWIIC_EN is pulled low: the Qwiic supply is off by default.\\n"
+             "The regulator limits the current, so a short on the connector cannot pull down the board.", size=1.27)
     return sch
 
 

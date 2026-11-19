@@ -9,7 +9,7 @@ Status: **drawn from the manufacturers' land-pattern drawings and checked agains
 | Footprint | Part | Source drawing | Key dimensions |
 | --- | --- | --- | --- |
 | `ESP32-C6-WROOM-1` | U4 | Espressif module datasheet v1.4, figure 11-1 | 18 × 25.5 mm; 2 × 14 pads of 1.5 × 0.9 mm on 1.27 mm pitch, columns 17.5 mm apart; pad 1 is 7.49 mm below the top edge; 3.3 mm ground pad |
-| `Sensirion_DFN-6-1EP_2.44x2.44mm_P0.8mm_EP1.25x1.7mm` | U7 (SGP41) | Sensirion SGP41 datasheet v1.0, figure 18 | 6 pads of 0.55 × 0.4 mm on 0.8 mm pitch, 2.3 mm across; centre pad 1.25 × 1.7 mm with a 1.05 × 1.5 mm stencil opening |
+| `Sensirion_DFN-6-1EP_2.44x2.44mm_P0.8mm_EP1.25x1.7mm` | U7 (SGP41) | Sensirion SGP41 datasheet v1.0, figure 18 | 6 pads of 0.55 × 0.4 mm on 0.8 mm pitch, pad centres 2.3 mm apart; centre pad 1.25 × 1.7 mm with a 1.05 × 1.5 mm stencil opening |
 | `Bosch_LGA-10_2x2mm_P0.5mm_BMP580` | U8 | Bosch BST-BMP580-DS004-02, figure 25 | 10 pads of 0.25 × 0.275 mm on 0.5 mm pitch, rows 1.525 mm apart |
 | `LED_RGB_Everlight_19-337_1.6x1.6mm` | D1 | Everlight 19-337/R6GHBHC-A01/2T, page 9 | corner pads 0.55 × 0.4 mm, middle pads 0.7 × 0.5 mm |
 
@@ -40,7 +40,11 @@ Status: **drawn from the manufacturers' land-pattern drawings and checked agains
 
 - KiCad loads and re-saves all four files without complaint.
 - Each footprint was rendered and compared by eye with its datasheet drawing (pad positions and numbering).
-- `check_schematic.py` confirms that all 46 parts have a footprint and that every symbol pin has a pad with the same number. The only pads without a pin are the SCD41's "do not connect" pads, which must stay unconnected.
+- `check_schematic.py` confirms that all 43 parts have a footprint and that every symbol pin has a pad with the same number. The only pads without a pin are the SCD41's "do not connect" pads, which must stay unconnected.
+
+## Correction (2026-11-19)
+
+The first version of the SGP41 footprint was wrong: the 2.3 mm in Sensirion's drawing is the distance between pad centres, and it had been read as the outer width, which left the side pads touching the centre pad. KiCad's design rule check on the board caught it; the comparison by eye above had not. It is fixed, the generator now asserts the gap, and the other three footprints were re-read for the same kind of mistake (the LED and BMP580 dimensions are confirmed by a second dimension in their drawings, the ESP32 by KiCad's sibling footprint).
 
 ## What was not checked
 

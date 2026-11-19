@@ -2,7 +2,7 @@
 
 Settled design decisions for ClimaSense. Background and alternatives are in [`research/hardware-options.md`](research/hardware-options.md).
 
-## Revision A hardware (decided 2026-11-19)
+## Revision 1.0 hardware (decided 2026-11-19)
 
 | Topic | Decision | Notes |
 | --- | --- | --- |
@@ -11,17 +11,24 @@ Settled design decisions for ClimaSense. Background and alternatives are in [`re
 | CO2 | **Sensirion SCD41** (C3659294) | |
 | VOC + NOx | **Sensirion SGP41** (C3659325) | |
 | Barometric pressure | **Bosch BMP580** (C22391138) | |
-| Ambient light, microphone | **Not in revision A** | Deferred; no footprints planned for now. |
-| Extras | **RGB status LED, Qwiic connector** | |
+| Ambient light, microphone | **Not in revision 1.0** | Deferred; no footprints planned for now. |
+| Extras | **RGB status LED, Qwiic connector** | The Qwiic connector has its own I2C bus and its own switchable, current-limited supply (decided 2026-11-19): it was either that or removing it, so that nothing plugged in can disturb the on-board sensors. |
 | Buttons | **Two**: combined BOOT/user button, and RESET | BOOT/user is reachable from outside the enclosure (long press → Wi-Fi setup portal); RESET is board-only. |
-| Programming | **Native USB** of the ESP32-C6 via the USB-C port; OTA over Wi-Fi once deployed | No USB-UART bridge. No pogo-pin/Tag-Connect footprint — BOOT + RESET always recovers the board over USB. |
-| Debug access | **Three bare test pads**: UART0 TX, RX, GND | No parts; fallback only. |
+| Programming | **Native USB** of the ESP32-C6 via the USB-C port; OTA over Wi-Fi once deployed | No USB-UART bridge. BOOT + RESET always recovers the board over USB. |
+| Debug access | **None beyond USB** | Decided 2026-11-19. Bare UART test pads and a Tag-Connect TC2030-IDC footprint were both considered and dropped; UART0 is not brought out. BOOT + RESET over USB is the recovery path. |
 | Power | **USB-C only** | Battery is a possible separate later variant. |
 | Quantity | **At least 5 boards** | |
 | Assembly | Full PCBA at JLCPCB | No hand soldering. |
-| Enclosure | **Deferred**; a 3D-printed case is expected later | Mounting style (wall/desk) not decided. Board outline and sensor placement should keep a printed case in mind. |
+| Enclosure | **Deferred**; a 3D-printed case is expected later | The device hangs on a wall in landscape, USB cable down, components facing the room (decided 2026-11-19; an earlier note said it lies flat). |
+| Board | **75 × 34 mm, landscape, 2 layers**, routed | ESP32 at the left end with the antenna at the edge, then USB (on the bottom edge) and power, then the sensors at the right end behind a milled slot. See [`hardware/layout.md`](hardware/layout.md). |
+| Mounting | **Four M3 holes in the corners** | |
+| Routing | **By script**, checked with KiCad's rule check | |
+| Revision naming | **Numeric: 1.0** for the first board | Decided 2026-11-19, replacing the letter "A". |
+| Sensor arrangement | **SCD41 and SGP41 at the top of the sensor side, SHT45 lowest**, on a tongue at the lower right | On a wall, heat rises: the two warm sensors sit at the top so their heat leaves upwards, and nothing warm is underneath the SHT45. |
 
 The BME680 from the breadboard prototypes is dropped.
+
+Ideas for later revisions — a different microcontroller, deep sleep, separate power control for the SCD41 — are collected in [`hardware/next-revision.md`](hardware/next-revision.md). None of them is decided.
 
 ## Schematic-level choices (accepted 2026-11-19)
 
@@ -31,6 +38,7 @@ Made while drawing the first schematic and accepted afterwards; rationale in [`h
 | --- | --- |
 | Power | Buck converter (TPS62A01) for the MCU rail `+3V3`; separate LDO (TLV75533) from 5 V for the sensor rail `+3V3_SENS`, as the SCD41 datasheet recommends |
 | Sensor power control | MCU can switch the sensor rail off via `SENS_EN` (default on) to recover a hung sensor |
+| Qwiic | Own I2C bus on IO19/IO20; own regulator (second TLV75533) switched by `QWIIC_EN`, off by default |
 | Status LED | Discrete RGB LED on three GPIOs with PWM, not an addressable LED (those are out of spec at 3.3 V) |
 | I2C pins | IO6 (SDA) / IO7 (SCL), the ESP32-C6 low-power I2C pins |
 | Protection | ESD diodes on USB data; USB shield tied to GND; resettable fuse (0.75 A) on the USB supply |
