@@ -1,0 +1,22 @@
+{
+  "board": {},
+  "boards": [],
+  "libraries": {
+    "pinned_footprint_libs": [],
+    "pinned_symbol_libs": []
+  },
+  "meta": {
+    "filename": "climasense.kicad_pro",
+    "version": 3
+  },
+  "net_settings": {},
+  "pcbnew": {},
+  "schematic": {},
+  "sheets": [
+    [
+      "dfa4d276-a517-5717-a14c-b60cc1522291",
+      "Root"
+    ]
+  ],
+  "text_variables": {}
+}

@@ -1,0 +1,10 @@
+# KiCad always writes LF line endings; keep them that way on every platform
+*.kicad_sch text eol=lf
+*.kicad_pcb text eol=lf
+*.kicad_pro text eol=lf
+*.kicad_sym text eol=lf
+*.kicad_mod text eol=lf
+*.kicad_dru text eol=lf
+*.kicad_wks text eol=lf
+sym-lib-table text eol=lf
+fp-lib-table text eol=lf
