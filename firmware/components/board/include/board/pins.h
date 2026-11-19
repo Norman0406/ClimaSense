@@ -3,8 +3,6 @@
 // Only board.cpp, led.cpp and button.cpp (and later the bus code) should need these directly.
 #pragma once
 
-#include <cstdint>
-
 #include "driver/gpio.h"
 
 namespace board::pins {
@@ -37,10 +35,6 @@ inline constexpr gpio_num_t kLedB = GPIO_NUM_23;
 // reset it enters USB download mode.
 inline constexpr gpio_num_t kButton = GPIO_NUM_9;
 
-// I2C addresses on the sensor bus.
-inline constexpr uint8_t kAddrSht45 = 0x44;
-inline constexpr uint8_t kAddrBmp580 = 0x47;  // SDO tied to +3V3_SENS
-inline constexpr uint8_t kAddrSgp41 = 0x59;
-inline constexpr uint8_t kAddrScd41 = 0x62;
+// I2C addresses of the sensors: sensors/devices.h.
 
 }  // namespace board::pins

@@ -63,7 +63,7 @@ The Qwiic data and clock lines are on the two module pins nearest the connector.
 
 **Which pin gets which enable signal depends on what the pin does while the ESP32 is in reset.** IO18 to IO23 have a weak pull-up (about 45 kΩ) during reset; IO10 and IO11 have none (ESP32-C6 datasheet, table 2-1). `QWIIC_EN` has to stay low in reset, held only by a 100 kΩ pull-down, so it is on IO11. On IO18, where it was until the pinout review of 2026-11-19, the internal pull-up would have won against the pull-down (2.3 V at the regulator's enable pin, which switches at 1.0 V) and the Qwiic supply would have come on at every reset. `SENS_EN` is pulled high anyway, so the pull-up on IO18 does not matter there.
 
-Two buses, one normal I2C controller: the ESP32-C6 has one ordinary I2C controller and one low-power controller that only works on IO6/IO7. With the sensors on IO6/IO7 the natural split is sensors on the low-power controller and Qwiic on the ordinary one. This has **not** been tried in a specific firmware framework yet; a software I2C bus for Qwiic is the fallback.
+Two buses, one normal I2C controller: the ESP32-C6 has one ordinary I2C controller and one low-power controller that only works on IO6/IO7. With the sensors on IO6/IO7 the natural split is sensors on the low-power controller and Qwiic on the ordinary one. ESP-IDF 6.1's I2C master driver supports the low-power controller (`LP_I2C_NUM_0`, fixed to IO6/IO7), and the firmware uses it for the sensor bus (firmware step 3, 2026-11-19: builds, **not yet run on hardware**). A software I2C bus for Qwiic is the fallback if the split causes trouble.
 
 IO0/IO1 are deliberately left free: they are the 32 kHz crystal pins, useful for a battery variant.
 

@@ -3,7 +3,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(climasense_host_tests CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+# C++23 for std::expected, as the firmware uses it.
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -20,12 +21,17 @@ FetchContent_MakeAvailable(googletest)
 set(FW ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 add_executable(host_tests
+    test_bus_scan.cpp
     test_button_logic.cpp
     test_led_logic.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
+    ${FW}/components/sensors/src/bus_scan.cpp
 )
-target_include_directories(host_tests PRIVATE ${FW}/components/board/include)
+target_include_directories(host_tests PRIVATE
+    ${FW}/components/board/include
+    ${FW}/components/sensors/include
+)
 target_compile_options(host_tests PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(host_tests PRIVATE GTest::gtest_main GTest::gmock)
 

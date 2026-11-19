@@ -1,7 +1,8 @@
 // ClimaSense firmware entry point.
-// Step 2 (board basics): bring up the rails, LED and button. At start the LED shows red, green,
-// blue and white in turn (a check of the LED and its colour balance); a short press then
-// cycles through the colours, a long press shows blue (later: Wi-Fi setup portal).
+// Step 3: bring up the rails, LED and button, and start the sensor task, which scans the
+// sensor bus once (see sensors/sensor_task.h). At start the LED shows red, green, blue and
+// white in turn (a check of the LED and its colour balance); a short press then cycles through
+// the colours, a long press shows blue (later: Wi-Fi setup portal).
 
 #include <array>
 #include <cinttypes>
@@ -20,6 +21,7 @@
 #include "board/board.h"
 #include "board/button.h"
 #include "board/led.h"
+#include "sensors/sensor_task.h"
 
 namespace {
 
@@ -90,6 +92,7 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(board::init());
     ESP_ERROR_CHECK(board::led::init());
     ESP_ERROR_CHECK(board::button::init());
+    ESP_ERROR_CHECK(sensors::start_task());
     led_self_test();
 
     std::size_t colour_index = 0;

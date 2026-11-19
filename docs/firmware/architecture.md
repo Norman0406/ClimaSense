@@ -19,6 +19,7 @@ ESP-IDF already runs Wi-Fi, the network stack, the MQTT client and the HTTP serv
 
 - **Sensor task.** The only code that touches the sensor I2C bus, so the sensors need no locking among themselves and network delays cannot disturb the SGP41's timing. Runs on a fixed 1 s tick (`vTaskDelayUntil`, no drift). Also owns recovery: when a sensor stops answering, it releases the bus pins, switches the sensor rail off and on (`SENS_EN`) and initialises the sensors again.
 - **App task** (`app_main`). Wi-Fi, MQTT, captive portal, OTA, LED status, button events. Publishes on its own interval (decided with the MQTT step).
+- **Sensor bus:** on the ESP32-C6's low-power I2C controller (`LP_I2C_NUM_0`), which ESP-IDF's normal I2C master driver supports and which is wired only to IO6/IO7, the sensor pins. 100 kHz, the SCD41's maximum. The task addresses nothing on the bus until 1 s after the rail came on (SCD41 start-up). The drivers see the bus only through `sensors::I2cBus` (probe, write, read, write-then-read), implemented by `EspI2cBus` on the chip and mocked in the unit tests. The normal I2C controller stays free for the Qwiic bus.
 - **Handover:** one "latest readings" snapshot. The sensor task overwrites it, the app task copies it when it publishes (a FreeRTOS queue of length 1 with `xQueueOverwrite`/`xQueuePeek`, or a struct behind a mutex). No other shared state.
 - **LED and button** run on the LEDC peripheral and a timer, not on tasks of their own.
 
