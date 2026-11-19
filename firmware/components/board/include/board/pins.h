@@ -1,12 +1,13 @@
 // ClimaSense revision 1.0 pin map (ESP32-C6-WROOM-1-N8).
 // Source of truth: docs/hardware/schematic.md, "ESP32-C6-WROOM-1 pin assignment". Keep both in step.
+// Only board.cpp, led.cpp and button.cpp (and later the bus code) should need these directly.
 #pragma once
 
 #include <cstdint>
 
 #include "driver/gpio.h"
 
-namespace board {
+namespace board::pins {
 
 // Sensor bus: SHT45, SCD41, SGP41, BMP580 and nothing else. IO6/IO7 are the C6's
 // low-power I2C pins. Pull-ups (4.7 kOhm) go to the switchable sensor rail +3V3_SENS.
@@ -42,4 +43,4 @@ inline constexpr uint8_t kAddrBmp580 = 0x47;  // SDO tied to +3V3_SENS
 inline constexpr uint8_t kAddrSgp41 = 0x59;
 inline constexpr uint8_t kAddrScd41 = 0x62;
 
-}  // namespace board
+}  // namespace board::pins

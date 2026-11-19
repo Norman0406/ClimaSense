@@ -1,10 +1,15 @@
 // ClimaSense firmware entry point.
-// Step 1 (skeleton): print a start-up banner and a periodic heartbeat over the native USB console.
+// Step 2 (board basics): bring up the rails, LED and button. At start the LED shows red, green,
+// blue and white in turn (a check of the LED and its colour balance); a short press then
+// cycles through the colours, a long press shows blue (later: Wi-Fi setup portal).
 
+#include <array>
 #include <cinttypes>
+#include <cstddef>
 
 #include "esp_app_desc.h"
 #include "esp_chip_info.h"
+#include "esp_err.h"
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -12,12 +17,28 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "board.h"
+#include "board/board.h"
+#include "board/button.h"
+#include "board/led.h"
 
 namespace {
 
 constexpr const char *kTag = "climasense";
-constexpr TickType_t kHeartbeatPeriod = pdMS_TO_TICKS(5000);
+constexpr int64_t kHeartbeatPeriodUs = 5'000'000;
+constexpr uint8_t kBrightness = 128;
+
+struct NamedColour {
+    const char *name;
+    board::Rgb rgb;
+};
+
+constexpr std::array kColours{
+    NamedColour{"off", board::colour::kOff},
+    NamedColour{"red", board::colour::kRed},
+    NamedColour{"green", board::colour::kGreen},
+    NamedColour{"blue", board::colour::kBlue},
+    NamedColour{"white", board::colour::kWhite},
+};
 
 constexpr const char *reset_reason_name(esp_reset_reason_t reason)
 {
@@ -51,16 +72,52 @@ void log_banner()
     ESP_LOGI(kTag, "reset reason: %s", reset_reason_name(esp_reset_reason()));
 }
 
+void led_self_test()
+{
+    for (std::size_t i = 1; i < kColours.size(); ++i) {
+        board::led::set(kColours[i].rgb, kBrightness);
+        vTaskDelay(pdMS_TO_TICKS(400));
+    }
+    board::led::off();
+}
+
 }  // namespace
 
 extern "C" void app_main()
 {
     log_banner();
 
+    ESP_ERROR_CHECK(board::init());
+    ESP_ERROR_CHECK(board::led::init());
+    ESP_ERROR_CHECK(board::button::init());
+    led_self_test();
+
+    std::size_t colour_index = 0;
+    int64_t next_heartbeat = esp_timer_get_time();
+
     for (;;) {
-        const int64_t uptime_s = esp_timer_get_time() / 1'000'000;
-        ESP_LOGI(kTag, "alive, uptime %" PRId64 " s, free heap %" PRIu32 " bytes",
-                 uptime_s, esp_get_free_heap_size());
-        vTaskDelay(kHeartbeatPeriod);
+        const int64_t now = esp_timer_get_time();
+        if (now >= next_heartbeat) {
+            ESP_LOGI(kTag, "alive, uptime %" PRId64 " s, free heap %" PRIu32 " bytes",
+                     now / 1'000'000, esp_get_free_heap_size());
+            next_heartbeat += kHeartbeatPeriodUs;
+        }
+
+        const TickType_t wait = pdMS_TO_TICKS((next_heartbeat - now) / 1000) + 1;
+        const auto event = board::button::wait(wait);
+        if (!event) {
+            continue;
+        }
+        switch (*event) {
+        case board::ButtonEvent::ShortPress:
+            colour_index = (colour_index + 1) % kColours.size();
+            ESP_LOGI(kTag, "short press: LED %s", kColours[colour_index].name);
+            board::led::set(kColours[colour_index].rgb, kBrightness);
+            break;
+        case board::ButtonEvent::LongPress:
+            ESP_LOGI(kTag, "long press: Wi-Fi setup portal goes here (step 7)");
+            board::led::set(board::colour::kBlue, kBrightness);
+            break;
+        }
     }
 }

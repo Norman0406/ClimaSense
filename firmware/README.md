@@ -6,15 +6,26 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 1 of the plan below: a skeleton that builds (checked with ESP-IDF 6.1.1), starts, prints a banner (version, chip, flash size, reset reason) and a heartbeat every 5 s over the native USB console.
+Step 2 of the plan below. Builds with ESP-IDF 6.1.1; **not yet run on hardware**, and the PC tests are written and compile but have not been run (no PC compiler installed yet, see below).
+
+What the firmware does now:
+
+- prints a banner (version, chip, flash size, reset reason) and a heartbeat every 5 s on the native USB console;
+- switches the sensor rail on and the Qwiic rail off, puts a pull-down on `BMP_INT`;
+- shows red, green, blue and white on the status LED in turn at start (to check the LED and its colour balance by eye);
+- BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go.
+
+How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
 
 ## Layout
 
 ```
-CMakeLists.txt       project file
-sdkconfig.defaults   settings that differ from ESP-IDF's defaults (versioned; sdkconfig is generated)
-main/main.cpp        entry point
-main/board.h         pin map and I2C addresses, mirrored from docs/hardware/schematic.md
+CMakeLists.txt         project file
+sdkconfig.defaults     settings that differ from ESP-IDF's defaults (versioned; sdkconfig is generated)
+main/main.cpp          entry point
+components/board/      pin map (include/board/pins.h, mirrored from docs/hardware/schematic.md),
+                       supply rails, status LED, button
+test/host/             tests of the hardware-independent logic, built for the PC
 ```
 
 ## Build and flash
@@ -37,9 +48,23 @@ Replace `COM5` with the port Windows assigns to the board (Device Manager → Po
 
 If the board does not show up or flashing fails: hold BOOT, press and release RESET, release BOOT. The chip then waits in download mode; flash again and press RESET afterwards.
 
+## Tests on the PC
+
+`test/host/` checks the logic that does not touch hardware (button press detection, LED colour balance; later sensor CRCs, conversions and parsing). It is built with the PC's own compiler, not ESP-IDF. On this machine that means g++ in WSL; install it once:
+
+```powershell
+wsl -d Ubuntu -- sudo apt install -y g++ cmake ninja-build
+```
+
+Then, from the repository root:
+
+```powershell
+wsl -d Ubuntu -- bash -c "cmake -S firmware/test/host -B firmware/build/host -G Ninja && cmake --build firmware/build/host && firmware/build/host/host_tests"
+```
+
 ## Plan
 
-1. Skeleton: builds, flashes over native USB, logs over USB, pin map in `board.h`.
+1. Skeleton: builds, flashes over native USB, logs over USB, pin map in code.
 2. Board basics: rail enables, `BMP_INT` pull-down, RGB LED with PWM, BOOT button with short and long press.
 3. I2C bus on the low-power controller, address scan.
 4. Sensors one at a time: SHT45, BMP580, SCD41 (single shot every 5 min), SGP41 (1 Hz, index algorithm).
