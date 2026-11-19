@@ -30,7 +30,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "climasense:ESP32-C6-WROOM-1"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -639,7 +639,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "climasense:Sensirion_DFN-6-1EP_2.44x2.44mm_P0.8mm_EP1.25x1.7mm"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -852,7 +852,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "climasense:Bosch_LGA-10_2x2mm_P0.5mm_BMP580"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -1121,7 +1121,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "climasense:LED_RGB_Everlight_19-337_1.6x1.6mm"
 			(at 0 -1.27 0)
 			(show_name no)
 			(do_not_autoplace no)

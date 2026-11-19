@@ -1,0 +1,246 @@
+(footprint "Sensirion_DFN-6-1EP_2.44x2.44mm_P0.8mm_EP1.25x1.7mm"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Sensirion SGP41 / SGP40, DFN, 6 pin, 0.8 mm pitch, exposed pad (https://sensirion.com/media/documents/5FE8673C/61E96F50/Sensirion_Gas_Sensors_Datasheet_SGP41.pdf, figure 18)")
+	(tags "Sensirion SGP41 SGP40 DFN NoLead gas sensor")
+	(property "Reference" "REF**"
+		(at 0 -2.3 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "bc59dc6c-2036-5aab-9f6e-f6b5bbe68288")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "Sensirion_DFN-6-1EP_2.44x2.44mm_P0.8mm_EP1.25x1.7mm"
+		(at 0 2.3 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "ac1e8fa1-4e49-56ec-8fd7-168fe2df7e8d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "7da1ec22-de28-5885-b4af-f4d032766e31")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "5240b10b-3638-5de3-85b0-7edbe5ec8c7a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -1.22 -1.33)
+		(end 1.22 -1.33)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "c4046d4b-2553-5b7d-96b5-ffb5749142fd")
+	)
+	(fp_line
+		(start -1.22 1.33)
+		(end 1.22 1.33)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "338ea853-cbfc-5ff5-bc1c-a174bd49d219")
+	)
+	(fp_poly
+		(pts
+			(xy -1.45 -0.8) (xy -1.85 -1.1) (xy -1.85 -0.5)
+		)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(fill yes)
+		(layer "F.SilkS")
+		(uuid "4721bcf4-6bbb-5047-9dc9-65574ed949ad")
+	)
+	(fp_line
+		(start -1.4 -1.47)
+		(end 1.4 -1.47)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "882a51dc-20ed-5ff0-835f-67728505fdf9")
+	)
+	(fp_line
+		(start -1.4 1.47)
+		(end -1.4 -1.47)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "b579620b-c18d-5311-8a3f-f9fe96d01da3")
+	)
+	(fp_line
+		(start 1.4 -1.47)
+		(end 1.4 1.47)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "8ef1fde5-d981-5ed6-8bd0-c5d8c4cef955")
+	)
+	(fp_line
+		(start 1.4 1.47)
+		(end -1.4 1.47)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "44d51b5e-c6e7-5238-b5e8-f9a5ab877bc7")
+	)
+	(fp_line
+		(start -1.22 -0.62)
+		(end -0.62 -1.22)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "107ba7bf-8229-5251-9079-7bd4987bc41e")
+	)
+	(fp_line
+		(start -1.22 1.22)
+		(end -1.22 -0.62)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "6b08cc53-82a2-5fca-a91e-b61907b5c512")
+	)
+	(fp_line
+		(start -0.62 -1.22)
+		(end 1.22 -1.22)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "d1b5f0cb-c989-5598-9bae-6054e3021e82")
+	)
+	(fp_line
+		(start 1.22 -1.22)
+		(end 1.22 1.22)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "fc153a7c-8101-531e-b683-1cccd11991ca")
+	)
+	(fp_line
+		(start 1.22 1.22)
+		(end -1.22 1.22)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "551be517-0e14-5161-9c62-5553562d99cc")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "69b166bc-5e9a-5b63-b8ff-e9bac6946169")
+		(effects
+			(font
+				(size 0.61 0.61)
+				(thickness 0.09)
+			)
+		)
+	)
+	(pad "" smd rect
+		(at 0 0)
+		(size 1.05 1.5)
+		(layers "F.Paste")
+		(uuid "2216e79d-e874-5670-bf96-0a0be77cbe52")
+	)
+	(pad "1" smd rect
+		(at -0.875 -0.8)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "d63a66d7-0229-51a6-9623-e05d043b8ac3")
+	)
+	(pad "2" smd rect
+		(at -0.875 0)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "9bb352e3-d723-50db-bca4-865f2941162b")
+	)
+	(pad "3" smd rect
+		(at -0.875 0.8)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "3c73a936-becc-56d9-b571-b6e0d17da170")
+	)
+	(pad "4" smd rect
+		(at 0.875 0.8)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "4c826e51-62ea-5c0d-a95b-6b5334416fc5")
+	)
+	(pad "5" smd rect
+		(at 0.875 0)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "1a7349aa-f47c-5967-9111-5534cf80e13c")
+	)
+	(pad "6" smd rect
+		(at 0.875 -0.8)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "08219993-5d45-5eea-8270-017c4ecc79d5")
+	)
+	(pad "7" smd roundrect
+		(at 0 0)
+		(size 1.25 1.7)
+		(layers "F.Cu" "F.Mask")
+		(roundrect_rratio 0)
+		(chamfer_ratio 0.24)
+		(chamfer top_left)
+		(uuid "b10a91a1-35cf-5e2e-84dc-68233e45b9bd")
+	)
+	(embedded_fonts no)
+)

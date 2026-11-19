@@ -4,7 +4,9 @@
 1. Runs KiCad's electrical rules check (ERC) and fails on any violation.
 2. Exports KiCad's netlist and compares it, pin by pin, with the netlist the
    generator intended (build/expected_netlist.json).
-3. Plots the schematic to build/climasense.pdf.
+3. Checks that every part has a footprint and that every symbol pin has a pad
+   with the same number in that footprint.
+4. Plots the schematic to build/climasense.pdf.
 
 Usage:  python hardware/tools/check_schematic.py
 """
@@ -27,8 +29,57 @@ BUILD = HW / "build"
 KICAD_CLI = os.environ.get("KICAD_CLI") or shutil.which("kicad-cli") or r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe"
 
 
+KICAD_FOOTPRINT_DIR = Path(os.environ.get("KICAD_FOOTPRINT_DIR", r"C:\Program Files\KiCad\10.0\share\kicad\footprints"))
+PROJECT_FOOTPRINTS = {"climasense": HW / "lib" / "climasense.pretty"}
+
+
 def cli(*args):
     subprocess.run([KICAD_CLI, *args], check=True, capture_output=True, cwd=HW)
+
+
+def footprint_pads(lib_id: str) -> set[str] | None:
+    """Pad numbers of a footprint given as "Library:Name"; None if the file is missing."""
+    lib, name = lib_id.split(":", 1)
+    folder = PROJECT_FOOTPRINTS.get(lib, KICAD_FOOTPRINT_DIR / f"{lib}.pretty")
+    path = folder / f"{name}.kicad_mod"
+    if not path.exists():
+        return None
+    return {p[1] for p in find(parse(path.read_text(encoding="utf-8")), "pad") if p[1]}
+
+
+def check_footprints(net) -> bool:
+    """Return True if a part lacks a footprint or a symbol pin lacks a pad."""
+    pins = {}
+    for part in find(first(net, "libparts"), "libpart"):
+        pin_list = first(part, "pins")
+        pins[(first(part, "lib")[1], first(part, "part")[1])] = \
+            {first(p, "num")[1] for p in find(pin_list, "pin")} if pin_list else set()
+    failed, checked = False, 0
+    for comp in find(first(net, "components"), "comp"):
+        ref = first(comp, "ref")[1]
+        fp = first(comp, "footprint")
+        src = first(comp, "libsource")
+        symbol_pins = pins.get((first(src, "lib")[1], first(src, "part")[1]), set())
+        if fp is None or not fp[1]:
+            failed = True
+            print(f"  {ref}: no footprint assigned")
+            continue
+        pads = footprint_pads(fp[1])
+        if pads is None:
+            failed = True
+            print(f"  {ref}: footprint {fp[1]} not found")
+            continue
+        checked += 1
+        missing = sorted(symbol_pins - pads)
+        if missing:
+            failed = True
+            print(f"  {ref}: symbol pins without a pad in {fp[1]}: {missing}")
+        extra = sorted(pads - symbol_pins)
+        if extra:
+            print(f"  note: {ref} has pads without a symbol pin (they stay unconnected): {extra}")
+    print(f"Footprints: {checked} parts checked - "
+          f"{'PROBLEMS FOUND' if failed else 'every part has a footprint and every pin a pad'}")
+    return failed
 
 
 def main() -> int:
@@ -72,6 +123,8 @@ def main() -> int:
             print(f"  unexpected net {name}: {sorted(pins)}")
     comps = len(find(first(net, "components"), "comp"))
     print(f"Netlist: {comps} components, {len(got)} nets - {'MISMATCH' if failed else 'matches the intended netlist'}")
+
+    failed = check_footprints(net) or failed
 
     cli("sch", "export", "pdf", "-o", str(BUILD / "climasense.pdf"), str(SCH))
     print(f"Plot: {BUILD / 'climasense.pdf'}")

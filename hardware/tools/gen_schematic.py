@@ -79,6 +79,7 @@ def project_symbols(lib: Library) -> list[list]:
                ("22", "NC", "no_connect")],
         top=[("2", "3V3", pwr)],
         bottom=[("1", "GND", pwr), ("28", "GND", pwr), ("29", "EPAD", pwr)],
+        footprint="climasense:ESP32-C6-WROOM-1",
         datasheet="https://documentation.espressif.com/esp32-c6-wroom-1_wroom-1u_datasheet_en.pdf",
         description="ESP32-C6 module, Wi-Fi 6 (2.4 GHz), Bluetooth 5 LE, 802.15.4, PCB antenna",
         keywords="ESP32 C6 RISC-V WiFi BLE Thread Zigbee module",
@@ -89,6 +90,7 @@ def project_symbols(lib: Library) -> list[list]:
         left=[("3", "SDA", io), None, ("6", "SCL", "input")],
         top=[("1", "VDD", pwr), None, ("5", "VDDH", pwr)],
         bottom=[("2", "VSS", pwr), ("4", "NA", pas), ("7", "EP", pas)],
+        footprint="climasense:Sensirion_DFN-6-1EP_2.44x2.44mm_P0.8mm_EP1.25x1.7mm",
         datasheet="https://sensirion.com/media/documents/5FE8673C/61E96F50/Sensirion_Gas_Sensors_Datasheet_SGP41.pdf",
         description="VOC and NOx sensor, I2C (0x59), 1.7-3.6 V, DFN-6 2.44x2.44 mm",
         keywords="Sensirion gas VOC NOx air quality",
@@ -100,6 +102,7 @@ def project_symbols(lib: Library) -> list[list]:
         right=[("7", "INT", "output"), None, None, ("6", "CSB", "input"), ("5", "SDO/ADDR", "input")],
         top=[("10", "VDD", pwr), None, ("1", "VDDIO", pwr)],
         bottom=[("3", "VSS", pwr), ("8", "VSS", pwr), ("9", "VSS", pwr)],
+        footprint="climasense:Bosch_LGA-10_2x2mm_P0.5mm_BMP580",
         datasheet="https://www.bosch-sensortec.com/products/environmental-sensors/pressure-sensors/bmp580/",
         description="Barometric pressure sensor, I2C (0x46/0x47), 1.71-3.6 V, LGA-10 2x2 mm",
         keywords="Bosch pressure barometer",
@@ -122,6 +125,8 @@ def project_symbols(lib: Library) -> list[list]:
     for p in find(led, "property"):
         if p[1] == "Value":
             p[2] = "LED_RGB_19-337"
+        if p[1] == "Footprint":
+            p[2] = "climasense:LED_RGB_Everlight_19-337_1.6x1.6mm"
         if p[1] == "Description":
             p[2] = "RGB LED, six pins, separate anodes and cathodes, Everlight 19-337 pinout"
 
@@ -312,7 +317,6 @@ def build(lib: Library) -> Schematic:
     # ======================================================================
     title(20.32, 96.52, "MCU")
     u_mcu = sch.add("climasense:ESP32-C6-WROOM-1", "U4", "ESP32-C6-WROOM-1-N8", 99.06, 154.94,
-                    footprint="",
                     fields={"LCSC": "C5366877", "MPN": "ESP32-C6-WROOM-1-N8"})
     mcu_nets = {
         "3": "EN", "15": "BOOT", "10": "IO8", "13": "USB_DN", "14": "USB_DP",
@@ -374,7 +378,6 @@ def build(lib: Library) -> Schematic:
 
     # status LED, active low
     led = sch.add("climasense:LED_RGB_19-337", "D1", "19-337/R6GHBHC-A01/2T", 182.88, 187.96,
-                  footprint="",
                   fields={"LCSC": "C264519", "MPN": "19-337/R6GHBHC-A01/2T"},
                   ref_at=(0, 8.89, None), value_at=(0, 11.43, None))
     xa = led.pos(5)[0] + 5.08
@@ -423,7 +426,7 @@ def build(lib: Library) -> Schematic:
     cap_between("10uF", 373.38, 119.38, "+3V3_SENS")
     cap_between("100nF", 388.62, 119.38, "+3V3_SENS")
 
-    u_sgp = sch.add("climasense:SGP41", "U7", "SGP41-D-R4", 279.4, 167.64, footprint="",
+    u_sgp = sch.add("climasense:SGP41", "U7", "SGP41-D-R4", 279.4, 167.64,
                     fields={"LCSC": "C3659325", "MPN": "SGP41-D-R4"},
                     ref_at=(11.43, 10.16, "left"), value_at=(11.43, 12.7, "left"))
     sch.label(u_sgp, "3", "I2C_SDA")
@@ -447,7 +450,7 @@ def build(lib: Library) -> Schematic:
     sch.label_at(n_sgp[0] + 7.62, n_sgp[1], "SGP_VDD", 0)
     cap_between("1uF", 297.18, 167.64, "+3V3_SENS")
 
-    u_bmp = sch.add("climasense:BMP580", "U8", "BMP580", 335.28, 167.64, footprint="",
+    u_bmp = sch.add("climasense:BMP580", "U8", "BMP580", 335.28, 167.64,
                     fields={"LCSC": "C22391138", "MPN": "BMP580"})
     sch.label(u_bmp, "4", "I2C_SDA")
     sch.label(u_bmp, "2", "I2C_SCL")

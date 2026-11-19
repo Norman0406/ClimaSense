@@ -103,7 +103,7 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 
 ## Open points for the layout phase
 
-- **Four footprints do not exist in KiCad's standard library** and must be drawn from the datasheets: ESP32-C6-WROOM-1, SGP41 (DFN-6 2.44×2.44 mm), BMP580 (LGA-10 2×2 mm) and the 19-337 RGB LED. Their footprint fields are empty in the schematic for now.
+- The four footprints missing from KiCad's standard library (ESP32-C6-WROOM-1, SGP41, BMP580, 19-337 RGB LED) have been drawn and assigned; see [`footprints.md`](footprints.md). They are unproven on a real board.
 - The inductor uses a generic 2520 footprint; check it against the DFE252012F land pattern.
 - Mounting holes and the board outline depend on the enclosure, which is undecided.
 - Thermal layout rules from [`../research/hardware-options.md`](../research/hardware-options.md) apply: sensors at a board edge behind milled slots, away from U2, U3, U4 and the SGP41.
@@ -127,10 +127,11 @@ Editing the schematic in KiCad is fine and expected. **Once you do, do not re-ru
 
 ## Verification
 
-`check_schematic.py` does three things with KiCad's own command-line tool:
+`check_schematic.py` does four things with KiCad's own command-line tool:
 
 1. runs the electrical rules check and fails on any violation — currently **0 violations**;
 2. exports KiCad's netlist and compares every net, pin by pin, against the netlist the generator intended — currently **46 components, 27 nets, all matching**;
-3. plots the schematic to `hardware/build/climasense.pdf`.
+3. checks that every part has a footprint and every symbol pin a pad with the same number — currently **all 46 parts pass**;
+4. plots the schematic to `hardware/build/climasense.pdf`.
 
 Pin numbers and application circuits were checked against these datasheets: ESP32-C6-WROOM-1 (v1.4, pin table and strapping pins), SGP41 (v1.0, pin assignment and application circuit), BMP580 (BST-BMP580-DS004-02, pin-out and I2C wiring), SCD4x (v1.5, pin assignment and supply requirements), TPS62A01 (SLUSEG9E, pin functions and component values), TLV755P (enable thresholds), Everlight 19-337 (pin polarity). Symbols taken unchanged from KiCad's library (USB-C connector, USBLC6-2SC6, TPS62A01, TLV75533, SHT4x, SCD41) were not re-checked pin by pin.
