@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 5 of the plan below: all four sensors are read (into the log only; publishing comes with MQTT in step 6), and the device joins Wi-Fi and gets network time. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 111 passing at commit `3d04482`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
+Steps 1-5 and 7 of the plan below: all four sensors are read (into the log only; publishing comes with MQTT in step 6), the device joins Wi-Fi and gets network time, and every setting can be changed in the setup portal. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 124 passing at commit `1e0633f`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -17,7 +17,8 @@ What the firmware does now:
 - BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go;
 - starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. The SGP41 is conditioned for its first 10 s, then measured every second with the SHT45's humidity and temperature of the same tick for compensation; Sensirion's Gas Index Algorithm turns its raw signals into the VOC index (100 = the room's usual) and the NOx index (1 = the usual). Both indices are 0 for the algorithm's first 46 samples and keep learning the room's baseline for hours; they start again at every reboot (saving the learned state is planned for step 9). At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second.
 
-- loads its settings (network, device name) from NVS over the build defaults and logs where each came from; nothing writes them yet (the captive portal, next, will);
+- loads its settings (network, device name) from NVS over the build defaults and logs where each came from;
+- opens the setup portal on first boot (no network configured) or on a 3 s press of the BOOT button; see "Setting up a device";
 - joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
 
 How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
@@ -41,6 +42,8 @@ components/sensors/vendor/gas_index_algorithm/
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
 components/settings/   settings store: load from NVS over build defaults, validate, save;
                        device name record
+components/portal/     setup portal: DNS answers, form parsing and checks, HTML pages (pure,
+                       tested), and the access point / DNS / web server around them
 components/net/        settings record and its rules (settings.h), Wi-Fi station, reconnect
                        pauses, host name, network time; Kconfig menu "ClimaSense network"
 sdkconfig.defaults.local.example
@@ -69,15 +72,26 @@ Replace `COM5` with the port Windows assigns to the board (Device Manager → Po
 
 If the board does not show up or flashing fails: hold BOOT, press and release RESET, release BOOT. The chip then waits in download mode; flash again and press RESET afterwards.
 
-## Wi-Fi settings
+## Setting up a device
 
-The network the device joins is a build setting until the captive portal (step 7) can set it on the device. The password must not go into the repository, so it goes in a git-ignored file:
+A new board (no network configured) opens its setup portal by itself; any board opens it on a **3 s press of the BOOT button**. The LED then blinks blue.
+
+1. On a phone or laptop, join the open Wi-Fi network **`ClimaSense-xxxxxx`** (the last six characters of the device ID).
+2. The setup page usually opens by itself; otherwise open `http://192.168.4.1/`.
+3. Pick the network from the list (or type it), enter its password, optionally a device name (e.g. "Living room"). Country, time server and time zone are under the fold-out at the bottom.
+4. **Save and restart.** The device restarts and joins the network; the setup network disappears.
+
+Leaving the password empty keeps the stored one, but only for the same network: a new network needs its password, or "Open network" ticked. Passwords are never shown. The portal closes after 10 minutes, or on a short press of the button; a lost network does not open it (decided, see `docs/decisions.md`).
+
+## Wi-Fi settings at build time
+
+Build settings are only defaults; whatever was saved in the portal takes precedence. For development, a network can be built in so that a freshly flashed board joins it without the portal. The password must not go into the repository, so it goes in a git-ignored file:
 
 1. Copy `firmware/sdkconfig.defaults.local.example` to `firmware/sdkconfig.defaults.local` and enter the network name and password.
 2. Delete `firmware/sdkconfig` (or run `idf.py fullclean`): the settings are read when it is generated.
 3. Build and flash as above. The log shows `connecting to "..."`, then `connected as climasense-xxxxxx, IP ...`.
 
-`idf.py menuconfig` → "ClimaSense network" also works, but is lost when `sdkconfig` is regenerated. The same menu holds the country (CH), time server and time zone. Once the portal exists, values entered there take precedence over all of these.
+`idf.py menuconfig` → "ClimaSense network" also works, but is lost when `sdkconfig` is regenerated. The same menu holds the country (CH), time server and time zone. Values saved in the portal take precedence over all of these; to get back to the build defaults, erase the flash (`idf.py erase-flash`) or the NVS partition.
 
 ## After a crash
 
@@ -133,8 +147,8 @@ When ESP-IDF is updated here, update the image tag there too.
 3. I2C bus on the low-power controller, address scan.
 4. Sensors one at a time: SHT45, BMP580, SCD41 (single shot every 5 min), SGP41 (1 Hz, index algorithm).
 5. Wi-Fi with fixed credentials from a git-ignored file (done), network time; settings store (done).
-6. MQTT publishing: 6a sensor values, 6b diagnostics (boot report, crash summary, log lines). **Comes after step 7** (decided 2026-11-20), so its settings go straight into the portal.
-7. Captive portal for all settings (Wi-Fi, device name, later MQTT). **Next.**
+6. MQTT publishing: 6a sensor values, 6b diagnostics (boot report, crash summary, log lines). **Next** (after step 7, decided 2026-11-20); its settings go straight into the portal.
+7. Captive portal for all settings (Wi-Fi, device name, later MQTT). Done; MQTT fields come with step 6.
 8. OTA updates.
 9. Hardening: watchdog, reconnects, sensor recovery by switching the sensor rail, LED status patterns.
 10. Measure self-heating against a reference thermometer; only then consider sleep modes.

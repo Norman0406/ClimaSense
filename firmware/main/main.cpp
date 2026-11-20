@@ -1,10 +1,11 @@
 // ClimaSense firmware entry point.
 // Report the previous run (its last log lines, a crash dump), bring up the rails, LED and button,
-// start the sensor task (sensors/sensor_task.h) and Wi-Fi with network time (net/wifi.h). At
-// start the LED shows red, green, blue and white in turn (a check of the LED and its colour
-// balance); a short press then cycles through the colours, a long press shows blue (later: Wi-Fi
-// setup portal).
+// start the sensor task (sensors/sensor_task.h), Wi-Fi with network time (net/wifi.h) and, when
+// needed, the setup portal (portal/portal.h). At start the LED shows red, green, blue and white
+// in turn (a check of the LED and its colour balance); a long press opens the setup portal, a
+// short press closes it, or otherwise cycles through the LED colours.
 
+#include <algorithm>
 #include <array>
 #include <cinttypes>
 #include <cstddef>
@@ -25,6 +26,7 @@
 #include "board/led.h"
 #include "diagnostics/diagnostics.h"
 #include "net/wifi.h"
+#include "portal/portal.h"
 #include "settings/nvs_store.h"
 #include "settings/store.h"
 #include "sensors/sensor_task.h"
@@ -34,6 +36,7 @@ namespace {
 constexpr const char *kTag = "climasense";
 constexpr int64_t kHeartbeatPeriodUs = 5'000'000;
 constexpr uint8_t kBrightness = 128;
+constexpr int64_t kBlinkHalfPeriodUs = 250'000;
 
 struct NamedColour {
     const char *name;
@@ -129,13 +132,34 @@ extern "C" void app_main()
     const auto network = settings::load_net(store, net::default_settings());
     log_loaded("network", network);
 
-    if (const esp_err_t err = net::start(network.value); err != ESP_OK) {
-        ESP_LOGE(kTag, "Wi-Fi not started: %s", esp_err_to_name(err));  // the sensors keep running
+    const esp_err_t wifi = net::start(network.value);
+    if (wifi != ESP_OK) {
+        ESP_LOGE(kTag, "Wi-Fi not started: %s", esp_err_to_name(wifi));  // the sensors keep running
     }
     led_self_test();
 
+    // Setup mode (captive portal): on first boot, i.e. with no network configured, and on a long
+    // press of the BOOT button; a short press closes it.
+    static portal::Context portal_context;
+    portal_context.store = &store;
+    portal_context.net = network.value;
+    portal_context.device = device.value;
+    portal_context.firmware_version = esp_app_get_description()->version;
+    portal_context.build_id = diagnostics::build_id();
+    const auto open_portal = [] {
+        if (const esp_err_t err = portal::open(portal_context); err != ESP_OK) {
+            ESP_LOGE(kTag, "setup portal not opened: %s", esp_err_to_name(err));
+        }
+    };
+    if (wifi == ESP_OK && !net::wifi_configured(network.value)) {
+        open_portal();
+    }
+
     std::size_t colour_index = 0;
     int64_t next_heartbeat = esp_timer_get_time();
+    int64_t next_blink = 0;
+    bool blink_on = false;
+    bool portal_was_open = false;
 
     for (;;) {
         const int64_t now = esp_timer_get_time();
@@ -145,20 +169,38 @@ extern "C" void app_main()
             next_heartbeat += kHeartbeatPeriodUs;
         }
 
-        const TickType_t wait = pdMS_TO_TICKS((next_heartbeat - now) / 1000) + 1;
+        // While setup mode is open, the LED blinks blue (twice a second).
+        const bool portal_open = portal::is_open();
+        if (portal_open && now >= next_blink) {
+            blink_on = !blink_on;
+            board::led::set(blink_on ? board::colour::kBlue : board::colour::kOff, kBrightness);
+            next_blink = now + kBlinkHalfPeriodUs;
+        } else if (!portal_open && portal_was_open) {
+            board::led::off();  // closed by its timeout, the button or a restart
+        }
+        portal_was_open = portal_open;
+
+        const int64_t until = portal_open ? std::min(next_heartbeat, next_blink) : next_heartbeat;
+        const TickType_t wait = pdMS_TO_TICKS(std::max<int64_t>(until - now, 0) / 1000) + 1;
         const auto event = board::button::wait(wait);
         if (!event) {
             continue;
         }
         switch (*event) {
         case board::ButtonEvent::ShortPress:
+            if (portal::is_open()) {
+                ESP_LOGI(kTag, "short press: closing the setup portal");
+                portal::close();
+                break;
+            }
+            // LED colour check (step 2): cycles through the colours.
             colour_index = (colour_index + 1) % kColours.size();
             ESP_LOGI(kTag, "short press: LED %s", kColours[colour_index].name);
             board::led::set(kColours[colour_index].rgb, kBrightness);
             break;
         case board::ButtonEvent::LongPress:
-            ESP_LOGI(kTag, "long press: Wi-Fi setup portal goes here (step 7)");
-            board::led::set(board::colour::kBlue, kBrightness);
+            ESP_LOGI(kTag, "long press: opening the setup portal");
+            open_portal();
             break;
         }
     }

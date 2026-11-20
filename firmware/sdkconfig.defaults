@@ -24,3 +24,7 @@ CONFIG_APP_RETRIEVE_LEN_ELF_SHA=16
 
 # A task watchdog timeout panics (core dump, then reboot) instead of only printing a warning.
 CONFIG_ESP_TASK_WDT_PANIC=y
+
+# Sockets: the setup portal's web server (up to 7 plus 3 internal), its DNS responder, SNTP,
+# and later MQTT and OTA. Phones open several connections at once while probing for a portal.
+CONFIG_LWIP_MAX_SOCKETS=16
