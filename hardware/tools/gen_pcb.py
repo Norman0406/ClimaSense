@@ -186,7 +186,7 @@ UP_ARROW = (43.5, 28.0, 0.9, 30.4)
 
 # text, x, y, height - each button label sits directly below its button
 SILK_LABELS = (
-    ("ClimaSense v1.0", 59.5, 31.6, 1.0),
+    ("ClimaSense Rev 1.0", 59.5, 31.6, 1.0),   # numbering: see "Revision naming" in docs/decisions.md
     ("BOOT", 29.6, 9.0, 0.8),
     ("RESET", 29.6, 17.95, 0.8),
     ("QWIIC", 37.3, 3.3, 0.8),
