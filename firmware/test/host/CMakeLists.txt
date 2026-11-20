@@ -24,6 +24,7 @@ add_executable(host_tests
     test_bmp580.cpp
     test_bus_scan.cpp
     test_button_logic.cpp
+    test_diagnostics_mqtt.cpp
     test_led_logic.cpp
     test_log_ring.cpp
     test_net.cpp
@@ -36,6 +37,7 @@ add_executable(host_tests
     test_telemetry.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
+    ${FW}/components/diagnostics/src/log_line.cpp
     ${FW}/components/net/src/settings.cpp
     ${FW}/components/portal/src/dns_answer.cpp
     ${FW}/components/portal/src/form.cpp

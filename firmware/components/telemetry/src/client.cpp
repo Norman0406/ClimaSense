@@ -23,6 +23,13 @@ std::string g_status_topic;
 std::string g_ha_status_topic;
 esp_mqtt_client_handle_t g_client = nullptr;
 std::atomic<bool> g_connected{false};
+std::string g_boot_topic;
+std::string g_log_topic;
+std::string g_log_level_topic;
+std::string g_boot_report;            // set before start(), then only read
+std::atomic<int> g_boot_msg_id{-1};
+std::atomic<bool> g_boot_delivered{false};
+std::atomic<int> g_log_level_request{-1};  // a diagnostics::LogLevel, or -1
 
 void publish_discovery()
 {
@@ -48,6 +55,17 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
             esp_mqtt_client_subscribe_single(g_client, g_ha_status_topic.c_str(), 1);
             publish_discovery();
         }
+        esp_mqtt_client_subscribe_single(g_client, g_log_level_topic.c_str(), 1);
+        if (!g_boot_report.empty() && !g_boot_delivered) {
+            g_boot_msg_id = esp_mqtt_client_enqueue(g_client, g_boot_topic.c_str(), g_boot_report.data(),
+                                                    static_cast<int>(g_boot_report.size()), 1, 1, true);
+        }
+        break;
+    case MQTT_EVENT_PUBLISHED:
+        if (event->msg_id >= 0 && event->msg_id == g_boot_msg_id) {
+            g_boot_delivered = true;
+            ESP_LOGI(kTag, "boot report delivered");
+        }
         break;
     case MQTT_EVENT_DISCONNECTED:
         if (g_connected.exchange(false)) {
@@ -60,6 +78,13 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
         const std::string_view payload(event->data, static_cast<std::size_t>(event->data_len));
         if (g_settings.ha_discovery && topic == g_ha_status_topic && payload == "online") {
             publish_discovery();
+        } else if (topic == g_log_level_topic) {
+            if (const auto level = diagnostics::parse_level_name(payload)) {
+                g_log_level_request = static_cast<int>(*level);
+            } else {
+                ESP_LOGW(kTag, "unknown log level \"%.*s\" (none, error, warn, info, debug)",
+                         static_cast<int>(payload.size()), payload.data());
+            }
         }
         break;
     }
@@ -104,6 +129,9 @@ esp_err_t start(const MqttSettings &settings, const Identity &identity)
     g_state_topic = state_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_status_topic = status_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_ha_status_topic = ha_status_topic(g_settings.ha_prefix.view());
+    g_boot_topic = boot_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_log_topic = log_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_log_level_topic = log_level_topic(g_settings.base_topic.view(), g_identity.device_id);
 
     esp_mqtt_client_config_t config{};
     config.broker.address.hostname = g_settings.host.c_str();
@@ -122,6 +150,7 @@ esp_err_t start(const MqttSettings &settings, const Identity &identity)
     config.session.last_will.qos = 1;
     config.session.last_will.retain = 1;
     config.session.keepalive = 60;  // the broker notices a vanished device within about 90 s
+    config.buffer.size = 4096;      // the boot report carries up to 2 KB of log
 
     g_client = esp_mqtt_client_init(&config);
     ESP_RETURN_ON_FALSE(g_client != nullptr, ESP_FAIL, kTag, "client init");
@@ -134,6 +163,28 @@ esp_err_t start(const MqttSettings &settings, const Identity &identity)
 }
 
 bool connected() { return g_connected; }
+
+void set_boot_report(std::string json) { g_boot_report = std::move(json); }
+
+bool boot_report_delivered() { return g_boot_delivered; }
+
+bool publish_log(const std::string &json)
+{
+    if (!g_connected || g_client == nullptr) {
+        return false;
+    }
+    return esp_mqtt_client_enqueue(g_client, g_log_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
+                                   true) >= 0;
+}
+
+std::optional<diagnostics::LogLevel> take_log_level_request()
+{
+    const int level = g_log_level_request.exchange(-1);
+    if (level < 0) {
+        return std::nullopt;
+    }
+    return static_cast<diagnostics::LogLevel>(level);
+}
 
 bool publish_state(const std::string &json)
 {

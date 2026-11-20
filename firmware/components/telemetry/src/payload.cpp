@@ -62,6 +62,66 @@ std::string status_topic(std::string_view base_topic, std::string_view device_id
 
 std::string ha_status_topic(std::string_view prefix) { return std::string(prefix) + "/status"; }
 
+std::string boot_topic(std::string_view base_topic, std::string_view device_id)
+{
+    return std::string(base_topic) + "/" + std::string(device_id) + "/boot";
+}
+
+std::string log_topic(std::string_view base_topic, std::string_view device_id)
+{
+    return std::string(base_topic) + "/" + std::string(device_id) + "/log";
+}
+
+std::string log_level_topic(std::string_view base_topic, std::string_view device_id)
+{
+    return std::string(base_topic) + "/" + std::string(device_id) + "/set/log_level";
+}
+
+std::string sanitize_utf8(std::string_view text)
+{
+    std::string out;
+    out.reserve(text.size());
+    std::size_t i = 0;
+    while (i < text.size()) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        std::size_t extra = 0;
+        uint32_t code = 0;
+        if (c < 0x80) {
+            out.push_back(text[i++]);
+            continue;
+        } else if ((c & 0xE0) == 0xC0) {
+            extra = 1;
+            code = c & 0x1F;
+        } else if ((c & 0xF0) == 0xE0) {
+            extra = 2;
+            code = c & 0x0F;
+        } else if ((c & 0xF8) == 0xF0) {
+            extra = 3;
+            code = c & 0x07;
+        } else {
+            out.push_back('?');
+            ++i;
+            continue;
+        }
+        bool ok = i + extra < text.size();
+        for (std::size_t k = 1; ok && k <= extra; ++k) {
+            const auto cc = static_cast<unsigned char>(text[i + k]);
+            ok = (cc & 0xC0) == 0x80;
+            code = (code << 6) | (cc & 0x3F);
+        }
+        static constexpr uint32_t kMin[] = {0, 0x80, 0x800, 0x10000};
+        ok = ok && code >= kMin[extra] && code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF);
+        if (ok) {
+            out.append(text.substr(i, extra + 1));
+            i += extra + 1;
+        } else {
+            out.push_back('?');
+            ++i;  // resynchronise on the next byte
+        }
+    }
+    return out;
+}
+
 std::string json_escape(std::string_view text)
 {
     std::string out;
@@ -142,6 +202,75 @@ std::string state_json(const sensors::SensorSnapshot &s, const StateMeta &meta)
     add_number(out, "uptime_s", std::to_string(meta.uptime_s));
     out += '}';
     return out;
+}
+
+namespace {
+
+std::string hex32(uint32_t value)
+{
+    char text[11];
+    snprintf(text, sizeof(text), "0x%08lx", static_cast<unsigned long>(value));
+    return text;
+}
+
+}  // namespace
+
+std::string boot_json(const BootInfo &info)
+{
+    std::string out = "{";
+    add_string(out, "id", info.device_id, true);
+    add_string(out, "name", info.name);
+    add_string(out, "firmware", info.firmware_version);
+    add_string(out, "build", info.build_id);
+    add_string(out, "reset_reason", info.reset_reason);
+    if (info.crash) {
+        const CrashInfo &c = *info.crash;
+        out += ",\"crash\":{";
+        add_string(out, "reason", sanitize_utf8(c.reason), true);
+        add_string(out, "task", sanitize_utf8(c.task));
+        add_string(out, "pc", hex32(c.pc));
+        add_string(out, "mcause", hex32(c.mcause));
+        add_string(out, "mtval", hex32(c.mtval));
+        add_string(out, "ra", hex32(c.ra));
+        add_string(out, "sp", hex32(c.sp));
+        add_string(out, "build", sanitize_utf8(c.build));
+        out += c.this_build ? ",\"this_build\":true" : ",\"this_build\":false";
+        out += c.from_this_reset ? ",\"from_this_reset\":true" : ",\"from_this_reset\":false";
+        out += '}';
+    }
+    if (!info.previous_log.empty()) {
+        add_string(out, "previous_log", sanitize_utf8(info.previous_log));
+    }
+    out += '}';
+    return out;
+}
+
+std::string log_json(std::string_view line)
+{
+    const auto parsed = diagnostics::parse_log_line(line);
+    std::string out = "{";
+    if (!parsed) {
+        std::string_view text = line;
+        while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
+            text.remove_suffix(1);
+        }
+        add_string(out, "msg", sanitize_utf8(text), true);
+        out += '}';
+        return out;
+    }
+    const char level[2] = {diagnostics::level_letter(parsed->level), '\0'};
+    add_string(out, "level", level, true);
+    add_string(out, "tag", sanitize_utf8(parsed->tag));
+    add_number(out, "t_ms", std::to_string(parsed->time_ms));
+    add_string(out, "msg", sanitize_utf8(parsed->message));
+    out += '}';
+    return out;
+}
+
+std::string dropped_log_json(uint32_t count)
+{
+    return "{\"level\":\"W\",\"tag\":\"climasense\",\"msg\":\"" + std::to_string(count) +
+           " log line(s) not sent (rate limit or full queue)\",\"dropped\":" + std::to_string(count) + "}";
 }
 
 std::vector<Message> discovery_messages(const DiscoveryInfo &info)

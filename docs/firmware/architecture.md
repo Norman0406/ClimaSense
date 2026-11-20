@@ -83,6 +83,12 @@ Decided 2026-11-20. The device hangs on a USB charger, so nothing reads its USB 
 - **Build fingerprint:** 16 hex characters of the app's ELF SHA-256, in the start-up banner and in every core dump. A backtrace or core dump decodes only with the `.elf` of exactly that build: the local `firmware/build/climasense.elf` for a build flashed from the PC, or the `firmware-<commit>` artifact that CI keeps for 90 days.
 - **Partition table** (`firmware/partitions.csv`): NVS 24 KB, OTA data, PHY data, two 3 MB OTA app slots, core dump 128 KB, 1.75 MB free. Changing it on a deployed board needs a USB flash, so it already has what OTA (step 8) needs.
 
-With MQTT (step 6): publish a boot report (reset reason, build, crash summary, the last log lines), send log lines of WARNING and above to a log topic with the level adjustable remotely, then erase the reported core dump. Optional later: upload the full core dump over HTTP, or forward the log topic to a log service from the broker side.
+Over MQTT (step 6b):
+
+- **Boot report** on `<base>/<id>/boot`, once per start, QoS 1 and retained: ID, name, firmware, build, reset reason, the log lines kept from before the reset (up to 2 KB) and, if the coredump partition holds one, the crash summary (reason, task, PC and RISC-V registers as hex, the crashed build and whether it is this one). Sent on the first connection and again on later ones until the broker acknowledges it; only then is the core dump erased. The client's buffer is 4 KB for it.
+- **Log lines** on `<base>/<id>/log`, WARNING and above by default: the log hook also copies each line it would forward into a 16-line queue (`diagnostics/line_queue.h`; when full, new lines are dropped and counted), and the app task sends them once a second while connected, as `{"level","tag","t_ms","msg"}`, at most 10 a minute (`telemetry/rate_limit.h`); what did not go out is reported in one note with its count. Lines from the MQTT code itself (`mqtt`, `mqtt_client`, `transport_base`) are never forwarded, so a broken connection cannot feed itself. Log text is made valid UTF-8 before it goes into JSON.
+- **Remote log level:** `none`, `error`, `warn`, `info` or `debug` sent to `<base>/<id>/set/log_level` sets which lines are forwarded, until the next restart (then WARNING again). It does not change what the console shows.
+
+Optional later: upload the full core dump over HTTP, or forward the log topic to a log service from the broker side.
 
 On the desk, the C6's USB port is also a JTAG debugger: `idf.py openocd` and `idf.py gdb` give breakpoints and single-stepping over the same cable.

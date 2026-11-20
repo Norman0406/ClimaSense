@@ -2,10 +2,12 @@
 // and the state messages the app task hands over once per interval.
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "esp_err.h"
 
+#include "diagnostics/log_line.h"
 #include "telemetry/mqtt_settings.h"
 
 namespace telemetry {
@@ -33,5 +35,16 @@ bool connected();
 // Queues a state message (QoS 0, not retained) and returns at once. False if not connected: the
 // message is dropped, the next one follows an interval later.
 bool publish_state(const std::string &json);
+
+// The boot report (telemetry::boot_json). Call before start(): it is published (QoS 1, retained)
+// on the first connection, and again on later ones until the broker has acknowledged it.
+void set_boot_report(std::string json);
+bool boot_report_delivered();
+
+// Queues a log message (QoS 0, not retained); false if not connected.
+bool publish_log(const std::string &json);
+
+// A log level received on <base>/<id>/set/log_level since the last call, if any.
+std::optional<diagnostics::LogLevel> take_log_level_request();
 
 }  // namespace telemetry

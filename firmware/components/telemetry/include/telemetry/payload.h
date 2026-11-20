@@ -13,12 +13,17 @@
 #include <string_view>
 #include <vector>
 
+#include "diagnostics/log_line.h"
 #include "sensors/snapshot.h"
 
 namespace telemetry {
 
 std::string state_topic(std::string_view base_topic, std::string_view device_id);   // <base>/<id>/state
 std::string status_topic(std::string_view base_topic, std::string_view device_id);  // <base>/<id>/status
+
+std::string boot_topic(std::string_view base_topic, std::string_view device_id);       // <base>/<id>/boot
+std::string log_topic(std::string_view base_topic, std::string_view device_id);        // <base>/<id>/log
+std::string log_level_topic(std::string_view base_topic, std::string_view device_id);  // <base>/<id>/set/log_level
 
 inline constexpr std::string_view kOnline = "online";
 inline constexpr std::string_view kOffline = "offline";
@@ -29,6 +34,10 @@ std::string json_escape(std::string_view text);
 // value / scale with `decimals` digits, rounded half away from zero: fixed(22415, 1000, 2) ==
 // "22.42", fixed(-50, 1000, 2) == "-0.05".
 std::string fixed(int64_t value, int64_t scale, int decimals);
+
+// Valid UTF-8 for a JSON string: bytes that do not form valid UTF-8 become '?'. For log text,
+// which may contain anything.
+std::string sanitize_utf8(std::string_view text);
 
 // strftime's "%z" offset "+0100" written as RFC 3339's "+01:00" at the end of a time stamp.
 std::string rfc3339_offset(std::string_view time_with_z);
@@ -42,6 +51,42 @@ struct StateMeta {
 };
 
 std::string state_json(const sensors::SensorSnapshot &snapshot, const StateMeta &meta);
+
+// --- Diagnostics -------------------------------------------------------------------------------
+
+struct CrashInfo {
+    std::string_view reason;
+    std::string_view task;
+    uint32_t pc = 0;
+    uint32_t mcause = 0;
+    uint32_t mtval = 0;
+    uint32_t ra = 0;
+    uint32_t sp = 0;
+    std::string_view build;
+    bool this_build = false;
+    bool from_this_reset = false;
+};
+
+struct BootInfo {
+    std::string_view device_id;
+    std::string_view name;
+    std::string_view firmware_version;
+    std::string_view build_id;
+    std::string_view reset_reason;
+    std::string_view previous_log;  // the log lines kept from before the reset; may be empty
+    std::optional<CrashInfo> crash;
+};
+
+// The boot report: published once per start (QoS 1, retained), on <base>/<id>/boot. Register
+// values as hex strings ("0x4200a3c4"), the previous log as one string with \n line breaks.
+std::string boot_json(const BootInfo &info);
+
+// One log line as a message on <base>/<id>/log: {"level":"W","tag":...,"t_ms":...,"msg":...}.
+// Text that is not an ESP-IDF log line is sent as the message alone.
+std::string log_json(std::string_view line);
+
+// The note sent when log lines were not sent (rate limit or full queue).
+std::string dropped_log_json(uint32_t count);
 
 // --- Home Assistant discovery ----------------------------------------------------------------
 

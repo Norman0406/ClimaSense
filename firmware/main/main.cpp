@@ -2,7 +2,7 @@
 // Report the previous run (its last log lines, a crash dump), bring up the rails, LED and button,
 // start the sensor task (sensors/sensor_task.h), Wi-Fi with network time (net/wifi.h) and, when
 // needed, the setup portal (portal/portal.h), and publish the sensor values over MQTT every
-// 60 s (telemetry/client.h). At start the LED shows red, green, blue and white
+// 60 s, with a boot report and WARNING-and-above log lines (telemetry/client.h). At start the LED shows red, green, blue and white
 // in turn (a check of the LED and its colour balance); a long press opens the setup portal, a
 // short press closes it, or otherwise cycles through the LED colours.
 
@@ -32,6 +32,7 @@
 #include "portal/portal.h"
 #include "telemetry/client.h"
 #include "telemetry/payload.h"
+#include "telemetry/rate_limit.h"
 #include "settings/nvs_store.h"
 #include "settings/store.h"
 #include "sensors/sensor_task.h"
@@ -42,6 +43,7 @@ constexpr const char *kTag = "climasense";
 constexpr int64_t kHeartbeatPeriodUs = 5'000'000;
 constexpr uint8_t kBrightness = 128;
 constexpr int64_t kBlinkHalfPeriodUs = 250'000;
+constexpr int64_t kLogCheckPeriodUs = 1'000'000;
 
 struct NamedColour {
     const char *name;
@@ -131,6 +133,49 @@ void publish(const std::string &display_name)
     }
 }
 
+// The boot report: what the last run left behind (reset reason, its last log lines, a crash).
+std::string boot_report(const std::string &display_name)
+{
+    telemetry::BootInfo info;
+    info.device_id = net::device_id();
+    info.name = display_name;
+    info.firmware_version = esp_app_get_description()->version;
+    info.build_id = diagnostics::build_id();
+    info.reset_reason = diagnostics::reset_reason_name(esp_reset_reason());
+    info.previous_log = diagnostics::previous_log();
+    const auto crash = diagnostics::crash_summary();
+    if (crash) {
+        info.crash = telemetry::CrashInfo{crash->reason, crash->task,  crash->pc,         crash->mcause,
+                                          crash->mtval,  crash->ra,    crash->sp,         crash->build,
+                                          crash->this_build, crash->from_this_reset};
+    }
+    return telemetry::boot_json(info);
+}
+
+// Log lines over MQTT, at most 10 a minute; what does not fit is counted and reported in one note.
+telemetry::RateLimiter g_log_limit(10, 60);
+uint32_t g_log_suppressed = 0;
+
+void forward_log_lines()
+{
+    if (!telemetry::connected()) {
+        return;  // the queue keeps up to 16 lines for when the connection is back
+    }
+    const auto now_s = static_cast<uint32_t>(esp_timer_get_time() / 1'000'000);
+    while (const auto line = diagnostics::next_forwarded_line()) {
+        if (g_log_limit.allow(now_s)) {
+            telemetry::publish_log(telemetry::log_json(*line));
+        } else {
+            ++g_log_suppressed;
+        }
+    }
+    g_log_suppressed += diagnostics::take_dropped_forward_lines();
+    if (g_log_suppressed > 0 && g_log_limit.allow(now_s)) {
+        telemetry::publish_log(telemetry::dropped_log_json(g_log_suppressed));
+        g_log_suppressed = 0;
+    }
+}
+
 void led_self_test()
 {
     for (std::size_t i = 1; i < kColours.size(); ++i) {
@@ -174,6 +219,11 @@ extern "C" void app_main()
         ESP_LOGE(kTag, "Wi-Fi not started: %s", esp_err_to_name(wifi));  // the sensors keep running
     }
     const std::string display_name(settings::display_name(device.value, net::device_id()));
+    if (!telemetry::mqtt_configured(mqtt.value)) {
+        diagnostics::set_forward_level(diagnostics::LogLevel::None);  // nowhere to send them
+    }
+    telemetry::set_boot_report(boot_report(display_name));
+    bool dump_erased = false;
     if (wifi == ESP_OK) {
         const telemetry::Identity identity{net::device_id(), display_name, esp_app_get_description()->version};
         if (const esp_err_t err = telemetry::start(mqtt.value, identity); err != ESP_OK) {
@@ -206,6 +256,7 @@ extern "C" void app_main()
     // The first message after one full interval, so it averages a full minute of readings.
     int64_t next_publish = esp_timer_get_time() + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
     int64_t next_blink = 0;
+    int64_t next_log_check = 0;
     bool blink_on = false;
     bool portal_was_open = false;
 
@@ -215,6 +266,23 @@ extern "C" void app_main()
             ESP_LOGI(kTag, "alive, uptime %" PRId64 " s, free heap %" PRIu32 " bytes",
                      now / 1'000'000, esp_get_free_heap_size());
             next_heartbeat += kHeartbeatPeriodUs;
+        }
+
+        if (now >= next_log_check) {
+            forward_log_lines();
+            if (const auto level = telemetry::take_log_level_request()) {
+                diagnostics::set_forward_level(*level);
+                ESP_LOGI(kTag, "log lines over MQTT from level %c on (until restart)",
+                         *level == diagnostics::LogLevel::None ? '-' : diagnostics::level_letter(*level));
+            }
+            // The core dump stays in flash until the boot report that carries it is delivered.
+            if (!dump_erased && telemetry::boot_report_delivered() && diagnostics::has_crash_dump()) {
+                if (diagnostics::erase_crash_dump() == ESP_OK) {
+                    ESP_LOGI(kTag, "core dump reported over MQTT and erased");
+                }
+                dump_erased = true;
+            }
+            next_log_check = now + kLogCheckPeriodUs;
         }
 
         if (now >= next_publish) {
@@ -233,7 +301,7 @@ extern "C" void app_main()
         }
         portal_was_open = portal_open;
 
-        int64_t until = std::min(next_heartbeat, next_publish);
+        int64_t until = std::min({next_heartbeat, next_publish, next_log_check});
         if (portal_open) {
             until = std::min(until, next_blink);
         }
