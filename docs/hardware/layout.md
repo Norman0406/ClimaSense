@@ -155,7 +155,7 @@ The sensor side can be cut off at the three bridges (3 + 5 + 3 mm of board) with
 | Sensor supply | 92 mm | 73 mm | 1.26 | |
 | 5 V | 25 mm | 18 mm | 1.38 | The deliberate way round C1, item 1 above. |
 | Sensor enable | 34 mm | 25 mm | 1.39 | Goes round the buck converter instead of under it. |
-| Pressure interrupt | 62 mm | 46 mm | 1.37 | 6 vias. Goes on to the sensor header. |
+| Pressure interrupt | 60 mm | 46 mm | 1.32 | 6 vias. Goes on to the sensor header. |
 | Qwiic clock, data, enable | 32–33 mm | 23 mm | 1.4 | Drawn by hand: the three run round the BOOT pull-up and down in front of the connector so that none of them needs a via. |
 | SGP41 filtered supply | 11 mm | 7 mm | 1.60 | The filter resistor is on the right of the chip, the supply pin on the left, so the track goes round. The capacitor sits 1.5 mm from the pin, which is the part that matters. |
 
@@ -174,7 +174,7 @@ Signal tracks elsewhere are 0.2 mm. Making them thinner would gain nothing.
 - **Antenna:** no copper on either layer within the keep-out, no track left of x = 6.9 mm.
 - **Buck feedback track:** drawn by hand, 4.6 mm long, 2.2 mm of it beside the 5 V track, on the far side of the converter from the switch node.
 - **Sensor side:** its ground joins the main ground at one point only (the bridge), so no ground loop. The SCD41's current pulses return through that one 0.2 mm track and shift the island's ground by a few millivolts; the sensors are digital and do not care.
-- **I2C:** data and clock run side by side for 20 mm. The pressure sensor's interrupt line, which changes at most once per measurement, runs beside the USB supply for 8 mm.
+- **I2C:** data and clock run side by side for 20 mm. The pressure sensor's interrupt line, which changes at most once per measurement, runs beside the USB supply for 10 mm.
 - **Sensor supply:** has its own regulator, so Wi-Fi bursts on the 3.3 V rail do not reach the sensors directly.
 
 ## Things a reviewer should look at
