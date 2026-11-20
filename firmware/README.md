@@ -99,19 +99,25 @@ Semantic versioning (decided 2026-11-20, `docs/decisions.md`):
 
 ### Making a release
 
-1. Commit and push what goes into the release.
-2. Tag that commit with the next version and push the tag:
-   ```powershell
-   git tag v0.2.0
-   ```
-   ```powershell
-   git push origin v0.2.0
-   ```
-3. The **Release** workflow (`.github/workflows/release.yml`) starts by itself: pushing the version tag is the deliberate act that releases. It builds, checks that the image carries the version `0.2.0+<commit>`, signs it with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
-   - `climasense-<version>.bin`: the signed image, for updates and the first USB flash
-   - `climasense-<version>.elf`: decodes crashes of exactly this build
-   - `bootloader.bin`, `partition-table.bin`, `ota_data_initial.bin`, `flash_args`: for a full USB flash
-   - `SHA256SUMS`
+Commit and push what goes into the release to `main`, then start the **Release** workflow (`.github/workflows/release.yml`) in one of two ways:
+
+- **In the GitHub web interface:** Actions → **Release** → **Run workflow**, branch `main`, version e.g. `0.2.0` → Run. The workflow builds the latest commit of `main` and creates the tag `v0.2.0` on exactly that commit, together with the release. It refuses a version that is not `X.Y.Z`, one whose tag exists already, and a run started on any branch other than `main`.
+- **From the command line:** tag the commit and push the tag:
+  ```powershell
+  git tag v0.2.0
+  ```
+  ```powershell
+  git push origin v0.2.0
+  ```
+
+Either way, starting it is the deliberate act that releases (there is no approval step on GitHub Free). The workflow builds, checks that the image carries the version `0.2.0+<commit>`, signs it with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
+
+- `climasense-<version>.bin`: the signed image, for updates and the first USB flash
+- `climasense-<version>.elf`: decodes crashes of exactly this build
+- `bootloader.bin`, `partition-table.bin`, `ota_data_initial.bin`, `flash_args`: for a full USB flash
+- `SHA256SUMS`
+
+Do not create the release by hand under Releases → "Draft a new release": the workflow would then fail, finding the release already there.
 
 ### Installing a release
 

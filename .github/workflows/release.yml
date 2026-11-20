@@ -1,16 +1,28 @@
-# Firmware releases: a signed image for every version tag (decided 2026-11-20).
+# Firmware releases: a signed image for every version (decided 2026-11-20).
 #
-# Push a tag vX.Y.Z; the image's version is X.Y.Z+<commit> (firmware/cmake/version.cmake). The build is signed with the repository secret
-# OTA_SIGNING_KEY, checked against the key, and published as a GitHub Release. (GitHub Free, private
-# repository: no environment secrets or required reviewers there, so pushing the version tag is the
-# deliberate act that releases; only this workflow uses the secret.) Only release images are signed; every other build is not, so
-# only these can be installed over the air. Setup and process: firmware/README.md, "Releases".
+# Two ways to start one, both ending in a GitHub Release with tag vX.Y.Z:
+#   - push a tag vX.Y.Z, or
+#   - Actions > Release > Run workflow on main, with the version X.Y.Z: the tag is created on the
+#     commit that was built, together with the release. (A tag created by this workflow's own token
+#     does not start the workflow again.)
+# The image's version is X.Y.Z+<commit> (firmware/cmake/version.cmake), checked before signing.
+# The build is signed with the repository secret OTA_SIGNING_KEY, checked against the key, and
+# published. (GitHub Free, private repository: no environment secrets or required reviewers, so
+# starting the release is the deliberate act; only this workflow uses the secret.) Only release
+# images are signed, so only these can be installed over the air. Process: firmware/README.md,
+# "Releases and updates".
 name: Release
 
 on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, X.Y.Z (e.g. 0.2.0). Builds the latest commit of main and tags it vX.Y.Z."
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,20 +32,46 @@ jobs:
     name: Build and sign
     runs-on: ubuntu-24.04
     container: espressif/idf:v6.1.1
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: Version from the tag
+      - name: Version
+        id: version
         shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}  # via the environment, never pasted into the script
         run: |
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          echo "IMAGE_VERSION=${GITHUB_REF_NAME#v}+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "::error::releases are made from main; this run was started on ${GITHUB_REF}"
+              exit 1
+            fi
+            version="${INPUT_VERSION#v}"
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::the version must be X.Y.Z (e.g. 0.2.0), not '${INPUT_VERSION}'"
+              exit 1
+            fi
+            if git ls-remote --exit-code --tags origin "refs/tags/v${version}" > /dev/null; then
+              echo "::error::v${version} exists already; release tags are never reused (take the next version)"
+              exit 1
+            fi
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "IMAGE_VERSION=${version}+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "release v${version} from ${GITHUB_SHA::7}"
 
       - name: Build (unsigned, like every build; signed in the next step)
         working-directory: firmware
         shell: bash
+        env:
+          CLIMASENSE_RELEASE_TAG: ${{ steps.version.outputs.tag }}  # also before the tag exists
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           . "$IDF_PATH/export.sh"
           idf.py build
           # The image must carry the release's version, or devices would compare the wrong one.
@@ -77,7 +115,7 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: release-${{ github.ref_name }}
+          name: release-${{ steps.version.outputs.tag }}
           path: firmware/release/
           if-no-files-found: error
           retention-days: 7
@@ -87,19 +125,25 @@ jobs:
     needs: build-sign
     runs-on: ubuntu-24.04
     permissions:
-      contents: write  # creating the release; this job never sees the key
+      contents: write  # creating the tag (manual start) and the release; this job never sees the key
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
-          name: release-${{ github.ref_name }}
+          name: release-${{ needs.build-sign.outputs.tag }}
           path: release
 
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build-sign.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/* \
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            where=(--target "$GITHUB_SHA")  # creates the tag on exactly the commit that was built
+          else
+            where=(--verify-tag)            # the pushed tag must exist
+          fi
+          gh release create "$TAG" release/* \
             --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --title "ClimaSense firmware $GITHUB_REF_NAME" \
-            --notes "Signed firmware image climasense-${GITHUB_REF_NAME#v}.bin for updates over the air (MQTT URL or setup portal). The .elf decodes crashes of exactly this build; the other files are for a full USB flash. SHA256SUMS lists the checksums."
+            "${where[@]}" \
+            --title "ClimaSense firmware $TAG" \
+            --notes "Signed firmware image climasense-${TAG#v}.bin for updates over the air (MQTT URL or setup portal). The .elf decodes crashes of exactly this build; the other files are for a full USB flash. SHA256SUMS lists the checksums."

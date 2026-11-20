@@ -8,6 +8,8 @@
 #
 # <hash> is the commit's first 7 hex digits. In GitHub Actions the ref comes from GITHUB_REF_TYPE /
 # GITHUB_REF_NAME / GITHUB_SHA (the checkout is a single commit, often without branch or tags).
+# CLIMASENSE_RELEASE_TAG=vX.Y.Z (set by the release workflow) says "this build is that release",
+# for a release started by hand, whose tag is only created after the build.
 # The version is fixed when CMake configures; a new commit or branch triggers a reconfigure (the
 # git files below are configure dependencies).
 
@@ -18,7 +20,13 @@ set(_branch "")
 set(_hash "")
 set(_dirty FALSE)
 
-if(DEFINED ENV{GITHUB_REF_TYPE} AND DEFINED ENV{GITHUB_REF_NAME} AND DEFINED ENV{GITHUB_SHA})
+if(DEFINED ENV{CLIMASENSE_RELEASE_TAG} AND DEFINED ENV{GITHUB_SHA})
+    set(_tag "$ENV{CLIMASENSE_RELEASE_TAG}")
+    string(SUBSTRING "$ENV{GITHUB_SHA}" 0 7 _hash)
+    if(NOT _tag MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+$")
+        message(FATAL_ERROR "CLIMASENSE_RELEASE_TAG must be vX.Y.Z, not '${_tag}'")
+    endif()
+elseif(DEFINED ENV{GITHUB_REF_TYPE} AND DEFINED ENV{GITHUB_REF_NAME} AND DEFINED ENV{GITHUB_SHA})
     string(SUBSTRING "$ENV{GITHUB_SHA}" 0 7 _hash)
     if("$ENV{GITHUB_REF_TYPE}" STREQUAL "tag")
         set(_tag "$ENV{GITHUB_REF_NAME}")
