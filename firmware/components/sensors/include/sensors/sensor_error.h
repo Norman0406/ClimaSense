@@ -13,6 +13,8 @@ enum class SensorError : uint8_t {
     Timeout,  // the bus hung
     Bus,      // other bus or driver failure
     Crc,      // the response arrived but its checksum is wrong
+    NotReady,      // the sensor answered, but has no result yet or is not ready after a reset
+    UnexpectedId,  // the chip ID is not the expected part
 };
 
 constexpr const char *to_string(SensorError error)
@@ -22,6 +24,8 @@ constexpr const char *to_string(SensorError error)
     case SensorError::Timeout: return "bus timeout";
     case SensorError::Bus:     return "bus error";
     case SensorError::Crc:     return "CRC mismatch";
+    case SensorError::NotReady:     return "not ready";
+    case SensorError::UnexpectedId: return "unexpected chip ID";
     }
     return "?";
 }

@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+        "src/bmp580.cpp"
         "src/bus_scan.cpp"
         "src/esp_i2c_bus.cpp"
         "src/sensor_task.cpp"

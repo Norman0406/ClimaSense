@@ -21,6 +21,7 @@ FetchContent_MakeAvailable(googletest)
 set(FW ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 add_executable(host_tests
+    test_bmp580.cpp
     test_bus_scan.cpp
     test_button_logic.cpp
     test_led_logic.cpp
@@ -28,6 +29,7 @@ add_executable(host_tests
     test_sht45.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
+    ${FW}/components/sensors/src/bmp580.cpp
     ${FW}/components/sensors/src/bus_scan.cpp
     ${FW}/components/sensors/src/sht45.cpp
 )

@@ -1,5 +1,6 @@
 #include "sensors/sensor_task.h"
 
+#include <algorithm>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
@@ -11,6 +12,7 @@
 #include "freertos/task.h"
 
 #include "board/pins.h"
+#include "sensors/bmp580.h"
 #include "sensors/bus_scan.h"
 #include "sensors/devices.h"
 #include "sensors/esp_i2c_bus.h"
@@ -27,6 +29,8 @@ constexpr uint32_t kStackBytes = 4096;
 constexpr UBaseType_t kPriority = 5;
 // Readings are logged at INFO every this many ticks (every tick at DEBUG).
 constexpr uint32_t kLogEveryTicks = 10;
+// A sensor whose start-up failed is tried again every this many ticks.
+constexpr uint32_t kRetryInitTicks = 10;
 
 // Waits at least `ms` (a plain vTaskDelay can return up to one tick early).
 void wait_ms(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms) + 1); }
@@ -121,13 +125,24 @@ void init_sht45(Sht45 &sht)
     }
 }
 
-SensorResult<Sht45Reading> measure(Sht45 &sht)
+bool init_bmp580(Bmp580 &bmp)
 {
-    if (auto r = sht.start_measurement(); !r) {
-        return std::unexpected(r.error());
+    if (auto r = bmp.soft_reset(); !r) {
+        ESP_LOGW(kTag, "BMP580: reset failed: %s", to_string(r.error()));
+        return false;
     }
-    wait_ms(Sht45::kMeasureMs);
-    return sht.read_measurement();
+    wait_ms(Bmp580::kResetMs);
+    const auto chip_id = bmp.check_after_reset();
+    if (!chip_id) {
+        ESP_LOGW(kTag, "BMP580: start-up check failed: %s", to_string(chip_id.error()));
+        return false;
+    }
+    if (auto r = bmp.configure(); !r) {
+        ESP_LOGW(kTag, "BMP580: configuration failed: %s", to_string(r.error()));
+        return false;
+    }
+    ESP_LOGI(kTag, "BMP580: chip ID 0x%02x, configured", *chip_id);
+    return true;
 }
 
 void task(void *)
@@ -153,22 +168,51 @@ void task(void *)
     Health sht45_health{"SHT45"};
     init_sht45(sht45);
 
+    Bmp580 bmp580{bus};
+    Health bmp580_health{"BMP580"};
+    bool bmp580_ready = init_bmp580(bmp580);
+
     TickType_t last_wake = xTaskGetTickCount();
-    for (uint32_t tick = 0;; ++tick) {
+    for (uint32_t tick = 1;; ++tick) {
         vTaskDelayUntil(&last_wake, kTick);
         if (!bus.is_open()) {
             continue;
         }
-        // Still to come in step 4: BMP580 and SGP41 every tick, SCD41 single shot every 5 minutes.
-        const SensorResult<Sht45Reading> reading = measure(sht45);
-        if (!reading) {
-            sht45_health.failed(reading.error());
-            continue;
+        if (!bmp580_ready && tick % kRetryInitTicks == 0) {
+            bmp580_ready = init_bmp580(bmp580);
         }
-        sht45_health.ok();
+        // Still to come in step 4: SGP41 every tick, SCD41 single shot every 5 minutes.
+
+        // Start both measurements, wait once for the slower one, then read both.
+        const SensorResult<void> sht45_started = sht45.start_measurement();
+        const SensorResult<void> bmp580_started =
+            bmp580_ready ? bmp580.start_measurement() : SensorResult<void>{std::unexpected(SensorError::NotReady)};
+        wait_ms(std::max(Sht45::kMeasureMs, Bmp580::kMeasureMs));
+
         const bool info = tick % kLogEveryTicks == 0;
-        ESP_LOG_LEVEL_LOCAL(info ? ESP_LOG_INFO : ESP_LOG_DEBUG, kTag, "SHT45: %s C, %s %%RH",
-                            Milli(reading->temperature_mc).text, Milli(reading->humidity_mpercent).text);
+        const esp_log_level_t level = info ? ESP_LOG_INFO : ESP_LOG_DEBUG;
+
+        const SensorResult<Sht45Reading> sht = sht45_started
+            ? sht45.read_measurement() : SensorResult<Sht45Reading>{std::unexpected(sht45_started.error())};
+        if (sht) {
+            sht45_health.ok();
+            ESP_LOG_LEVEL_LOCAL(level, kTag, "SHT45: %s C, %s %%RH",
+                                Milli(sht->temperature_mc).text, Milli(sht->humidity_mpercent).text);
+        } else {
+            sht45_health.failed(sht.error());
+        }
+
+        if (bmp580_ready) {
+            const SensorResult<Bmp580Reading> bmp = bmp580_started
+                ? bmp580.read_measurement() : SensorResult<Bmp580Reading>{std::unexpected(bmp580_started.error())};
+            if (bmp) {
+                bmp580_health.ok();
+                ESP_LOG_LEVEL_LOCAL(level, kTag, "BMP580: %s hPa (die %s C)",
+                                    Milli(bmp->pressure_milli_pa / 100).text, Milli(bmp->temperature_mc).text);
+            } else {
+                bmp580_health.failed(bmp.error());
+            }
+        }
     }
 }
 
