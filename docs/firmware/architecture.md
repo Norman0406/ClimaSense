@@ -36,7 +36,7 @@ firmware/
     board/                 pin map, supply rails, status LED, button
     diagnostics/           build fingerprint, last log lines across resets, crash dump report
     sensors/               (step 3/4) bus access and the four drivers
-    net/                   (step 5+) Wi-Fi, MQTT, portal, OTA
+    net/                   Wi-Fi, network time, settings record (step 5); MQTT, portal, OTA later
   test/host/               tests that run on the PC
 ```
 
@@ -56,6 +56,12 @@ Until the boards arrive there are no sensors to test against (no breakouts for t
 
 - **LED:** three LEDC PWM channels at 4 kHz, 10 bit, output inverted in the peripheral (the LED is active low, so duty 0 = off). Colours are gamma-corrected and each channel is scaled so that equal values look about equally bright. The scale factors come from the datasheet estimate in `docs/hardware/schematic.md` (green ~21 mcd, red ~13 mcd, blue ~8 mcd at full current, ±30 %) and are to be checked by eye on the real board.
 - **Button** (BOOT/user, IO9, low when pressed): polled every 10 ms, debounced over 30 ms. A press released before 3 s is a **short press**; holding it for 3 s gives a **long press** at that moment (the release afterwards gives nothing), so the LED can confirm while the button is still held. Long press opens the Wi-Fi setup portal (step 7). Holding BOOT while pressing RESET still enters USB download mode; that happens in the chip's ROM, before the firmware runs.
+
+## Network and settings
+
+- **Settings are records, the build only provides defaults.** The Wi-Fi code gets a `net::NetSettings` (network name, password, country, time server, time zone; fixed-size, no heap) and never reads build settings itself. `net::default_settings()` fills it from the Kconfig menu "ClimaSense network", whose values come from the git-ignored `firmware/sdkconfig.defaults.local`. From step 7 on, the captive portal stores settings in NVS, which take precedence; it checks them with `net::validate()` first. The MQTT settings in step 6 follow the same pattern.
+- **Wi-Fi station** (`net/wifi.h`): starts in the background from `app_main` after NVS is initialised; with no network configured it stays off and says so. Country `CH` (channels 1-13), not taken over from the access point. WPA2, and WPA3 where the router offers it; all channels scanned, the strongest access point chosen. Reconnects with pauses of 1, 2, 4 ... 60 s (`net/backoff.h`), back to 1 s once connected. Power save stays at ESP-IDF's default (modem sleep) for less heat. Host name `climasense-` plus the last three MAC bytes (`net/hostname.h`).
+- **Network time:** SNTP from `ch.pool.ntp.org`, started at the first connection and resyncing on its own; time zone Europe/Zurich with daylight saving time. The log keeps its milliseconds-since-boot timestamps; real time is for the MQTT messages.
 
 ## Debugging
 

@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 4 of the plan below is done: all four sensors are read, so far into the log only (publishing comes with MQTT in step 6). Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 81 passing at commit `2663a9b`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
+Step 5 of the plan below: all four sensors are read (into the log only; publishing comes with MQTT in step 6), and the device joins Wi-Fi and gets network time. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 96 passing at commit `5233f19`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -16,6 +16,8 @@ What the firmware does now:
 - shows red, green, blue and white on the status LED in turn at start (to check the LED and its colour balance by eye);
 - BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go;
 - starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. The SGP41 is conditioned for its first 10 s, then measured every second with the SHT45's humidity and temperature of the same tick for compensation; Sensirion's Gas Index Algorithm turns its raw signals into the VOC index (100 = the room's usual) and the NOx index (1 = the usual). Both indices are 0 for the algorithm's first 46 samples and keep learning the room's baseline for hours; they start again at every reboot (saving the learned state is planned for step 9). At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second.
+
+- joins the Wi-Fi network from the build settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
 
 How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
 
@@ -36,6 +38,10 @@ components/sensors/    I2C interface (i2c_bus.h) and its ESP-IDF implementation,
 components/sensors/vendor/gas_index_algorithm/
                        Sensirion's Gas Index Algorithm 3.2.2, fixed-point, unchanged (BSD-3)
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
+components/net/        settings record and its rules (settings.h), Wi-Fi station, reconnect
+                       pauses, host name, network time; Kconfig menu "ClimaSense network"
+sdkconfig.defaults.local.example
+                       template for the git-ignored file with the Wi-Fi credentials
 test/host/             unit tests of the hardware-independent logic (GoogleTest), built for the PC;
                        data/ holds Sensirion's VOC test data
 ```
@@ -59,6 +65,16 @@ idf.py -p COM5 flash monitor
 Replace `COM5` with the port Windows assigns to the board (Device Manager → Ports, "USB Serial Device"). Leave the monitor with `Ctrl+]`.
 
 If the board does not show up or flashing fails: hold BOOT, press and release RESET, release BOOT. The chip then waits in download mode; flash again and press RESET afterwards.
+
+## Wi-Fi settings
+
+The network the device joins is a build setting until the captive portal (step 7) can set it on the device. The password must not go into the repository, so it goes in a git-ignored file:
+
+1. Copy `firmware/sdkconfig.defaults.local.example` to `firmware/sdkconfig.defaults.local` and enter the network name and password.
+2. Delete `firmware/sdkconfig` (or run `idf.py fullclean`): the settings are read when it is generated.
+3. Build and flash as above. The log shows `connecting to "..."`, then `connected as climasense-xxxxxx, IP ...`.
+
+`idf.py menuconfig` → "ClimaSense network" also works, but is lost when `sdkconfig` is regenerated. The same menu holds the country (CH), time server and time zone. Once the portal exists, values entered there take precedence over all of these.
 
 ## After a crash
 

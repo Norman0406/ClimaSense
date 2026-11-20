@@ -1,0 +1,41 @@
+menu "ClimaSense network"
+
+    # These are build-time DEFAULTS only. The firmware passes them to the Wi-Fi code as a
+    # settings record (net/settings.h); from step 7 on, values entered in the captive portal
+    # are stored in NVS and take precedence. No setting here should be needed at run time
+    # that the portal cannot change.
+
+    config CLIMASENSE_WIFI_SSID
+        string "Wi-Fi network name (SSID)"
+        default ""
+        help
+            Default network to join. Empty: Wi-Fi stays off until one is configured. Set
+            it in the git-ignored sdkconfig.defaults.local (see
+            sdkconfig.defaults.local.example) or with idf.py menuconfig, never in
+            sdkconfig.defaults. The captive portal (step 7) overrides it at run time.
+
+    config CLIMASENSE_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+        help
+            Empty for an open network.
+
+    config CLIMASENSE_WIFI_COUNTRY
+        string "Wi-Fi country code"
+        default "CH"
+        help
+            Two-letter country code; sets the allowed channels and transmit power.
+            CH (Switzerland) allows channels 1-13.
+
+    config CLIMASENSE_SNTP_SERVER
+        string "Time server"
+        default "ch.pool.ntp.org"
+
+    config CLIMASENSE_TIMEZONE
+        string "Time zone (POSIX TZ string)"
+        default "CET-1CEST,M3.5.0,M10.5.0/3"
+        help
+            Europe/Zurich: CET, CEST from the last Sunday in March 02:00 to the last
+            Sunday in October 03:00.
+
+endmenu

@@ -1,0 +1,5 @@
+# Copy to sdkconfig.defaults.local (git-ignored) and fill in. Read when sdkconfig is
+# generated: after creating or changing this file, delete firmware/sdkconfig (or run
+# idf.py fullclean) and build again.
+CONFIG_CLIMASENSE_WIFI_SSID="your-network"
+CONFIG_CLIMASENSE_WIFI_PASSWORD="your-password"

@@ -26,12 +26,14 @@ add_executable(host_tests
     test_button_logic.cpp
     test_led_logic.cpp
     test_log_ring.cpp
+    test_net.cpp
     test_scd41.cpp
     test_sgp41.cpp
     test_sht45.cpp
     test_single_shot.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
+    ${FW}/components/net/src/settings.cpp
     ${FW}/components/sensors/src/bmp580.cpp
     ${FW}/components/sensors/src/bus_scan.cpp
     ${FW}/components/sensors/src/scd41.cpp
@@ -42,6 +44,7 @@ add_executable(host_tests
 target_include_directories(host_tests PRIVATE
     ${FW}/components/board/include
     ${FW}/components/diagnostics/include
+    ${FW}/components/net/include
     ${FW}/components/sensors/include
     ${FW}/components/sensors/vendor/gas_index_algorithm
 )

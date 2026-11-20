@@ -1,9 +1,9 @@
 // ClimaSense firmware entry point.
-// Step 3 plus diagnostics: report the previous run (its last log lines, a crash dump), bring up
-// the rails, LED and button, and start the sensor task, which scans the sensor bus once (see
-// sensors/sensor_task.h). At start the LED shows red, green, blue and white in turn (a check of
-// the LED and its colour balance); a short press then cycles through the colours, a long press
-// shows blue (later: Wi-Fi setup portal).
+// Report the previous run (its last log lines, a crash dump), bring up the rails, LED and button,
+// start the sensor task (sensors/sensor_task.h) and Wi-Fi with network time (net/wifi.h). At
+// start the LED shows red, green, blue and white in turn (a check of the LED and its colour
+// balance); a short press then cycles through the colours, a long press shows blue (later: Wi-Fi
+// setup portal).
 
 #include <array>
 #include <cinttypes>
@@ -16,6 +16,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -23,6 +24,7 @@
 #include "board/button.h"
 #include "board/led.h"
 #include "diagnostics/diagnostics.h"
+#include "net/wifi.h"
 #include "sensors/sensor_task.h"
 
 namespace {
@@ -60,6 +62,19 @@ void log_banner()
              diagnostics::reset_reason_name(esp_reset_reason()));
 }
 
+// NVS holds Wi-Fi's calibration data and, from step 7 on, the settings entered in the portal.
+// A full or outdated NVS partition is erased and set up again, as ESP-IDF recommends.
+esp_err_t init_nvs()
+{
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(kTag, "NVS partition unusable (%s), erasing it", esp_err_to_name(err));
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    return err;
+}
+
 void led_self_test()
 {
     for (std::size_t i = 1; i < kColours.size(); ++i) {
@@ -81,6 +96,11 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(board::led::init());
     ESP_ERROR_CHECK(board::button::init());
     ESP_ERROR_CHECK(sensors::start_task());
+    ESP_ERROR_CHECK(init_nvs());
+    // Build defaults for now; from step 7 on, settings from the portal (NVS) take precedence.
+    if (const esp_err_t err = net::start(net::default_settings()); err != ESP_OK) {
+        ESP_LOGE(kTag, "Wi-Fi not started: %s", esp_err_to_name(err));  // the sensors keep running
+    }
     led_self_test();
 
     std::size_t colour_index = 0;
