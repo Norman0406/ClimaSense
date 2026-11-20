@@ -243,4 +243,15 @@
 		(uuid "b10a91a1-35cf-5e2e-84dc-68233e45b9bd")
 	)
 	(embedded_fonts no)
+	(model "${KIPRJMOD}/lib/climasense.3dshapes/Sensirion_SGP41.wrl"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
 )

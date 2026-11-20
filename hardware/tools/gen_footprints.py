@@ -24,6 +24,8 @@ from kisch import S, Sym, dump, uid  # noqa: E402
 
 HW = Path(__file__).resolve().parent.parent
 PRETTY = HW / "lib" / "climasense.pretty"
+# 3D models written by gen_models.py; KiCad has none for these parts
+MODELS = "${KIPRJMOD}/lib/climasense.3dshapes"
 KICAD_CLI = os.environ.get("KICAD_CLI") or shutil.which("kicad-cli") or r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe"
 FP_VERSION = 20260206
 
@@ -233,6 +235,7 @@ def sgp41() -> Footprint:
     fp.line((-BODY / 2, y), (BODY / 2, y), "F.SilkS", SILK_W)
     fp.pin1_triangle(-X - PAD_W / 2 - 0.3, -PITCH)
     fp.courtyard(X + PAD_W / 2 + 0.25, BODY / 2 + 0.25)
+    fp.model(f"{MODELS}/Sensirion_SGP41.wrl")
     return fp
 
 
@@ -279,6 +282,7 @@ def bmp580() -> Footprint:
     # pads is closed on both layers; tracks reach the pads from outside.
     k = R - LONG / 2 - 0.05
     fp.keepout("No tracks under the pressure sensor", [(-k, -k), (k, -k), (k, k), (-k, k)])
+    fp.model(f"{MODELS}/Bosch_BMP580.wrl")
     return fp
 
 
@@ -316,6 +320,7 @@ def led_19_337() -> Footprint:
     fp.line((-BODY / 2, y), (BODY / 2, y), "F.SilkS", SILK_W)
     fp.pin1_triangle(-CORNER_X - CORNER_W / 2 - 0.45, -CORNER_Y)
     fp.courtyard(MID_X + MID_W / 2 + 0.25, y + 0.2)
+    fp.model(f"{MODELS}/LED_RGB_Everlight_19-337.wrl")
     return fp
 
 

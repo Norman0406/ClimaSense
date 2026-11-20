@@ -52,6 +52,28 @@ The first version of the SGP41 footprint was wrong: the 2.3 mm in Sensirion's dr
 - Nothing has been compared against a physical part. Before ordering, a 1:1 print of the board with the parts laid on it is not possible here (no parts in hand), so the fab's own design-for-manufacturing review and assembling only a couple of boards first are the practical safeguards.
 - The inductor L1 still uses KiCad's generic 2520 footprint rather than Murata's recommended pattern for the DFE252012F.
 
+## 3D models
+
+KiCad ships no 3D model for seven of the part types on the board: the four sensors, the RGB LED, the push buttons and the USB-C socket. [`hardware/tools/gen_models.py`](../../hardware/tools/gen_models.py) writes simple ones into [`hardware/lib/climasense.3dshapes`](../../hardware/lib/climasense.3dshapes), so that KiCad's 3D view and the pictures in the README show every part.
+
+| Model | Part | Drawn from |
+| --- | --- | --- |
+| `Sensirion_SCD4x` | U6 | SCD4x datasheet v1.5, figure 3: 10.1 × 10.1 × 6.5 mm, tapered metal cap, white membrane with its notch at pin 1 |
+| `Sensirion_SGP41` | U7 | SGP41 datasheet v1.0, figure 17: 2.44 × 2.44 × 0.85 mm, 0.8 mm opening offset to the lower right |
+| `Sensirion_SHT4x` | U5 | 1.5 × 1.5 × 0.5 mm, opening in the middle |
+| `Bosch_BMP580` | U8 | BST-BMP580-DS004-02, figure 24: 2 × 2 × 0.75 mm, metal lid with the port hole |
+| `LED_RGB_Everlight_19-337` | D1 | Everlight datasheet page 9: 1.6 × 1.6 × 0.35 mm |
+| `SW_Push_XKB_TS-1187A` | SW1, SW2 | 5.1 × 5.1 × 1.5 mm; the button diameter is estimated |
+| `USB_C_Receptacle_HRO_TYPE-C-31-M-12` | J1 | HRO drawing: shell 8.34 × 2.56 mm, 7.35 mm long, top 3.26 mm above the board |
+
+Outline and height are the datasheet's; the detail is simplified. **They are for looking at, not for checking whether an enclosure fits.** The models have no effect on the manufacturing files.
+
+The three project footprints name their model themselves. The buttons, the USB-C socket, the SCD41 and the SHT45 use KiCad's library footprints, which name a model file KiCad does not ship; `gen_pcb.py` replaces that name with the project's model when it places the part (`PROJECT_MODELS`). The ESP32-C6 module uses KiCad's model of the ESP32-S3-WROOM-1, which has the same outline.
+
+```bash
+python hardware/tools/gen_models.py
+```
+
 ## Regenerating
 
 ```bash

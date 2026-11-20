@@ -15,6 +15,12 @@ File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), cr
 | Use | on a wall, landscape, USB cable hanging down, components facing the room |
 | Copper | 462 track segments, 89 vias (44 of them ground) |
 
+| Top copper | Bottom copper, seen from above |
+| --- | --- |
+| ![Top copper layer](../images/copper-top.svg) | ![Bottom copper layer, seen through the board](../images/copper-bottom.svg) |
+
+The bottom layer is drawn as seen through the board, not mirrored, so both pictures line up. The ground pours cover the main part only; the sensor island and the tongue carry tracks alone. 3D views of the board are in the [README](../../README.md); all four pictures are written by `python hardware/tools/gen_images.py`.
+
 ## Arrangement
 
 Seen from the component side as it hangs on the wall, left to right:
@@ -56,7 +62,7 @@ Set for JLCPCB's standard 2-layer process, with margin.
 - **Small parts stand in line with the pins they serve**, so their connections are straight and centred: capacitors directly above or below their pins at the buck converter, the sensor regulator, the SCD41 and the ESP32; the USB-C configuration resistors centred over their connector pads; the three LED resistors in the order of the LED's pads (the red and green LED pins were swapped in the schematic for this); the I2C pull-ups hanging from the sensor supply track; the SGP41's filter capacitor directly beside its supply and ground pins.
 - **The ESP32's supply** runs from the buck converter as one 0.6 mm track, routed before any signal.
 - **No tracks on the bottom layer under the buck converter**, so its ground stays unbroken.
-- **Silkscreen:** BOOT, RESET and QWIIC labels, the name of each sensor next to it (SCD41, SGP41, BMP580, SHT45) and the board name. Reference designators are not printed; with parts this small they would overlap. They remain on the fabrication drawing.
+- **Silkscreen:** BOOT, RESET and QWIIC labels, the name of each sensor next to it (SCD41, SGP41, BMP580, SHT45), the board name, and an arrow marked "UP" to the right of the USB connector that points to the top edge, the way the board hangs (added 2026-11-20). Reference designators are not printed; with parts this small they would overlap. They remain on the fabrication drawing.
 
 The routing is done by a small grid router written for this board ([`router.py`](../../hardware/tools/router.py), [`route_board.py`](../../hardware/tools/route_board.py)). It breaks every net into single connections, routes them shortest first, and re-routes the whole board with failed connections moved earlier until everything fits (two attempts for the current placement, about half a minute). The result is the same every time it is run.
 

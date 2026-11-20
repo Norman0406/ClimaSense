@@ -38,6 +38,14 @@ from kisch import find, first, parse  # noqa: E402
 
 KICAD_FOOTPRINTS = Path(r"C:\Program Files\KiCad\10.0\share\kicad\footprints")
 PROJECT_FOOTPRINTS = {"climasense": HW / "lib" / "climasense.pretty"}
+# KiCad's footprints for these parts name a 3D model that KiCad does not ship. They get the
+# project's own model instead (written by gen_models.py), so that the 3D view shows every part.
+PROJECT_MODELS = {
+    "SW_Push_1P1T_XKB_TS-1187A": "SW_Push_XKB_TS-1187A",
+    "USB_C_Receptacle_HRO_TYPE-C-31-M-12": "USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+    "Sensirion_SCD4x-1EP_10.1x10.1mm_P1.25mm_EP4.8x4.8mm": "Sensirion_SCD4x",
+    "Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad": "Sensirion_SHT4x",
+}
 BOARD_FILE = HW / "climasense.kicad_pcb"
 NETLIST = HW / "build" / "netlist.net"
 KICAD_CLI = "C:/Program Files/KiCad/10.0/bin/kicad-cli.exe"
@@ -171,17 +179,23 @@ PLACEMENT = {
     "C8": (74.0, 19.0, 90),      # beyond the sensor, level with its supply and ground pads
 }
 
+# The board hangs with the USB cable down. Arrow on the silkscreen, right of the USB connector:
+# x, y of the tip, length of the head, y of the tail. "UP" is printed below the tail, in the
+# size and on the line of the board name.
+UP_ARROW = (43.5, 28.0, 0.9, 30.4)
+
 # text, x, y, height - each button label sits directly below its button
 SILK_LABELS = (
     ("ClimaSense v1.0", 59.5, 31.6, 1.0),
     ("BOOT", 29.6, 9.0, 0.8),
     ("RESET", 29.6, 17.95, 0.8),
     ("QWIIC", 37.3, 3.3, 0.8),
-    # sensor names, each next to its part
-    ("SCD41", 59.4, 1.25, 0.8),
+    # sensor names: below the part, like the button labels. The SCD41's stands right of its
+    # 10 uF capacitor. The SGP41's is above: below it there is a via and then the cut-out.
+    ("SCD41", 59.4, 13.9, 0.8),
     ("SGP41", 66.0, 7.6, 0.8),
     ("BMP580", 55.05, 27.1, 0.8),
-    ("SHT45", 71.8, 16.9, 0.8),
+    ("SHT45", 71.8, 21.1, 0.8),
 )
 
 POWER_NETS = ("GND", "VBUS", "+5V", "+3V3", "+3V3_SENS", "+3V3_QWIIC")
@@ -328,6 +342,11 @@ def load_footprint(lib_id):
     if fp is None:
         raise SystemExit(f"footprint {lib_id} not found in {folder}")
     fp.SetFPID(pcbnew.LIB_ID(lib, name))
+    if name in PROJECT_MODELS:
+        model = pcbnew.FP_3DMODEL()
+        model.m_Filename = "${KIPRJMOD}/lib/climasense.3dshapes/" + PROJECT_MODELS[name] + ".wrl"
+        fp.Models().clear()
+        fp.Add3DModel(model)
     return fp
 
 
@@ -443,6 +462,30 @@ def main():
         label.SetTextSize(VECTOR2I(FromMM(size), FromMM(size)))
         label.SetTextThickness(FromMM(0.15))
         board.Add(label)
+
+    # Which way up the board hangs: an arrow towards the top edge with "UP" under it.
+    x, tip, head, tail = UP_ARROW
+    shaft = pcbnew.PCB_SHAPE(board)
+    shaft.SetShape(pcbnew.SHAPE_T_SEGMENT)
+    shaft.SetStart(P(x, tip + head))
+    shaft.SetEnd(P(x, tail))
+    shaft.SetLayer(pcbnew.F_SilkS)
+    shaft.SetWidth(FromMM(0.25))
+    board.Add(shaft)
+    arrowhead = pcbnew.PCB_SHAPE(board)
+    arrowhead.SetShape(pcbnew.SHAPE_T_POLY)
+    arrowhead.SetPolyPoints([P(x, tip), P(x - 0.6 * head, tip + head), P(x + 0.6 * head, tip + head)])
+    arrowhead.SetFilled(True)
+    arrowhead.SetLayer(pcbnew.F_SilkS)
+    arrowhead.SetWidth(FromMM(0.1))
+    board.Add(arrowhead)
+    up = pcbnew.PCB_TEXT(board)
+    up.SetText("UP")
+    up.SetPosition(P(x, tail + 1.2))
+    up.SetLayer(pcbnew.F_SilkS)
+    up.SetTextSize(VECTOR2I(FromMM(1.0), FromMM(1.0)))
+    up.SetTextThickness(FromMM(0.15))
+    board.Add(up)
 
     failures = []
     if "--no-route" not in sys.argv[1:]:

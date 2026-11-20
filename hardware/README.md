@@ -9,6 +9,7 @@ KiCad 10 project for the ClimaSense PCB. The board is intended to be fully manuf
 | `climasense.kicad_pcb` | Board, revision 1.0: placed and routed by script, not yet reviewed by a person (see [`../docs/hardware/layout.md`](../docs/hardware/layout.md)) |
 | `lib/climasense.kicad_sym` | Project symbols: ESP32-C6-WROOM-1, SGP41, BMP580, RGB LED, sensor-rail power symbol |
 | `lib/climasense.pretty/` | Project footprints for the same four parts (see [`../docs/hardware/footprints.md`](../docs/hardware/footprints.md)) |
+| `lib/climasense.3dshapes/` | Simple 3D models for the parts KiCad has none for, written by `tools/gen_models.py` |
 | `sym-lib-table`, `fp-lib-table` | Tell KiCad where the project libraries are |
 | `tools/` | Scripts that generate and verify the schematic, the footprints and the board |
 | `build/` | Generated outputs (plots, renders, netlist, rule-check reports); not committed |
@@ -44,6 +45,14 @@ python hardware/tools/gen_fab.py
 ```
 
 Runs the board check, then writes the Gerber archive, the parts list and the placement file for JLCPCB into `fab/`. How to order with them, and what to check in JLCPCB's placement preview: [`../docs/hardware/ordering.md`](../docs/hardware/ordering.md).
+
+## Pictures
+
+```bash
+python hardware/tools/gen_images.py
+```
+
+Writes the 3D views and copper plots shown in the README and the layout notes into `../docs/images/`. Run it by hand after the board has changed. It first runs `gen_models.py`, which writes the 3D models in `lib/climasense.3dshapes/`.
 
 ## Regenerating
 
