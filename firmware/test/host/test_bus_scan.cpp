@@ -13,6 +13,7 @@ using sensors::I2cResult;
 using sensors::kSensorBusDevices;
 using ::testing::_;
 using ::testing::Gt;
+using ::testing::Lt;
 using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -104,8 +105,11 @@ TEST_F(BusScanTest, ReportsAnUnexpectedDevice)
 
 TEST_F(BusScanTest, TimeoutStopsTheScanAndIsReportedAsFault)
 {
-    // A hung bus would otherwise cost one timeout per address.
-    ON_CALL(bus, probe(0x44)).WillByDefault(Return(kTimeout));
+    // A hung bus would otherwise cost one timeout per address. Every address up to the
+    // failing one is probed exactly once, nothing after it. (Once a mock method has an
+    // EXPECT_CALL, every call must match one, so the probes before 0x44 are listed too.)
+    EXPECT_CALL(bus, probe(Lt(0x44))).Times(0x44 - sensors::kFirstScanAddress);
+    EXPECT_CALL(bus, probe(0x44)).WillOnce(Return(kTimeout));
     EXPECT_CALL(bus, probe(Gt(0x44))).Times(0);
 
     const auto result = sensors::scan_bus(bus);

@@ -3,11 +3,21 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 #include <span>
 
 #include <gmock/gmock.h>
 
 #include "sensors/i2c_bus.h"
+
+namespace sensors {
+// Readable results in GoogleMock's messages ("ok", "NACK", "timeout") instead of raw bytes.
+inline void PrintTo(I2cError error, std::ostream *os) { *os << to_string(error); }
+inline void PrintTo(const I2cResult &result, std::ostream *os)
+{
+    *os << (result ? "ok" : to_string(result.error()));
+}
+}  // namespace sensors
 
 class MockI2cBus : public sensors::I2cBus {
 public:
