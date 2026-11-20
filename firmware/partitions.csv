@@ -1,0 +1,12 @@
+# ClimaSense partition table, 8 MB flash (ESP32-C6-WROOM-1-N8).
+# Changing it on a deployed board needs a USB flash, so it is laid out for OTA and core dumps
+# from the start. The bootloader is at 0x0, this table at 0x8000. Apps must be 64 KB aligned.
+#
+# Name,    Type, SubType,  Offset,   Size
+nvs,       data, nvs,      0x9000,   0x6000
+otadata,   data, ota,      0xf000,   0x2000
+phy_init,  data, phy,      0x11000,  0x1000
+ota_0,     app,  ota_0,    0x20000,  0x300000
+ota_1,     app,  ota_1,    0x320000, 0x300000
+coredump,  data, coredump, 0x620000, 0x20000
+# 0x640000-0x800000 (1.75 MB) left free.

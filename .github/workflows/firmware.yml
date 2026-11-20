@@ -50,3 +50,20 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           . "$IDF_PATH/export.sh"
           idf.py build
+
+      # The .elf decodes crash backtraces and core dumps of exactly this build (the device logs
+      # the first 16 hex characters of its SHA-256 as "build"). The images and flash_args allow
+      # flashing this build without rebuilding it.
+      - name: Keep the build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: firmware-${{ github.sha }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            firmware/build/climasense.elf
+            firmware/build/climasense.bin
+            firmware/build/bootloader/bootloader.bin
+            firmware/build/partition_table/partition-table.bin
+            firmware/build/ota_data_initial.bin
+            firmware/build/flash_args

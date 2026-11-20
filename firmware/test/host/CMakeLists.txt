@@ -24,12 +24,14 @@ add_executable(host_tests
     test_bus_scan.cpp
     test_button_logic.cpp
     test_led_logic.cpp
+    test_log_ring.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
     ${FW}/components/sensors/src/bus_scan.cpp
 )
 target_include_directories(host_tests PRIVATE
     ${FW}/components/board/include
+    ${FW}/components/diagnostics/include
     ${FW}/components/sensors/include
 )
 target_compile_options(host_tests PRIVATE -Wall -Wextra -Werror)

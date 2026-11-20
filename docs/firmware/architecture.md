@@ -30,6 +30,7 @@ firmware/
   main/                    app_main and top-level wiring
   components/
     board/                 pin map, supply rails, status LED, button
+    diagnostics/           build fingerprint, last log lines across resets, crash dump report
     sensors/               (step 3/4) bus access and the four drivers
     net/                   (step 5+) Wi-Fi, MQTT, portal, OTA
   test/host/               tests that run on the PC
@@ -51,3 +52,17 @@ Until the boards arrive there are no sensors to test against (no breakouts for t
 
 - **LED:** three LEDC PWM channels at 4 kHz, 10 bit, output inverted in the peripheral (the LED is active low, so duty 0 = off). Colours are gamma-corrected and each channel is scaled so that equal values look about equally bright. The scale factors come from the datasheet estimate in `docs/hardware/schematic.md` (green ~21 mcd, red ~13 mcd, blue ~8 mcd at full current, ±30 %) and are to be checked by eye on the real board.
 - **Button** (BOOT/user, IO9, low when pressed): polled every 10 ms, debounced over 30 ms. A press released before 3 s is a **short press**; holding it for 3 s gives a **long press** at that moment (the release afterwards gives nothing), so the LED can confirm while the button is still held. Long press opens the Wi-Fi setup portal (step 7). Holding BOOT while pressing RESET still enters USB download mode; that happens in the chip's ROM, before the firmware runs.
+
+## Debugging
+
+Decided 2026-11-20. The device hangs on a USB charger, so nothing reads its USB console; what happened before a reset has to survive the reset.
+
+- **Logging:** ESP-IDF's `ESP_LOGx` with one tag per module, INFO and above, milliseconds since boot. Output goes to the native USB console (`idf.py monitor`).
+- **Last log lines across a reset:** every log line also goes into a 2 KB ring buffer in RTC memory (`RTC_NOINIT_ATTR`), which keeps its content across a software reset, panic or watchdog reset, but not a power cut. At the next start the firmware prints them as "last ... bytes of log before the reset" and keeps a copy for publishing. After a power-on or brownout the buffer is discarded. The log hook only formats the line and copies it in a critical section; it never sends anything, so it cannot deadlock inside Wi-Fi or MQTT code. Lines longer than 160 characters are kept shortened.
+- **Crash dumps:** a panic (exception, failed assert or `ESP_ERROR_CHECK`, interrupt watchdog, task watchdog, which is set to panic) writes a core dump to the `coredump` partition (128 KB) and reboots. At the next start the firmware logs a summary: panic reason, task, PC, RISC-V cause registers, and the fingerprint of the build that crashed. The dump stays in flash until it has been reported (step 6 erases it after publishing); a later crash overwrites it.
+- **Build fingerprint:** 16 hex characters of the app's ELF SHA-256, in the start-up banner and in every core dump. A backtrace or core dump decodes only with the `.elf` of exactly that build: the local `firmware/build/climasense.elf` for a build flashed from the PC, or the `firmware-<commit>` artifact that CI keeps for 90 days.
+- **Partition table** (`firmware/partitions.csv`): NVS 24 KB, OTA data, PHY data, two 3 MB OTA app slots, core dump 128 KB, 1.75 MB free. Changing it on a deployed board needs a USB flash, so it already has what OTA (step 8) needs.
+
+With MQTT (step 6): publish a boot report (reset reason, build, crash summary, the last log lines), send log lines of WARNING and above to a log topic with the level adjustable remotely, then erase the reported core dump. Optional later: upload the full core dump over HTTP, or forward the log topic to a log service from the broker side.
+
+On the desk, the C6's USB port is also a JTAG debugger: `idf.py openocd` and `idf.py gdb` give breakpoints and single-stepping over the same cable.

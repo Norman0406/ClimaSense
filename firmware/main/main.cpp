@@ -1,8 +1,9 @@
 // ClimaSense firmware entry point.
-// Step 3: bring up the rails, LED and button, and start the sensor task, which scans the
-// sensor bus once (see sensors/sensor_task.h). At start the LED shows red, green, blue and
-// white in turn (a check of the LED and its colour balance); a short press then cycles through
-// the colours, a long press shows blue (later: Wi-Fi setup portal).
+// Step 3 plus diagnostics: report the previous run (its last log lines, a crash dump), bring up
+// the rails, LED and button, and start the sensor task, which scans the sensor bus once (see
+// sensors/sensor_task.h). At start the LED shows red, green, blue and white in turn (a check of
+// the LED and its colour balance); a short press then cycles through the colours, a long press
+// shows blue (later: Wi-Fi setup portal).
 
 #include <array>
 #include <cinttypes>
@@ -21,6 +22,7 @@
 #include "board/board.h"
 #include "board/button.h"
 #include "board/led.h"
+#include "diagnostics/diagnostics.h"
 #include "sensors/sensor_task.h"
 
 namespace {
@@ -42,23 +44,6 @@ constexpr std::array kColours{
     NamedColour{"white", board::colour::kWhite},
 };
 
-constexpr const char *reset_reason_name(esp_reset_reason_t reason)
-{
-    switch (reason) {
-    case ESP_RST_POWERON:   return "power-on";
-    case ESP_RST_EXT:       return "external pin";
-    case ESP_RST_SW:        return "software";
-    case ESP_RST_PANIC:     return "panic";
-    case ESP_RST_INT_WDT:   return "interrupt watchdog";
-    case ESP_RST_TASK_WDT:  return "task watchdog";
-    case ESP_RST_WDT:       return "other watchdog";
-    case ESP_RST_DEEPSLEEP: return "deep sleep";
-    case ESP_RST_BROWNOUT:  return "brownout";
-    case ESP_RST_USB:       return "USB";
-    default:                return "other";
-    }
-}
-
 void log_banner()
 {
     const esp_app_desc_t *app = esp_app_get_description();
@@ -71,7 +56,8 @@ void log_banner()
              app->version, app->idf_ver, app->date, app->time);
     ESP_LOGI(kTag, "chip revision v%d.%d, %d core(s), flash %" PRIu32 " MB",
              chip.revision / 100, chip.revision % 100, chip.cores, flash_size / (1024 * 1024));
-    ESP_LOGI(kTag, "reset reason: %s", reset_reason_name(esp_reset_reason()));
+    ESP_LOGI(kTag, "build %s, reset reason: %s", diagnostics::build_id(),
+             diagnostics::reset_reason_name(esp_reset_reason()));
 }
 
 void led_self_test()
@@ -87,7 +73,9 @@ void led_self_test()
 
 extern "C" void app_main()
 {
+    diagnostics::init();
     log_banner();
+    diagnostics::report_previous_boot();
 
     ESP_ERROR_CHECK(board::init());
     ESP_ERROR_CHECK(board::led::init());

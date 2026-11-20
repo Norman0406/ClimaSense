@@ -37,6 +37,8 @@ Ideas for later revisions — a different microcontroller, deep sleep, separate 
 | Framework | **ESP-IDF**, version **6.1** (6.1.1 at the start) | Chosen over ESPHome and Arduino. Sensirion and Bosch publish their drivers and Sensirion's VOC/NOx index algorithm in C, which ESP-IDF builds as-is. ESP-IDF gives direct control over what this board needs: the sensors on the low-power I2C controller and Qwiic on the normal one, releasing the bus pins before switching a rail off, SCD41 single-shot mode, and the low-power core if deep sleep is ever needed. MQTT client, HTTP server and OTA are part of ESP-IDF. |
 | Language | **C++** (ESP-IDF 6.1 compiles with `-std=gnu++26`), restricted | No exceptions and no RTTI (ESP-IDF's defaults), no heap-allocating containers in the measurement path. Chosen for classes with a shared interface for the sensors, automatic release of locks and bus handles, and `std::optional`/`std::expected` for readings that may not exist. Vendor drivers stay C files and are called from C++. |
 | Build | `idf.py` from the ESP-IDF tools | Project in `firmware/`; `sdkconfig.defaults` is versioned, the generated `sdkconfig` is not. |
+| Partition table | **Two 3 MB OTA slots and a 128 KB core dump partition** (decided 2026-11-20) | `firmware/partitions.csv`. Laid out before the first board is flashed, because changing it later needs a USB flash of every board. |
+| Crash handling | **Core dump to flash, last 2 KB of log kept across resets, task watchdog panics** (decided 2026-11-20) | Reported at the next start and, from step 6, published over MQTT. Details in [`firmware/architecture.md`](firmware/architecture.md#debugging). |
 
 ## Schematic-level choices (accepted 2026-11-19)
 

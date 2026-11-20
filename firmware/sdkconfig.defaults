@@ -9,3 +9,18 @@ CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
 # Console and logs on the chip's native USB (USB Serial/JTAG). UART0 is not brought out on the board.
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# Partition table with two OTA slots and a core dump partition (partitions.csv).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# On a crash, write a core dump to the coredump partition (ELF, the only format in ESP-IDF 6.1);
+# the firmware reports it at the next boot (components/diagnostics).
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+
+# Build fingerprint: 16 hex characters of the app's ELF SHA-256, in the start-up banner and in
+# core dumps (default 9), to match a crash with the .elf that decodes it.
+CONFIG_APP_RETRIEVE_LEN_ELF_SHA=16
+
+# A task watchdog timeout panics (core dump, then reboot) instead of only printing a warning.
+CONFIG_ESP_TASK_WDT_PANIC=y
