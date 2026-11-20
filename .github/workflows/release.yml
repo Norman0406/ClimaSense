@@ -1,0 +1,104 @@
+# Firmware releases: a signed image for every version tag (decided 2026-11-20).
+#
+# Push a tag vX.Y.Z matching firmware/version.txt; the build waits for approval in the "release"
+# environment (the only place the signing key is), is signed, checked against the key, and
+# published as a GitHub Release. Only release images are signed; every other build is not, so
+# only these can be installed over the air. Setup and process: firmware/README.md, "Releases".
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+jobs:
+  build-sign:
+    name: Build and sign
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v6.1.1
+    # The signing key is a secret of this environment only; its protection rules (required
+    # reviewer, tags only) make every run wait for approval.
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Tag matches version.txt
+        shell: bash
+        run: |
+          version="$(head -n 1 firmware/version.txt | tr -d '[:space:]')"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match firmware/version.txt (${version})"
+            exit 1
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Build (unsigned, like every build; signed in the next step)
+        working-directory: firmware
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          . "$IDF_PATH/export.sh"
+          idf.py build
+
+      - name: Sign and verify
+        working-directory: firmware
+        shell: bash
+        env:
+          OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
+        run: |
+          . "$IDF_PATH/export.sh"
+          if [ -z "$OTA_SIGNING_KEY" ]; then
+            echo "::error::the release environment has no OTA_SIGNING_KEY secret"
+            exit 1
+          fi
+          key="$RUNNER_TEMP/ota_signing_key.pem"
+          umask 077
+          printf '%s\n' "$OTA_SIGNING_KEY" > "$key"
+          trap 'rm -f "$key"' EXIT
+          espsecure sign-data --version 2 --keyfile "$key" --output build/climasense-signed.bin build/climasense.bin
+          espsecure verify-signature --version 2 --keyfile "$key" build/climasense-signed.bin
+          mkdir -p release
+          cp build/climasense-signed.bin "release/climasense-${VERSION}.bin"
+          cp build/climasense.elf "release/climasense-${VERSION}.elf"
+          cp build/bootloader/bootloader.bin build/partition_table/partition-table.bin \
+             build/ota_data_initial.bin release/
+          # flash_args with the release's flat file names: in a folder with the downloaded files,
+          # `python -m esptool --chip esp32c6 -b 460800 write-flash @flash_args` flashes this release.
+          sed -e 's|bootloader/bootloader.bin|bootloader.bin|' \
+              -e 's|partition_table/partition-table.bin|partition-table.bin|' \
+              -e "s|0x20000 climasense.bin|0x20000 climasense-${VERSION}.bin|" \
+              build/flash_args > release/flash_args
+          grep -q "climasense-${VERSION}.bin" release/flash_args
+          (cd release && sha256sum * > SHA256SUMS)
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: release-${{ github.ref_name }}
+          path: firmware/release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish
+    needs: build-sign
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # creating the release; this job never sees the key
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: release-${{ github.ref_name }}
+          path: release
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "ClimaSense firmware $GITHUB_REF_NAME" \
+            --notes "Signed firmware image climasense-${GITHUB_REF_NAME#v}.bin for updates over the air (MQTT URL or setup portal). The .elf decodes crashes of exactly this build; the other files are for a full USB flash. SHA256SUMS lists the checksums."

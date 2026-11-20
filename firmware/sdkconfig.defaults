@@ -31,15 +31,15 @@ CONFIG_LWIP_MAX_SOCKETS=16
 
 # Updates over the air (step 8, decided 2026-11-20): only images signed with our key are accepted
 # (RSA-3072, Secure Boot V2 scheme, checked when an update is installed; hardware Secure Boot is
-# not enabled, so a USB flash still works). Local builds are signed with the key below, kept
-# outside the repository; CI builds unsigned (sdkconfig.ci). The running firmware's own signature
-# block holds the public key that updates are checked against, so the firmware flashed over USB
-# must be signed too.
+# not enabled, so a USB flash still works). Only release builds are signed: every build here is
+# unsigned, and the release workflow (.github/workflows/release.yml) signs the image afterwards
+# with the key from its protected environment. The running firmware's own signature block holds
+# the public key that updates are checked against: a board accepts updates only after a signed
+# release has been flashed onto it once over USB.
 CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
 CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME=y
 CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
-CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
-CONFIG_SECURE_BOOT_SIGNING_KEY="../../climasense-keys/ota_signing_key.pem"
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=n
 
 # A new image runs on trial until the firmware confirms it; a crash or reset before that returns
 # to the previous one.

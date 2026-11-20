@@ -1,5 +1,0 @@
-# Added to the settings when the build runs in CI (the CI environment variable is set; see
-# CMakeLists.txt). CI has no signing key, so it builds unsigned images: good for checking the
-# build and decoding crashes, but devices refuse them as updates. Update images are built
-# locally, where the key is.
-CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=n

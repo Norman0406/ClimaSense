@@ -19,7 +19,7 @@ What the firmware does now:
 
 - loads its settings (network, device name) from NVS over the build defaults and logs where each came from;
 - publishes the sensor values over MQTT every 60 s (see "MQTT"), with Home Assistant discovery if switched on; at each start a boot report (with the crash summary after a crash), and WARNING-and-above log lines;
-- installs updates over the air, from a URL sent over MQTT or uploaded in the setup portal; only signed images, with rollback (see "Updating");
+- installs signed release images over the air, from a URL sent over MQTT or uploaded in the setup portal, with rollback (see "Releases and updates");
 - opens the setup portal on first boot (no network configured) or on a 3 s press of the BOOT button; see "Setting up a device";
 - joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
 
@@ -29,8 +29,7 @@ How the firmware is structured, and why: [`docs/firmware/architecture.md`](../do
 
 ```
 CMakeLists.txt         project file
-version.txt            firmware version (x.y.z); raise it for every release
-sdkconfig.ci           added in CI: unsigned images (CI has no signing key)
+version.txt            firmware version (x.y.z); raise it for every release (tag vX.Y.Z)
 sdkconfig.defaults     settings that differ from ESP-IDF's defaults (versioned; sdkconfig is generated)
 partitions.csv         flash layout: NVS, two OTA slots, core dump
 main/main.cpp          entry point
@@ -80,36 +79,61 @@ Replace `COM5` with the port Windows assigns to the board (Device Manager → Po
 
 If the board does not show up or flashing fails: hold BOOT, press and release RESET, release BOOT. The chip then waits in download mode; flash again and press RESET afterwards.
 
-## Signing key
+## Releases and updates
 
-Firmware images are signed; devices only install updates signed with the same key. Local builds sign with the private key at `C:\Users\<you>\Documents\climasense-keys\ota_signing_key.pem` (the folder next to the repository; `CONFIG_SECURE_BOOT_SIGNING_KEY` in `sdkconfig.defaults`, changeable in `sdkconfig.defaults.local`). It is not in git and must never be.
+**Only release images are signed, and devices only install signed images over the air** (decided 2026-11-20). Every other build, local or CI, is unsigned: it can be flashed over USB and runs normally, but a board running it refuses updates, because updates are checked against the key in the running firmware. A board becomes update-capable once a signed release has been flashed onto it over USB; from then on, releases reach it over the air. This is also the basis for automatic updates later.
 
-**Back the key up** (a password manager or an offline copy). Without it, devices accept no further updates over the air, only over USB. On a new PC, put the backup back in that place; without the key a local build stops with an error naming the missing file.
+### Making a release
 
-The key was created with ESP-IDF's tool (only ever needed once):
+1. Raise `firmware/version.txt` (for example to `0.2.0`), commit, push.
+2. Tag that commit and push the tag:
+   ```powershell
+   git tag v0.2.0
+   ```
+   ```powershell
+   git push origin v0.2.0
+   ```
+3. The **Release** workflow (`.github/workflows/release.yml`) starts and waits for your approval (GitHub → Actions → the run → "Review deployments" → approve). It checks that the tag matches `version.txt`, builds, signs the image with the key from the `release` environment, verifies the signature, and publishes a GitHub Release with:
+   - `climasense-<version>.bin`: the signed image, for updates and the first USB flash
+   - `climasense-<version>.elf`: decodes crashes of exactly this build
+   - `bootloader.bin`, `partition-table.bin`, `ota_data_initial.bin`, `flash_args`: for a full USB flash
+   - `SHA256SUMS`
 
-```powershell
-espsecure generate-signing-key --version 2 --scheme rsa3072 ..\..\climasense-keys\ota_signing_key.pem
-```
+### Installing a release
 
-The first firmware on a board must itself be signed (a normal local build is), since updates are checked against the key in the running firmware. CI's builds are unsigned: fine for decoding crashes, refused as updates.
-
-## Updating
-
-Raise `version.txt` (for example to `0.2.0`), build, then either:
-
-- **over MQTT:** serve `firmware/build/climasense.bin` over HTTP somewhere on the network, e.g. from the build folder:
+- **First time, over USB** (makes the board update-capable): download the release's files into one folder, then in an ESP-IDF shell in that folder:
   ```powershell
-  python -m http.server 8000 --directory build
+  python -m esptool --chip esp32c6 -b 460800 write-flash "@flash_args"
   ```
-  and send the device its URL:
+- **Over MQTT:** the repository is private, so the device cannot download from GitHub itself: put the downloaded `climasense-<version>.bin` on an HTTP server on the network, e.g.
   ```powershell
-  mosquitto_pub -h <broker> -u <user> -P <password> -t climasense/climasense-a1b2c3/set/ota -m http://<pc>:8000/climasense.bin
+  python -m http.server 8000
+  ```
+  in the download folder, and send the device the URL:
+  ```powershell
+  mosquitto_pub -h <broker> -u <user> -P <password> -t climasense/climasense-a1b2c3/set/ota -m http://<pc>:8000/climasense-0.2.0.bin
   ```
   Progress appears on `climasense/<id>/ota` (`mosquitto_sub -t 'climasense/+/ota' -v`). Append ` force` to the URL to install an older version.
-- **in the setup portal:** open it (3 s on the BOOT button), section "Firmware", choose `climasense.bin`, "Update firmware".
+- **In the setup portal:** open it (3 s on the BOOT button), section "Firmware", choose the `.bin`, "Update firmware".
 
 The device restarts into the new firmware, which runs **on trial**: it is kept once it has been connected (to the broker, or to Wi-Fi without a broker) for at least 3 minutes, and the device returns to the previous firmware by itself if that has not happened after 10 minutes, or if it crashes. The boot report shows `"on_trial":true` meanwhile. Only signed images with the same or a newer version are installed.
+
+### The signing key and the GitHub setup (once)
+
+The private key (RSA-3072) was created on 2026-11-20 at `C:\Users\<you>\Documents\climasense-keys\ota_signing_key.pem`, outside the repository (`*.pem` is git-ignored). Builds do not need it; only the release workflow does, from a protected GitHub environment. **Back the key up** (password manager or offline copy): without it, no further updates over the air, only over USB.
+
+To set up the environment (GitHub → the repository → **Settings → Environments → New environment**):
+
+1. Name: **`release`**.
+2. **Required reviewers:** yourself, so every release run waits for your approval.
+3. **Deployment branches and tags:** "Selected branches and tags" → add the tag rule `v*`.
+4. **Environment secrets → Add secret:** name **`OTA_SIGNING_KEY`**, value: the whole content of `ota_signing_key.pem`, from `-----BEGIN RSA PRIVATE KEY-----` to `-----END RSA PRIVATE KEY-----`.
+
+Only the release workflow's "Build and sign" job can read the secret, and only after approval; the job that publishes the release never sees it. The key was created with ESP-IDF's tool, should a new one ever be needed (all devices would then need a USB flash of a release signed with it):
+
+```powershell
+espsecure generate-signing-key --version 2 --scheme rsa3072 ota_signing_key.pem
+```
 
 ## Setting up a device
 

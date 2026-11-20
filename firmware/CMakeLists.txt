@@ -11,10 +11,6 @@ set(SDKCONFIG_DEFAULTS "sdkconfig.defaults")
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/sdkconfig.defaults.local")
     list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.local")
 endif()
-# In CI (GitHub Actions sets CI): no signing key there, so unsigned images (sdkconfig.ci).
-if(DEFINED ENV{CI})
-    list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.ci")
-endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(climasense)

@@ -44,10 +44,6 @@ jobs:
       - name: Build
         working-directory: firmware
         shell: bash
-        env:
-          # Builds unsigned (sdkconfig.ci): CI has no signing key. Set here explicitly rather than
-          # relying on the runner passing its CI variable into the container.
-          CI: "true"
         run: |
           # The container runs as root on a checkout owned by the runner; without this, git
           # commands in the build (ESP-IDF reads the repository state) fail.
