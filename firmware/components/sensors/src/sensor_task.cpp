@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <cstdint>
+#include <cstdio>
 
 #include "esp_check.h"
 #include "esp_log.h"
@@ -13,6 +14,7 @@
 #include "sensors/bus_scan.h"
 #include "sensors/devices.h"
 #include "sensors/esp_i2c_bus.h"
+#include "sensors/sht45.h"
 
 namespace sensors {
 
@@ -23,6 +25,48 @@ constexpr TickType_t kTick = pdMS_TO_TICKS(1000);
 constexpr uint32_t kStackBytes = 4096;
 // Above the app task (priority 1), well below ESP-IDF's Wi-Fi and network tasks.
 constexpr UBaseType_t kPriority = 5;
+// Readings are logged at INFO every this many ticks (every tick at DEBUG).
+constexpr uint32_t kLogEveryTicks = 10;
+
+// Waits at least `ms` (a plain vTaskDelay can return up to one tick early).
+void wait_ms(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms) + 1); }
+
+// Milli-units as text with two decimals, e.g. -1234 -> "-1.23".
+struct Milli {
+    char text[16];
+    explicit Milli(int32_t value)
+    {
+        const int32_t abs = value < 0 ? -value : value;
+        snprintf(text, sizeof(text), "%s%" PRId32 ".%02" PRId32, value < 0 ? "-" : "",
+                 abs / 1000, (abs % 1000) / 10);
+    }
+};
+
+// One sensor's error state, so that errors are logged when they start and end, not every second.
+class Health {
+public:
+    explicit Health(const char *name) : name_(name) {}
+
+    void ok()
+    {
+        if (failures_ > 0) {
+            ESP_LOGI(kTag, "%s: working again after %" PRIu32 " failed readings", name_, failures_);
+        }
+        failures_ = 0;
+    }
+
+    void failed(SensorError error)
+    {
+        if (failures_ == 0) {
+            ESP_LOGW(kTag, "%s: %s", name_, to_string(error));
+        }
+        ++failures_;
+    }
+
+private:
+    const char *name_;
+    uint32_t failures_ = 0;
+};
 
 void log_scan(const ScanResult &result)
 {
@@ -58,6 +102,34 @@ void wait_for_power_up()
     }
 }
 
+void init_sht45(Sht45 &sht)
+{
+    if (auto r = sht.soft_reset(); !r) {
+        ESP_LOGW(kTag, "SHT45: reset failed: %s", to_string(r.error()));
+        return;
+    }
+    wait_ms(Sht45::kResetMs);
+    if (auto r = sht.request_serial(); !r) {
+        ESP_LOGW(kTag, "SHT45: serial number request failed: %s", to_string(r.error()));
+        return;
+    }
+    wait_ms(Sht45::kSerialMs);
+    if (const auto serial = sht.read_serial()) {
+        ESP_LOGI(kTag, "SHT45: serial number 0x%08" PRIx32, *serial);
+    } else {
+        ESP_LOGW(kTag, "SHT45: serial number read failed: %s", to_string(serial.error()));
+    }
+}
+
+SensorResult<Sht45Reading> measure(Sht45 &sht)
+{
+    if (auto r = sht.start_measurement(); !r) {
+        return std::unexpected(r.error());
+    }
+    wait_ms(Sht45::kMeasureMs);
+    return sht.read_measurement();
+}
+
 void task(void *)
 {
     wait_for_power_up();
@@ -77,10 +149,26 @@ void task(void *)
         log_scan(scan_bus(bus));
     }
 
+    Sht45 sht45{bus};
+    Health sht45_health{"SHT45"};
+    init_sht45(sht45);
+
     TickType_t last_wake = xTaskGetTickCount();
-    for (;;) {
+    for (uint32_t tick = 0;; ++tick) {
         vTaskDelayUntil(&last_wake, kTick);
-        // Step 4: read SHT45, BMP580, SGP41 every tick; SCD41 single shot every 5 minutes.
+        if (!bus.is_open()) {
+            continue;
+        }
+        // Still to come in step 4: BMP580 and SGP41 every tick, SCD41 single shot every 5 minutes.
+        const SensorResult<Sht45Reading> reading = measure(sht45);
+        if (!reading) {
+            sht45_health.failed(reading.error());
+            continue;
+        }
+        sht45_health.ok();
+        const bool info = tick % kLogEveryTicks == 0;
+        ESP_LOG_LEVEL_LOCAL(info ? ESP_LOG_INFO : ESP_LOG_DEBUG, kTag, "SHT45: %s C, %s %%RH",
+                            Milli(reading->temperature_mc).text, Milli(reading->humidity_mpercent).text);
     }
 }
 

@@ -25,9 +25,11 @@ add_executable(host_tests
     test_button_logic.cpp
     test_led_logic.cpp
     test_log_ring.cpp
+    test_sht45.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
     ${FW}/components/sensors/src/bus_scan.cpp
+    ${FW}/components/sensors/src/sht45.cpp
 )
 target_include_directories(host_tests PRIVATE
     ${FW}/components/board/include

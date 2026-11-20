@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 3 of the plan below, plus crash diagnostics. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all passing since commit `53ccfc3`, 2026-11-19); they have not been run on this PC (no PC compiler installed here, see below).
+Step 4 of the plan below, in progress: the SHT45 is read; BMP580, SCD41 and SGP41 follow. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 33 passing at commit `dff6ee1`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -15,7 +15,7 @@ What the firmware does now:
 - switches the sensor rail on and the Qwiic rail off, puts a pull-down on `BMP_INT`;
 - shows red, green, blue and white on the status LED in turn at start (to check the LED and its colour balance by eye);
 - BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go;
-- starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then it ticks once a second, doing nothing yet.
+- starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it reads the SHT45 (high-precision measurement, CRC-checked) and logs temperature and humidity every 10 s at INFO (every second at DEBUG). A failing sensor is logged when it starts failing and when it works again, not every second.
 
 How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
 
@@ -29,7 +29,8 @@ main/main.cpp          entry point
 components/board/      pin map (include/board/pins.h, mirrored from docs/hardware/schematic.md),
                        supply rails, status LED, button
 components/sensors/    I2C interface (i2c_bus.h) and its ESP-IDF implementation, device list
-                       and bus parameters (devices.h), address scan, the sensor task
+                       and bus parameters (devices.h), address scan, the sensor task,
+                       Sensirion framing and CRC (sensirion.h), SHT45 driver
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
 test/host/             unit tests of the hardware-independent logic (GoogleTest), built for the PC
 ```

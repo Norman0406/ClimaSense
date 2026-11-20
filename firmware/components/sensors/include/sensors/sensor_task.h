@@ -7,8 +7,8 @@
 namespace sensors {
 
 // Starts the task. Call once, after board::init().
-// Step 3: waits for the sensors' power-up time, opens the bus on the low-power I2C controller
-// and logs an address scan. The 1 s tick runs but does nothing yet.
+// Waits for the sensors' power-up time, opens the bus on the low-power I2C controller, logs an
+// address scan, then reads the SHT45 every second (step 4 adds the other three sensors).
 esp_err_t start_task();
 
 }  // namespace sensors
