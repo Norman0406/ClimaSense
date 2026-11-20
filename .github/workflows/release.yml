@@ -1,6 +1,6 @@
 # Firmware releases: a signed image for every version tag (decided 2026-11-20).
 #
-# Push a tag vX.Y.Z matching firmware/version.txt; the build is signed with the repository secret
+# Push a tag vX.Y.Z; the image's version is X.Y.Z+<commit> (firmware/cmake/version.cmake). The build is signed with the repository secret
 # OTA_SIGNING_KEY, checked against the key, and published as a GitHub Release. (GitHub Free, private
 # repository: no environment secrets or required reviewers there, so pushing the version tag is the
 # deliberate act that releases; only this workflow uses the secret.) Only release images are signed; every other build is not, so
@@ -23,15 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: Tag matches version.txt
+      - name: Version from the tag
         shell: bash
         run: |
-          version="$(head -n 1 firmware/version.txt | tr -d '[:space:]')"
-          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} does not match firmware/version.txt (${version})"
-            exit 1
-          fi
-          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "IMAGE_VERSION=${GITHUB_REF_NAME#v}+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
       - name: Build (unsigned, like every build; signed in the next step)
         working-directory: firmware
@@ -40,6 +36,13 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           . "$IDF_PATH/export.sh"
           idf.py build
+          # The image must carry the release's version, or devices would compare the wrong one.
+          built="$(python3 -c "import sys; d=open('build/climasense.bin','rb').read(80); sys.stdout.write(d[48:80].split(b'\0')[0].decode())")"
+          if [ "$built" != "$IMAGE_VERSION" ]; then
+            echo "::error::the image says version '$built', expected '$IMAGE_VERSION'"
+            exit 1
+          fi
+          echo "image version: $built"
 
       - name: Sign and verify
         working-directory: firmware

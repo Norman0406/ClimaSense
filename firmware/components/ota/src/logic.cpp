@@ -42,6 +42,13 @@ std::optional<Version> parse_version(std::string_view text)
     if (!text.empty() && (text.front() == 'v' || text.front() == 'V')) {
         text.remove_prefix(1);
     }
+    // Build metadata after '+' (the commit hash of a release, "0.2.0+1a2b3c4") does not count.
+    if (const std::size_t plus = text.find('+'); plus != std::string_view::npos) {
+        if (plus + 1 == text.size()) {
+            return std::nullopt;  // "1.2.3+" with nothing after it
+        }
+        text = text.substr(0, plus);
+    }
     const std::size_t a = text.find('.');
     if (a == std::string_view::npos) {
         return std::nullopt;

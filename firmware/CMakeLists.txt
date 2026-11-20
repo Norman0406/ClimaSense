@@ -1,9 +1,9 @@
 # ClimaSense firmware (ESP-IDF).
 cmake_minimum_required(VERSION 3.22)
 
-# The firmware version: from version.txt (x.y.z), so that updates can be compared. Raise it for
-# every release; the build fingerprint (ELF SHA-256) tells builds of the same version apart.
-file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/version.txt" PROJECT_VER LIMIT_COUNT 1)
+# The firmware version, from git: X.Y.Z+<hash> for a commit tagged vX.Y.Z, <branch>-<hash> otherwise
+# (cmake/version.cmake). Releases are made by pushing a tag vX.Y.Z.
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/version.cmake")
 
 # Settings: sdkconfig.defaults (versioned), then sdkconfig.defaults.local if present
 # (git-ignored; Wi-Fi credentials, see sdkconfig.defaults.local.example).

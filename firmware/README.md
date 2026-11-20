@@ -29,7 +29,8 @@ How the firmware is structured, and why: [`docs/firmware/architecture.md`](../do
 
 ```
 CMakeLists.txt         project file
-version.txt            firmware version (x.y.z); raise it for every release (tag vX.Y.Z)
+cmake/version.cmake    the firmware version from git: X.Y.Z+<hash> on a tag vX.Y.Z, else
+                       <branch>-<hash>[-dirty]
 sdkconfig.defaults     settings that differ from ESP-IDF's defaults (versioned; sdkconfig is generated)
 partitions.csv         flash layout: NVS, two OTA slots, core dump
 main/main.cpp          entry point
@@ -81,19 +82,21 @@ If the board does not show up or flashing fails: hold BOOT, press and release RE
 
 ## Releases and updates
 
+**Versions come from git** (`cmake/version.cmake`, decided 2026-11-20): a commit tagged `v0.2.0` builds as `0.2.0+1a2b3c4` (the first 7 digits of the commit), any other as `<branch>-<hash>`, e.g. `main-1a2b3c4`, with `-dirty` if `firmware/` has uncommitted changes; without git, `unknown`. The version shows in the log banner, the boot report and Home Assistant. Devices compare only the `X.Y.Z` of releases; a branch version is "not comparable" and would need `force` (and branch builds are unsigned anyway). The version is fixed when CMake configures; a new commit reconfigures by itself.
+
 **Only release images are signed, and devices only install signed images over the air** (decided 2026-11-20). Every other build, local or CI, is unsigned: it can be flashed over USB and runs normally, but a board running it refuses updates, because updates are checked against the key in the running firmware. A board becomes update-capable once a signed release has been flashed onto it over USB; from then on, releases reach it over the air. This is also the basis for automatic updates later.
 
 ### Making a release
 
-1. Raise `firmware/version.txt` (for example to `0.2.0`), commit, push.
-2. Tag that commit and push the tag:
+1. Commit and push what goes into the release.
+2. Tag that commit with the next version and push the tag:
    ```powershell
    git tag v0.2.0
    ```
    ```powershell
    git push origin v0.2.0
    ```
-3. The **Release** workflow (`.github/workflows/release.yml`) starts by itself: pushing the version tag is the deliberate act that releases. It checks that the tag matches `version.txt`, builds, signs the image with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
+3. The **Release** workflow (`.github/workflows/release.yml`) starts by itself: pushing the version tag is the deliberate act that releases. It builds, checks that the image carries the version `0.2.0+<commit>`, signs it with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
    - `climasense-<version>.bin`: the signed image, for updates and the first USB flash
    - `climasense-<version>.elf`: decodes crashes of exactly this build
    - `bootloader.bin`, `partition-table.bin`, `ota_data_initial.bin`, `flash_args`: for a full USB flash

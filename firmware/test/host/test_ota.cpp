@@ -33,7 +33,9 @@ TEST(OtaVersion, ParsesThreeNumbers)
     EXPECT_EQ(ota::parse_version("0.1.0"), (ota::Version{0, 1, 0}));
     EXPECT_EQ(ota::parse_version("v1.2.3"), (ota::Version{1, 2, 3}));
     EXPECT_EQ(ota::parse_version("10.20.300"), (ota::Version{10, 20, 300}));
-    for (const char *bad : {"", "1", "1.2", "1.2.3.4", "1..3", "a.b.c", "1.2.3-dirty", " 1.2.3", "53ccfc3"}) {
+    EXPECT_EQ(ota::parse_version("0.2.0+1a2b3c4"), (ota::Version{0, 2, 0}));  // a release
+    for (const char *bad : {"", "1", "1.2", "1.2.3.4", "1..3", "a.b.c", "1.2.3-dirty", " 1.2.3", "53ccfc3",
+                            "main-1a2b3c4", "main-1a2b3c4-dirty", "1.2.3+", "unknown"}) {
         EXPECT_FALSE(ota::parse_version(bad)) << bad;
     }
 }
@@ -45,6 +47,15 @@ TEST(OtaVersion, ComparesNumericallyNotAlphabetically)
     EXPECT_EQ(ota::check_version("1.2.3", "1.2.2"), VersionCheck::Older);
     EXPECT_EQ(ota::check_version("1.2.3", "dev-build"), VersionCheck::Unknown);
     EXPECT_EQ(ota::check_version("53ccfc3", "0.1.0"), VersionCheck::Newer);  // running one not comparable
+}
+
+TEST(OtaVersion, ReleasesCompareByNumberAndBranchBuildsAreNotComparable)
+{
+    EXPECT_EQ(ota::check_version("0.2.0+1a2b3c4", "0.2.0+9f8e7d6"), VersionCheck::Same);   // hash ignored
+    EXPECT_EQ(ota::check_version("0.2.0+1a2b3c4", "0.3.0+0000000"), VersionCheck::Newer);
+    EXPECT_EQ(ota::check_version("0.3.0+0000000", "0.2.0+1a2b3c4"), VersionCheck::Older);
+    EXPECT_EQ(ota::check_version("0.2.0+1a2b3c4", "main-1a2b3c4"), VersionCheck::Unknown);  // needs force
+    EXPECT_EQ(ota::check_version("main-1a2b3c4-dirty", "0.2.0+1a2b3c4"), VersionCheck::Newer);
 }
 
 TEST(OtaVersion, OnlyOlderOrUnknownNeedForce)

@@ -20,7 +20,9 @@ struct Version {
     auto operator<=>(const Version &) const = default;
 };
 
-// "1.2.3" (exactly three numbers; a leading "v" is allowed). Nothing for anything else.
+// "1.2.3" (exactly three numbers; a leading "v" is allowed), optionally followed by build metadata
+// after '+', which is ignored: a release's version is "1.2.3+<commit hash>" (cmake/version.cmake).
+// Nothing for anything else, such as a development build's "main-1a2b3c4".
 std::optional<Version> parse_version(std::string_view text);
 
 enum class VersionCheck : uint8_t {
