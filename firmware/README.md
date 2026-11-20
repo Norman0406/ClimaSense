@@ -86,6 +86,17 @@ If the board does not show up or flashing fails: hold BOOT, press and release RE
 
 **Only release images are signed, and devices only install signed images over the air** (decided 2026-11-20). Every other build, local or CI, is unsigned: it can be flashed over USB and runs normally, but a board running it refuses updates, because updates are checked against the key in the running firmware. A board becomes update-capable once a signed release has been flashed onto it over USB; from then on, releases reach it over the air. This is also the basis for automatic updates later.
 
+### Version numbers
+
+Semantic versioning (decided 2026-11-20, `docs/decisions.md`):
+
+- **Tags with `v`:** `v0.1.0`. Only tags of this form start the release workflow.
+- **The firmware's version without `v`**, plus the commit: `0.1.0+1a2b3c4`. Devices compare the number and ignore what follows `+`.
+- **`0.x` until the firmware has proven itself on the real boards**, then `v1.0.0`.
+- **Major** (`2.0.0`): changes consumers notice (MQTT topics or JSON fields, so Prometheus queries change) or that need a USB flash, such as a new partition table. **Minor** (`1.1.0`): new features, everything existing keeps working, such as a new value in the message. **Patch** (`1.0.1`): fixes only.
+- **Never move or reuse a release tag.** If a release is bad, release the next patch version.
+- The firmware version is independent of the board revision ("Rev 1.0").
+
 ### Making a release
 
 1. Commit and push what goes into the release.
