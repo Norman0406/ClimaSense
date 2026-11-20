@@ -145,5 +145,5 @@ jobs:
           gh release create "$TAG" release/* \
             --repo "$GITHUB_REPOSITORY" \
             "${where[@]}" \
-            --title "ClimaSense firmware $TAG" \
+            --title "$TAG" \
             --notes "Signed firmware image climasense-${TAG#v}.bin for updates over the air (MQTT URL or setup portal). The .elf decodes crashes of exactly this build; the other files are for a full USB flash. SHA256SUMS lists the checksums."
