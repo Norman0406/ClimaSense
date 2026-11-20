@@ -62,8 +62,9 @@ W, H = 75.0, 34.0             # board size, landscape
 #   26.5 - 48.0  USB-C on the bottom edge, power, buttons, Qwiic on the top edge
 #   48.0 - 49.5  milled slot (three bridges)
 #   49.5 - 75.0  sensor island. The two warm sensors (SCD41, SGP41) sit at the top, so
-#                 their heat rises away; the SHT45 sits lowest, on a tongue at the lower
-#                 right, with nothing warm underneath it
+#                 their heat rises away; the SHT45 sits below them, on a tongue at the right
+#                 edge, with nothing underneath it. The BMP580 is lower still, but far to
+#                 the left, and gives off practically no heat
 SLOT_X = (48.0, 49.5)
 SLOTS_Y = ((3.0, 14.5), (19.5, 31.0))            # bridges remain at 0-3, 14.5-19.5 and 31-34
 
@@ -175,7 +176,7 @@ PLACEMENT = {
     "U8": (55.05, 25.0, 0),      # BMP580; .05 for the same reason as the USB connector
     "C13": (58.0, 25.7, 0),
     "C14": (58.0, 24.3, 0),
-    "U5": (71.8, 19.0, 0),       # SHT45 on its tongue, the lowest sensor
+    "U5": (71.8, 19.0, 0),       # SHT45 on its tongue, below the two warm sensors
     "C8": (74.0, 19.0, 90),      # beyond the sensor, level with its supply and ground pads
 }
 

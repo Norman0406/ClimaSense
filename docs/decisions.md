@@ -24,7 +24,7 @@ Settled design decisions for ClimaSense. Background and alternatives are in [`re
 | Mounting | **Four M3 holes in the corners** | |
 | Routing | **By script**, checked with KiCad's rule check | |
 | Revision naming | **Numeric: 1.0** for the first board, printed on it as **"Rev 1.0"** | Numeric decided 2026-11-19, replacing the letter "A". "Rev" rather than "v" on the silkscreen (2026-11-20), so that the number is not taken for a firmware version. **The first number** changes when the firmware has to know about the change: a different pin map, a part that needs a different driver or address, anything that needs different code. **The second number** changes for a re-spin the firmware cannot tell apart from its predecessor: layout, routing, silkscreen, a part swapped for an equivalent one. A number is used up once boards carrying it have been ordered; changes before that do not count. File names carry the bare number (`climasense-1.0-…`). |
-| Sensor arrangement | **SCD41 and SGP41 at the top of the sensor side, SHT45 lowest**, on a tongue at the lower right | On a wall, heat rises: the two warm sensors sit at the top so their heat leaves upwards, and nothing warm is underneath the SHT45. |
+| Sensor arrangement | **SCD41 and SGP41 at the top of the sensor side, SHT45 below them**, on a tongue at the right edge | On a wall, heat rises: the two warm sensors sit at the top so their heat leaves upwards, and nothing is underneath the SHT45. The BMP580 sits lower still, but 17 mm to the left, and gives off practically no heat. (Corrected 2026-11-20: this row used to call the SHT45 the lowest sensor.) |
 
 The BME680 from the breadboard prototypes is dropped.
 

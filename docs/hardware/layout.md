@@ -31,9 +31,9 @@ Seen from the component side as it hangs on the wall, left to right:
 | 26 – 48 mm | USB-C on the bottom edge, ESD protection, fuse, both regulators, BOOT/USER and RESET buttons. On the top edge the Qwiic connector, with its own regulator and pull-ups in a line below it. |
 | 48 – 49.5 mm | Milled slot from top to bottom. Three bridges remain: one in the middle for the five sensor tracks and one at each edge for strength. |
 | 49.5 – 75 mm | Sensor island: SCD41 (CO2) and SGP41 (VOC) at the top, BMP580 (pressure) at the bottom left. |
-| lower right edge | SHT45 on its own tongue, cut free on three sides and held by a 4 mm neck at its lower-left corner. Its capacitor sits beyond it, at the outer end of the tongue. |
+| right edge, below the SGP41 | SHT45 on its own tongue, cut free on three sides and held by a 4 mm neck at its lower-left corner. Its capacitor sits beyond it, at the outer end of the tongue. |
 
-Why this order on the sensor side: on a wall, warm air rises. The SCD41 is the warmest sensor (about 50 mW when measuring continuously) and the SGP41 has a small heater, so both sit at the top where their heat leaves upwards. The SHT45 is the lowest sensor and has nothing warm underneath it. The ESP32 and the regulators are beside the sensors, not below them, and behind the slot.
+Why this order on the sensor side: on a wall, warm air rises. The SCD41 is the warmest sensor (about 50 mW when measuring continuously) and the SGP41 has a small heater, so both sit at the top where their heat leaves upwards. The SHT45 sits below both of them, 19 mm from the top edge, with nothing underneath it on its tongue. The BMP580 is the lowest sensor, at 25 mm, but it is 17 mm to the left of the SHT45 and draws microamps, so it is not a heat source for it. The ESP32 and the regulators are beside the sensors, not below them, and behind the slot.
 
 ## Design rules
 

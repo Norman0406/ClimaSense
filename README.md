@@ -13,7 +13,7 @@ An ESP32-based indoor environment sensor. It periodically measures temperature, 
 - **ESP32-C6 module** with its antenna at the left edge, the status LED above it.
 - **Buttons, power and USB**: BOOT and RESET, the 3.3 V converter, the USB-C socket on the bottom edge and a Qwiic connector on the top edge.
 - **A milled slot**, which keeps the heat of everything on the left away from the sensors.
-- **The sensors**: SCD41 (CO2) and SGP41 (VOC/NOx) at the top, because they are the two that warm up and heat rises; BMP580 (pressure) below; and the SHT45 (temperature and humidity) lowest, on a tongue of its own that is cut free on three sides.
+- **The sensors**: SCD41 (CO2) and SGP41 (VOC/NOx) at the top, because they are the two that warm up and heat rises; the SHT45 (temperature and humidity) below them at the right edge, on a tongue of its own that is cut free on three sides, with nothing underneath it; and the BMP580 (pressure) at the lower left, which gives off practically no heat.
 
 The pictures are renders of the KiCad design (`python hardware/tools/gen_images.py`), not photographs: no board has been manufactured yet. How the board is laid out and why: [`docs/hardware/layout.md`](docs/hardware/layout.md).
 
