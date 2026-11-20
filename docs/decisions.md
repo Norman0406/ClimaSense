@@ -2,6 +2,12 @@
 
 Settled design decisions for ClimaSense. Background and alternatives are in [`research/hardware-options.md`](research/hardware-options.md).
 
+## Project (decided 2026-11-20)
+
+| Topic | Decision | Notes |
+| --- | --- | --- |
+| Licence | **MIT for the whole repository: firmware, KiCad design and docs** ([`LICENSE`](../LICENSE)) | Permissive: anyone may use, change, manufacture and sell it, including in closed products, if they keep the copyright notice; no warranty. Copyleft (GPL-3.0 for the firmware, CERN-OHL-S for the hardware) was considered and not chosen. Third-party code keeps its own licence (Sensirion's Gas Index Algorithm: BSD-3-Clause, in its `vendor/` folder). Chosen before making the repository public. |
+
 ## Revision 1.0 hardware (decided 2026-11-19)
 
 | Topic | Decision | Notes |
