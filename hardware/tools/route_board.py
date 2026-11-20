@@ -129,7 +129,10 @@ def run(board, origin, geo, log=print):
     for p in pads:
         if p["smd"]:
             R.block_rect(*p["rect"], grow=0.05, classes=("via",))    # no via in or touching a pad
-    R.block_rect(*geo["usb_body"], classes=("via",))                 # no via under the USB shell
+    # The USB connector's metal shell lies flat on the board, with only the solder mask
+    # between it and the copper: no via under it, and no track on its side of the board.
+    R.block_rect(*geo["usb_body"], classes=("via",))
+    R.block_rect(*geo["usb_body"], layers=(TOP,), classes=("sig", "pwr", "wide"))
 
     used = set()     # every node a committed path passes through
 
@@ -151,20 +154,26 @@ def run(board, origin, geo, log=print):
     # --- hand-drawn tracks ----------------------------------------------------
     # Each group joins the listed pads of one net. The tracks follow the grid, so the
     # router can branch off them anywhere; KiCad's rule check verifies their clearances.
+    # A track is (width, points) on the top layer, or (width, points, "bottom"); a group
+    # may also list vias, which its tracks on the two layers have to end on.
     pad_by_name = {f"{p['ref']}.{p['num']}": p for p in pads if p["name"]}
     prejoins = []
     width_at = {}          # node on a track -> width of that track (the widest, where several meet)
     for group in geo.get("prerouted", ()):
         net = nid(group["net"])
         nodes = set()
-        for width, pts in group["tracks"]:
-            R.add_track(net, pts, TOP, width)
+        for width, pts, *side in group["tracks"]:
+            layer = BOT if side == ["bottom"] else TOP
+            R.add_track(net, pts, layer, width)
             for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
                 steps = max(1, int(round(max(abs(xb - xa), abs(yb - ya)) / R.step)))
-                piece = {R.node(xa + (xb - xa) * k / steps, ya + (yb - ya) * k / steps, TOP) for k in range(steps + 1)}
+                piece = {R.node(xa + (xb - xa) * k / steps, ya + (yb - ya) * k / steps, layer) for k in range(steps + 1)}
                 nodes.update(piece)
                 for node in piece:
                     width_at[node] = max(width_at.get(node, 0.0), width)
+        for x, y in group.get("vias", ()):
+            R.add_via(net, x, y)
+            nodes.update((R.node(x, y, TOP), R.node(x, y, BOT)))
         members = [pad_by_name[name] for name in group["pads"]]
         for q in members:
             if q["net"] != net:

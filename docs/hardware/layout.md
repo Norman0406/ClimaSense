@@ -1,6 +1,6 @@
 # PCB layout — revision 1.0
 
-Status: **placed and fully routed by script; not yet reviewed by a person.** A measurement of the routing found four weaknesses, which have been fixed (see [Review of the routing](#review-of-the-routing-2026-11-19)). KiCad's design rule check reports no violations, no difference between board and schematic, and no open connections. That shows the board is consistent with the schematic and with the manufacturing rules below; it does not replace a look by someone who has laid out boards before.
+Status: **placed and fully routed by script; not yet reviewed by a person.** A measurement of the routing found four weaknesses, which have been fixed (see [Review of the routing](#review-of-the-routing-2026-11-19)); a check of the whole design against the datasheets before ordering found two more, also fixed (see [Check before ordering](#check-before-ordering-2026-11-20)). KiCad's design rule check reports no violations, no difference between board and schematic, and no open connections. That shows the board is consistent with the schematic and with the manufacturing rules below; it does not replace a look by someone who has laid out boards before.
 
 File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), created by [`hardware/tools/gen_pcb.py`](../../hardware/tools/gen_pcb.py).
 
@@ -13,7 +13,7 @@ File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), cr
 | Parts | 49, all on the top side |
 | Mounting | four M3 holes (3.2 mm), one in each corner |
 | Use | on a wall, landscape, USB cable hanging down, components facing the room |
-| Copper | 462 track segments, 89 vias (44 of them ground) |
+| Copper | 469 track segments, 87 vias (44 of them ground) |
 
 | Top copper | Bottom copper, seen from above |
 | --- | --- |
@@ -57,14 +57,17 @@ Set for JLCPCB's standard 2-layer process, with margin.
 - **The order of those tracks is chosen so that nothing has to cross behind them.** On the bridge, top to bottom: ground, sensor supply, I2C clock, I2C data, interrupt — ground and supply turn up towards the SCD41, the signals pass below. In the neck: ground, data, clock, supply — ground goes round above the SHT45, supply round below it, the two signals straight in. Their ends are staggered so each can leave at 45°. There is no via on the tongue.
 - **Nothing is routed under the SHT45**, as its footprint requires, and **no copper at all near the antenna.**
 - **Nothing is routed under the ESP32 module on the top layer.**
-- **A few connections are drawn by hand**, not by the router (`PREROUTED` in `gen_pcb.py`): the whole buck converter (input capacitor, ground, switch node, inductor to output capacitor, feedback), the SCD41's supply from its capacitor through both supply pins, its ground pins to their capacitors, the SHT45's supply pads to its capacitor, the ESP32's supply pin to its capacitors, and the whole Qwiic block: its supply line and its three signals from the module's corner pins to the connector, side by side and without a via.
+- **Nothing is routed on the top layer under the USB connector, and no via is placed there.** Its metal shell lies flat on the board with only the solder mask in between. The top layer under it is ground pour; the two I2C lines cross under it on the bottom layer.
+- **The bottom layer behind the USB connector stays ground** (`USB_GROUND_AREAS` in `gen_pcb.py`): the strip from the ground vias of the protection part and the two configuration resistors, past the connector's pads, to its two rear shield legs. On the top layer those three ground pads sit in a pocket closed in by USB and supply tracks, so this strip is their connection to the rest of the ground.
+- **A few connections are drawn by hand**, not by the router (`PREROUTED` in `gen_pcb.py`): the whole buck converter (input capacitor, ground, switch node, inductor to output capacitor, feedback), the SCD41's supply from its capacitor through both supply pins, its ground pins to their capacitors, the SHT45's supply pads to its capacitor, the ESP32's supply pin to its capacitors, the USB data lines at the connector, and the whole Qwiic block: its supply line and its three signals from the module's corner pins to the connector, side by side and without a via.
+- **The USB connector has two pads for each data line, in the order D−, D+, D−, D+.** Both pairs are joined above the pads, inside the board. D− stays on the top layer: a loop round the inner D+ pad, then straight up into the protection part. D+ leaves that loop through a via inside it; links on the bottom layer take it to the outer D+ pad and to a via next to the protection part's D+ pin. Both lines therefore pass the protection part on their way to the ESP32.
 - **The two push buttons' paired pads count as joined inside the part** (they are). KiCad is told so and no track is drawn between them, which leaves the space under the buttons free for the Qwiic tracks.
 - **Small parts stand in line with the pins they serve**, so their connections are straight and centred: capacitors directly above or below their pins at the buck converter, the sensor regulator, the SCD41 and the ESP32; the USB-C configuration resistors centred over their connector pads; the three LED resistors in the order of the LED's pads (the red and green LED pins were swapped in the schematic for this); the I2C pull-ups hanging from the sensor supply track; the SGP41's filter capacitor directly beside its supply and ground pins.
 - **The ESP32's supply** runs from the buck converter as one 0.6 mm track, routed before any signal.
 - **No tracks on the bottom layer under the buck converter**, so its ground stays unbroken.
 - **Silkscreen:** BOOT, RESET and QWIIC labels, the name of each sensor next to it (SCD41, SGP41, BMP580, SHT45), the board name with its revision ("ClimaSense Rev 1.0"), and an arrow marked "UP" to the right of the USB connector that points to the top edge, the way the board hangs (added 2026-11-20). Reference designators are not printed; with parts this small they would overlap. They remain on the fabrication drawing.
 
-The routing is done by a small grid router written for this board ([`router.py`](../../hardware/tools/router.py), [`route_board.py`](../../hardware/tools/route_board.py)). It breaks every net into single connections, routes them shortest first, and re-routes the whole board with failed connections moved earlier until everything fits (two attempts for the current placement, about half a minute). The result is the same every time it is run.
+The routing is done by a small grid router written for this board ([`router.py`](../../hardware/tools/router.py), [`route_board.py`](../../hardware/tools/route_board.py)). It breaks every net into single connections, routes them shortest first, and re-routes the whole board with failed connections moved earlier until everything fits (two attempts for the current placement, about two minutes). The result is the same every time it is run.
 
 What keeps the tracks tidy:
 
@@ -77,7 +80,7 @@ What keeps the tracks tidy:
 - **Loose ends are cut back** to the last junction; tracks left over from abandoned connections, and tracks lying entirely underneath a wider one, are removed.
 - **Staircases are replaced by diagonals and right-angle corners are cut** wherever the real distance to other copper allows. This last step measures exact distances; the grid is built to be safe, not exact, and would refuse most of them.
 
-Five right-angle corners remain: two where the USB D+ track joins the connector's two D+ pads in a U, three with a leg of 0.1 mm. Right angles at T-junctions, where a branch leaves a track, are normal and stay.
+Three right-angle corners remain, each with a leg of 0.1 mm. Right angles at T-junctions, where a branch leaves a track, are normal and stay.
 
 ## Decided
 
@@ -113,18 +116,33 @@ Three independent reviews of the schematic against the datasheets, and a compari
 
 Looked at and left alone: the SCD41's supply link runs under the package 0.2 mm from its ground pad, which is the board's normal clearance and covered by solder mask; the USB connector sits exactly where its drawing puts the board edge (5.79 mm from the locating pegs).
 
+### Check before ordering (2026-11-20)
+
+The whole design was checked once more before ordering: every pin against the manufacturers' datasheets, the pull-ups and strapping pins, the power budget, the placement file against JLCPCB's own footprints (every polarised part lands with its pin numbers on the right pads), and the copper. The schematic needed no change. The routing had two weaknesses, both **fixed the same day**:
+
+1. **The SCD41's supply link ran across the sensor's vent.** The sensor has a 0.25 mm "thermal relief hole" in its underside, 2.94 mm right of and below its centre, exactly at the corner where the link turns. Sensirion's land pattern keeps a 0.6 mm circle round it "free from solder and flux" and says this "must be respected" (SCD4x datasheet v1.7, figure 4). The 0.4 mm track passed 0.14 mm from the centre of the hole. It was under solder mask, so not solder, but it narrowed the gap just where the sensor has to breathe.
+   Now the link is 0.2 mm wide for 0.8 mm and cuts the corner on the inside: its copper stays 0.38 mm from the centre of the hole, outside the circle. The link is 20 mΩ, as before. It cannot go round the other side of the centre pad, because the two ground pins join the centre pad there.
+2. **Three signals ran on the top layer under the USB connector's metal shell**: I2C clock, the pressure sensor's interrupt and USB D−, with only the solder mask between them and the grounded shell. A short there would have taken out all sensors, or USB, which is the only way to program the board. The router kept vias out from under the connector but not tracks.
+   Now the top layer under the connector is ground pour and nothing else, and the USB data lines are drawn by hand above the connector's pads (see [How it is routed](#how-it-is-routed)). USB D− no longer reaches its protection part through a 17 mm side branch; both data lines pass the part directly. D− is 26 mm long instead of 32 mm, D+ 21 mm.
+
+What the change cost, and one fault it caused on the way:
+
+- **The two I2C lines now cross under the connector on the bottom layer**, side by side for 20 mm. That is a 20 mm cut in the bottom ground pour, with solid ground pour above it on the top layer.
+- **The bottom pour has a hole east of the connector**, where the two I2C lines part and close in a patch with no ground via in it; KiCad removes such patches. Not counting the clearance round the tracks it measures 11 mm². The top pour had a hole of 30 mm² in the same area before and is now solid there. Together the two pours have 40 mm² more copper than before.
+- **The first re-route cut three ground pads off from ground**: those of the USB protection part and the two configuration resistors. More signals now pass that corner on the bottom layer, and they closed in the patch of bottom pour that the three ground vias end in. The router reported the board as fully routed; KiCad counted two open connections. The bottom layer behind the connector is now reserved for ground (see [How it is routed](#how-it-is-routed)).
+
 ### Not as short as possible, but harmless
 
 | Net | Routed | Shortest possible | Factor | Comment |
 | --- | --- | --- | --- | --- |
-| I2C data | 93 mm | 75 mm | 1.24 | The bus has to visit six pads across the whole board, so even the ideal route is 75 mm. Bus capacitance stays far below the limit. 6 vias. |
-| I2C clock | 105 mm | 77 mm | 1.35 | 11 vias. Two take it under the SGP41: that sensor's two I2C pins are on opposite corners, with its supply pins between them, so one line has to change layer. Since the enable pins were swapped (see below) it goes round the USB connector on the top layer instead of under the module beside the data line: 8 mm longer, two more vias. |
-| USB D− | 32 mm | 17 mm | 1.88 | 13 mm longer than D+ (19 mm). The two are not routed as a pair. At full-speed USB (12 Mbit/s), the only speed this chip has, that is far inside the tolerance. |
+| I2C data | 98 mm | 75 mm | 1.30 | The bus has to visit six pads across the whole board, so even the ideal route is 75 mm. Bus capacitance stays far below the limit. 6 vias. Crosses under the USB connector on the bottom layer, beside the clock. |
+| I2C clock | 102 mm | 77 mm | 1.32 | 9 vias. Two take it under the SGP41: that sensor's two I2C pins are on opposite corners, with its supply pins between them, so one line has to change layer. Crosses under the USB connector on the bottom layer, beside the data line. |
+| USB D− | 26 mm | 17 mm | 1.52 | 5 mm longer than D+ (21 mm). The two are not routed as a pair. At full-speed USB (12 Mbit/s), the only speed this chip has, that is far inside the tolerance. |
 | USB supply | 24 mm | 17 mm | 1.41 | The connector has two supply pads: 8 mΩ to the fuse from the near one, 25 mΩ from the far one. |
 | Sensor supply | 92 mm | 73 mm | 1.26 | |
 | 5 V | 25 mm | 18 mm | 1.38 | The deliberate way round C1, item 1 above. |
 | Sensor enable | 34 mm | 25 mm | 1.39 | Goes round the buck converter instead of under it. |
-| Pressure interrupt | 50 mm | 35 mm | 1.41 | |
+| Pressure interrupt | 46 mm | 35 mm | 1.30 | |
 | Qwiic clock, data, enable | 32–33 mm | 23 mm | 1.4 | Drawn by hand: the three run round the BOOT pull-up and down in front of the connector so that none of them needs a via. |
 | SGP41 filtered supply | 11 mm | 7 mm | 1.60 | The filter resistor is on the right of the chip, the supply pin on the left, so the track goes round. The capacitor sits 1.5 mm from the pin, which is the part that matters. |
 
@@ -139,21 +157,22 @@ Signal tracks elsewhere are 0.2 mm. Making them thinner would gain nothing.
 ### Interference: what was checked
 
 - **Buck converter input loop** — was the real finding; fixed, item 1.
-- **Ground under the main part:** the bottom pour is in one piece, cut by about ten track sections, the longest some 20 mm. None of them is under the buck converter any more.
+- **Ground under the main part:** the bottom pour is in one piece, cut by about ten track sections, the longest some 20 mm (the two I2C lines where they cross under the USB connector). None of them is under the buck converter, and none in the strip behind the USB connector that is reserved for ground. One patch of the pour is missing east of the connector; see [Check before ordering](#check-before-ordering-2026-11-20).
 - **Antenna:** no copper on either layer within the keep-out, no track left of x = 6.9 mm.
 - **Buck feedback track:** drawn by hand, 4.6 mm long, 2.2 mm of it beside the 5 V track, on the far side of the converter from the switch node.
 - **Sensor side:** its ground joins the main ground at one point only (the bridge), so no ground loop. The SCD41's current pulses return through that one 0.2 mm track and shift the island's ground by a few millivolts; the sensors are digital and do not care.
-- **I2C:** data and clock run side by side for 12 mm. The clock runs beside the pressure sensor's interrupt line for 32 mm, round the USB connector. At I2C speeds, and with an interrupt line that changes at most once per measurement, the coupling stays far below a tenth of a volt.
+- **I2C:** data and clock run side by side for 35 mm, 20 mm of it under the USB connector. A clock edge couples an estimated tenth of a volt onto the data line, against a noise margin of about one volt. The pressure sensor's interrupt line, which changes at most once per measurement, runs beside the Qwiic enable line for 10 mm.
 - **Sensor supply:** has its own regulator, so Wi-Fi bursts on the 3.3 V rail do not reach the sensors directly.
 
 ## Things a reviewer should look at
 
 - **The hand-drawn tracks** at the buck converter, the SCD41 and the SHT45. They pass the rule check, but they were placed by coordinates, not by eye.
-- **The supply link under the SCD41 package.** It keeps 0.2 mm from the centre pad and from the pads around it. The datasheet does not forbid tracks there; someone who has assembled this sensor before may still have an opinion.
+- **The supply link under the SCD41 package.** It keeps 0.2 mm from the centre pad and from the pads around it. At the sensor's vent hole it is thin and keeps 0.38 mm from the centre of the hole, where the datasheet asks for 0.3 mm (see [Check before ordering](#check-before-ordering-2026-11-20)). The datasheet does not forbid tracks there; someone who has assembled this sensor before may still have an opinion.
 - **Two mounting holes sit beside the antenna.** Metal screws within a few millimetres of the antenna cost some range. Nylon screws or printed pegs at the antenna end avoid that.
 - **Two mounting holes sit on the sensor island.** Screws there connect the island to the case, which works against the slot. With a printed plastic case the effect is small.
 - **The antenna end has board under it but no copper.** Letting the module overhang the board edge would be better for range but complicates assembly at the fab.
 - **The tongue is a small cantilever** that protrudes at the board edge; the case should protect it.
+- **The SGP41 must not sit in bright light.** Its datasheet says so, for sunlight and for lamps alike. The case has to shade the sensor side and still let air through.
 - **Buttons and LED face the room.** A case needs an opening or a light pipe for the LED and a flexible tab over the BOOT/USER button.
 - **The inductor uses KiCad's generic 2520 footprint**, not Murata's recommended pattern.
 - **The ESP32's 3D model is a stand-in** from a sibling module with the same outline; it shows a row of pads on one end that this module does not have.
@@ -186,3 +205,4 @@ Needs KiCad's own Python and a current `build/netlist.net` (run `check_schematic
 
 - The first run of the design rule check found a real error in the SGP41 footprint: its side pads touched the centre pad. A dimension in the datasheet drawing (2.3 mm) is the distance between pad centres, and had been read as the outer width. The visual comparison of the rendered footprint against the datasheet did not catch it; the rule check did.
 - The router at one point reported the board as fully routed while KiCad still counted eight open connections. The router's own bookkeeping was wrong; KiCad's count is the one that matters, and `check_pcb.py --require-routed` uses it.
+- It happened a second time on 2026-11-20, in a different way. Every ground pad on the main part had its track and its via, as the router requires, but the patch of bottom pour that three of those vias ended in was closed in by signal tracks, and so was the top pour round the pads. The router does not check that the pours stay in one piece; KiCad does. Where a group of ground pads depends on one stretch of pour, reserve that stretch for ground (`reserve_bottom` in `gen_pcb.py`).

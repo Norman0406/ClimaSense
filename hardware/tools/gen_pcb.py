@@ -209,9 +209,11 @@ INTERNALLY_JOINED = ("SW1", "SW2")
 # Tracks drawn by hand
 # --------------------------------------------------------------------------
 # The router finds legal paths, not good ones. These few connections matter too much
-# to leave to it. Each group joins the listed pads of one net on the top layer; the
-# tracks are (width, points), points on the 0.1 mm grid, segments at 0/45/90 degrees.
-# KiCad's rule check verifies clearances and that the pads really end up connected.
+# to leave to it. Each group joins the listed pads of one net; the tracks are
+# (width, points) on the top layer, points on the 0.1 mm grid, segments at 0/45/90
+# degrees. (width, points, "bottom") puts a track on the bottom layer, and `vias` lists
+# the vias such tracks end on. KiCad's rule check verifies clearances and that the pads
+# really end up connected.
 PREROUTED = (
     # Buck converter, following TI's layout example for the TPS62A01 (datasheet fig. 8-24).
     # Top row of U2 from the left: input, switch, ground. Bottom row: enable, feedback, n.c.
@@ -244,9 +246,14 @@ PREROUTED = (
     # runs from the 10 uF capacitor up through the supply pin, on under the package between
     # the centre pad and the unused pads on the right, to the emitter supply pin and its
     # 100 nF capacitor. It follows the pins' centre lines, which are off the grid.
+    # At the lower right corner of the centre pad it passes the sensor's vent ("thermal
+    # relief hole", 0.25 mm, at 59.94 / 10.44). The datasheet keeps a circle of 0.6 mm round
+    # that hole free (SCD4x datasheet v1.7, figure 4). The track is therefore thin there
+    # and cuts the corner: its copper stays 0.38 mm from the centre of the hole.
     dict(net="+3V3_SENS", pads=("C9.1", "U6.7", "U6.19", "C10.1"), tracks=(
-        (0.4, ((55.75, 14.6), (55.75, 10.5), (55.95, 10.3), (59.6, 10.3), (59.8, 10.1), (59.8, 4.9), (59.6, 4.7),
-               (55.95, 4.7), (55.75, 4.5), (55.75, 3.3))),
+        (0.4, ((55.75, 14.6), (55.75, 10.5), (55.95, 10.3), (59.3, 10.3))),
+        (0.2, ((59.3, 10.3), (59.4, 10.3), (59.8, 9.9), (59.8, 9.8))),
+        (0.4, ((59.8, 9.8), (59.8, 4.9), (59.6, 4.7), (55.95, 4.7), (55.75, 4.5), (55.75, 3.3))),
         (0.3, ((55.75, 3.3), (55.75, 1.4))),
     )),
     dict(net="GND", pads=("U6.6", "C9.2"), tracks=(
@@ -305,6 +312,26 @@ PREROUTED = (
     dict(net="QWIIC_EN", pads=("R15.1", "U9.3"), tracks=(
         (0.2, ((42.3, 11.5), (45.9, 11.5), (45.9, 12.6))),
     )),
+    # USB data lines at the connector. It has two pads for each line, in the order D-, D+,
+    # D-, D+ from the left, so one line has to change layer to join its pair, and nothing
+    # may run on the top layer under the connector's metal shell. Both pairs are therefore
+    # joined above the pads. D- stays on the top layer: a loop round the inner D+ pad, and
+    # from the loop straight up into the protection part U1. D+ leaves that loop through a
+    # via inside it. On the bottom layer one short link takes it to a second via, where the
+    # track from the outer D+ pad ends, and another to a third via next to U1's D+ pin.
+    # The router connects the ESP32 to this copper.
+    dict(net="USB_DN", pads=("J1.B7", "J1.A7", "U1.3"), tracks=(
+        (0.2, ((32.3, 26.8), (32.3, 25.8), (32.4, 25.7), (32.4, 24.7), (32.5, 24.6), (33.5, 24.6), (33.6, 24.7),
+               (33.6, 25.6), (33.3, 25.9), (33.3, 26.8))),
+        (0.2, ((33.4, 24.6), (33.4, 22.3))),
+    )),
+    dict(net="USB_DP", pads=("J1.A6", "J1.B6", "U1.1"), vias=((33.0, 25.3), (34.0, 23.8), (30.8, 22.8)), tracks=(
+        (0.2, ((32.8, 26.8), (32.8, 25.6), (33.0, 25.4), (33.0, 25.3))),
+        (0.2, ((33.8, 26.8), (33.8, 26.0), (34.0, 25.8), (34.0, 23.8))),
+        (0.2, ((30.8, 22.8), (30.8, 22.7), (31.2, 22.3), (31.6, 22.3))),
+        (0.2, ((33.0, 25.3), (33.0, 24.8), (34.0, 23.8)), "bottom"),
+        (0.2, ((33.0, 24.8), (31.0, 22.8), (30.8, 22.8)), "bottom"),
+    )),
     # ESP32 supply pin to its two capacitors, as wide as the pin
     dict(net="+3V3", pads=("U4.2", "C5.1", "C6.1"), tracks=(
         (0.6, ((9.1, 25.8), (9.1, 28.4), (9.9, 29.2))),
@@ -318,6 +345,13 @@ PREROUTED = (
 TRUNKS = (("L1.2", "R8.1"), ("R8.1", "R6.1"), ("R6.1", "C5.1"))
 # No tracks on the bottom layer under the buck converter: its ground stays unbroken.
 BUCK_AREA = (33.0, 8.2, 38.6, 18.2)
+# The same behind the USB connector. The ground vias of the protection part U1 and of the
+# two configuration resistors sit in a pocket walled in by USB and supply tracks on the top
+# layer. On the bottom layer the strip from those vias down past the connector's pads to its
+# two rear shield legs stays ground (apart from the hand-drawn D+ link), so that pocket
+# cannot be cut off from the rest of the ground. Without this the router has done exactly
+# that: it reported the board as routed while KiCad counted two open ground connections.
+USB_GROUND_AREAS = ((31.0, 22.6, 35.4, 26.0), (28.3, 26.0, 37.8, 28.8))
 
 
 def P(x, y):
@@ -509,12 +543,14 @@ def main():
                 # staggered on the sensor's side for the same reason
                 (name, TONGUE_NECK_X[0] - 0.9, TONGUE_NECK_X[1] + 0.9 + 0.6 * k, y)
                 for k, (name, y) in enumerate(TONGUE_NECK_TRACKS)],
-            usb_body=(PLACEMENT["J1"][0] - 4.6, PLACEMENT["J1"][1] - 3.1, PLACEMENT["J1"][0] + 4.6, H),
+            # the connector's shell, from just behind its row of pads to the board edge
+            usb_body=(PLACEMENT["J1"][0] - 4.6, PLACEMENT["J1"][1] - 3.3, PLACEMENT["J1"][0] + 4.6, H),
             thin_only=TONGUE_AREA,
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
-            trunks=TRUNKS, reserve_bottom=[("GND", BUCK_AREA)], internally_joined=INTERNALLY_JOINED,
+            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS)],
+            internally_joined=INTERNALLY_JOINED,
             # the strip below the module's bottom pad row is where its pins escape; the trunk stays out of it
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],
             solid_pour_pads={"J1", "J2", "U1", "U2", "U3", "U9"},

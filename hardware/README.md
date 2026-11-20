@@ -66,4 +66,4 @@ This **overwrites** `climasense.kicad_sch`. It is only meant for the period befo
 "C:\Program Files\KiCad\10.0\bin\python.exe" hardware/tools/gen_pcb.py
 ```
 
-This **overwrites** `climasense.kicad_pcb`: it places the parts, routes the board and fills the ground pours. It needs KiCad's own Python and takes about a minute. Do not run it once the board has been edited by hand in KiCad.
+This **overwrites** `climasense.kicad_pcb`: it places the parts, routes the board and fills the ground pours. It needs KiCad's own Python and takes about two minutes. Do not run it once the board has been edited by hand in KiCad.

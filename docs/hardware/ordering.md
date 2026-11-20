@@ -32,6 +32,9 @@ Leave everything at its default except:
 - Tooling holes: added by JLCPCB.
 - **Confirm parts placement: yes.** An engineer then checks the placement before production, and you get the preview described below.
 - Remark for the assembly: **"Do not wash or clean the boards after soldering: humidity and gas sensors on board."** Sensirion's handling instructions forbid cleaning agents on the SHT45, SGP41 and SCD41.
+- **Board cleaning: no. Conformal coating: no.** Both are offered as extras on the order page; either would ruin the sensors.
+
+The SCD41 can read slightly off after soldering; its datasheet says full accuracy is back after at most five days, whether it is powered or not. Do not judge the CO2 readings on the day the boards arrive.
 
 ## The placement preview: check this before paying
 
