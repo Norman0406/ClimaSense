@@ -35,6 +35,7 @@ firmware/
   components/
     board/                 pin map, supply rails, status LED, button
     diagnostics/           build fingerprint, last log lines across resets, crash dump report
+    settings/              settings store: NVS over build defaults, device name
     sensors/               (step 3/4) bus access and the four drivers
     net/                   Wi-Fi, network time, settings record (step 5); MQTT, portal, OTA later
   test/host/               tests that run on the PC
@@ -60,6 +61,8 @@ Until the boards arrive there are no sensors to test against (no breakouts for t
 ## Network and settings
 
 - **Settings are records, the build only provides defaults.** The Wi-Fi code gets a `net::NetSettings` (network name, password, country, time server, time zone; fixed-size, no heap) and never reads build settings itself. `net::default_settings()` fills it from the Kconfig menu "ClimaSense network", whose values come from the git-ignored `firmware/sdkconfig.defaults.local`. From step 7 on, the captive portal stores settings in NVS, which take precedence; it checks them with `net::validate()` first. The MQTT settings in step 6 follow the same pattern.
+- **Settings store** (`components/settings`): each settings record is loaded at start from NVS (namespace `settings`, one entry per field, so fields can be added without migration) over the build defaults. A stored field wins even when empty; a stored set that fails validation, or a value too long for its field, is ignored as a whole and the build defaults are used, with a log line saying so. Saving validates first and writes nothing if anything is invalid. Load and save are plain logic against a small `KvStore` interface, tested with an in-memory store; `NvsStore` is the chip's implementation. Records so far: `net::NetSettings` and `settings::DeviceSettings` (the device name).
+- **Captive portal (step 7, next):** opens only when no network is configured or on a 3 s button press, as an open network `ClimaSense-<id>`; answers every DNS query and the portal-detection URLs of phones and laptops with its page; shows nearby networks, the device name and the other settings; validates with the same rules and saves through the settings store, then restarts. Closes after 10 minutes. Passwords are never sent back to the browser; an empty password field keeps the stored one.
 - **Wi-Fi station** (`net/wifi.h`): starts in the background from `app_main` after NVS is initialised; with no network configured it stays off and says so. Country `CH` (channels 1-13), not taken over from the access point. WPA2, and WPA3 where the router offers it; all channels scanned, the strongest access point chosen. Reconnects with pauses of 1, 2, 4 ... 60 s (`net/backoff.h`), back to 1 s once connected. Power save stays at ESP-IDF's default (modem sleep) for less heat. Host name `climasense-` plus the last three MAC bytes (`net/hostname.h`).
 - **Network time:** SNTP from `ch.pool.ntp.org`, started at the first connection and resyncing on its own; time zone Europe/Zurich with daylight saving time. The log keeps its milliseconds-since-boot timestamps; real time is for the MQTT messages.
 

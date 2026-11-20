@@ -17,6 +17,10 @@ NetSettings default_settings();
 // nothing. Call once; the settings are copied.
 esp_err_t start(const NetSettings &settings);
 
+// This board's fixed ID, also its host name: "climasense-" and the last three bytes of its
+// Wi-Fi MAC address (net/hostname.h). Available before start().
+const char *device_id();
+
 bool connected();
 bool time_synced();
 

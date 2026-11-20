@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 5 of the plan below: all four sensors are read (into the log only; publishing comes with MQTT in step 6), and the device joins Wi-Fi and gets network time. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 96 passing at commit `5233f19`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
+Step 5 of the plan below: all four sensors are read (into the log only; publishing comes with MQTT in step 6), and the device joins Wi-Fi and gets network time. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 111 passing at commit `3d04482`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -17,7 +17,8 @@ What the firmware does now:
 - BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go;
 - starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. The SGP41 is conditioned for its first 10 s, then measured every second with the SHT45's humidity and temperature of the same tick for compensation; Sensirion's Gas Index Algorithm turns its raw signals into the VOC index (100 = the room's usual) and the NOx index (1 = the usual). Both indices are 0 for the algorithm's first 46 samples and keep learning the room's baseline for hours; they start again at every reboot (saving the learned state is planned for step 9). At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second.
 
-- joins the Wi-Fi network from the build settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
+- loads its settings (network, device name) from NVS over the build defaults and logs where each came from; nothing writes them yet (the captive portal, next, will);
+- joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
 
 How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
 
@@ -38,6 +39,8 @@ components/sensors/    I2C interface (i2c_bus.h) and its ESP-IDF implementation,
 components/sensors/vendor/gas_index_algorithm/
                        Sensirion's Gas Index Algorithm 3.2.2, fixed-point, unchanged (BSD-3)
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
+components/settings/   settings store: load from NVS over build defaults, validate, save;
+                       device name record
 components/net/        settings record and its rules (settings.h), Wi-Fi station, reconnect
                        pauses, host name, network time; Kconfig menu "ClimaSense network"
 sdkconfig.defaults.local.example
@@ -129,9 +132,9 @@ When ESP-IDF is updated here, update the image tag there too.
 2. Board basics: rail enables, `BMP_INT` pull-down, RGB LED with PWM, BOOT button with short and long press.
 3. I2C bus on the low-power controller, address scan.
 4. Sensors one at a time: SHT45, BMP580, SCD41 (single shot every 5 min), SGP41 (1 Hz, index algorithm).
-5. Wi-Fi with fixed credentials from a git-ignored file.
-6. MQTT publishing.
-7. Captive portal for Wi-Fi setup.
+5. Wi-Fi with fixed credentials from a git-ignored file (done), network time; settings store (done).
+6. MQTT publishing: 6a sensor values, 6b diagnostics (boot report, crash summary, log lines). **Comes after step 7** (decided 2026-11-20), so its settings go straight into the portal.
+7. Captive portal for all settings (Wi-Fi, device name, later MQTT). **Next.**
 8. OTA updates.
 9. Hardening: watchdog, reconnects, sensor recovery by switching the sensor rail, LED status patterns.
 10. Measure self-heating against a reference thermometer; only then consider sleep modes.

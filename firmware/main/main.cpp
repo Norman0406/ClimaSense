@@ -25,6 +25,8 @@
 #include "board/led.h"
 #include "diagnostics/diagnostics.h"
 #include "net/wifi.h"
+#include "settings/nvs_store.h"
+#include "settings/store.h"
 #include "sensors/sensor_task.h"
 
 namespace {
@@ -75,6 +77,22 @@ esp_err_t init_nvs()
     return err;
 }
 
+// Logs where a settings record came from.
+template <typename Settings>
+void log_loaded(const char *what, const settings::Loaded<Settings> &loaded)
+{
+    if (loaded.store_failed) {
+        ESP_LOGE(kTag, "%s settings: storage unreadable, using build defaults", what);
+    } else if (loaded.rejected) {
+        ESP_LOGW(kTag, "%s settings: stored values invalid, using build defaults", what);
+    } else if (loaded.stored_fields > 0) {
+        ESP_LOGI(kTag, "%s settings: %u field(s) from storage, the rest build defaults", what,
+                 static_cast<unsigned>(loaded.stored_fields));
+    } else {
+        ESP_LOGI(kTag, "%s settings: build defaults", what);
+    }
+}
+
 void led_self_test()
 {
     for (std::size_t i = 1; i < kColours.size(); ++i) {
@@ -97,8 +115,21 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(board::button::init());
     ESP_ERROR_CHECK(sensors::start_task());
     ESP_ERROR_CHECK(init_nvs());
-    // Build defaults for now; from step 7 on, settings from the portal (NVS) take precedence.
-    if (const esp_err_t err = net::start(net::default_settings()); err != ESP_OK) {
+
+    // Settings: stored ones (from the portal, step 7) take precedence over the build defaults.
+    static settings::NvsStore store;
+    if (const esp_err_t err = store.open(); err != ESP_OK) {
+        ESP_LOGE(kTag, "settings storage not available: %s", esp_err_to_name(err));
+    }
+    const auto device = settings::load_device(store, settings::DeviceSettings{});
+    log_loaded("device", device);
+    ESP_LOGI(kTag, "device %s, name \"%.*s\"", net::device_id(),
+             static_cast<int>(settings::display_name(device.value, net::device_id()).size()),
+             settings::display_name(device.value, net::device_id()).data());
+    const auto network = settings::load_net(store, net::default_settings());
+    log_loaded("network", network);
+
+    if (const esp_err_t err = net::start(network.value); err != ESP_OK) {
         ESP_LOGE(kTag, "Wi-Fi not started: %s", esp_err_to_name(err));  // the sensors keep running
     }
     led_self_test();

@@ -28,6 +28,7 @@ add_executable(host_tests
     test_log_ring.cpp
     test_net.cpp
     test_scd41.cpp
+    test_settings.cpp
     test_sgp41.cpp
     test_sht45.cpp
     test_single_shot.cpp
@@ -35,6 +36,8 @@ add_executable(host_tests
     ${FW}/components/board/src/led_logic.cpp
     ${FW}/components/net/src/settings.cpp
     ${FW}/components/sensors/src/bmp580.cpp
+    ${FW}/components/settings/src/device.cpp
+    ${FW}/components/settings/src/store.cpp
     ${FW}/components/sensors/src/bus_scan.cpp
     ${FW}/components/sensors/src/scd41.cpp
     ${FW}/components/sensors/src/sgp41.cpp
@@ -47,6 +50,7 @@ target_include_directories(host_tests PRIVATE
     ${FW}/components/net/include
     ${FW}/components/sensors/include
     ${FW}/components/sensors/vendor/gas_index_algorithm
+    ${FW}/components/settings/include
 )
 # Our code with all warnings as errors; Sensirion's vendored C file as it is.
 target_compile_options(host_tests PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-Werror>")

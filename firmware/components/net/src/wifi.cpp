@@ -145,10 +145,7 @@ esp_err_t start(const NetSettings &settings)
     g_netif = esp_netif_create_default_wifi_sta();
     ESP_RETURN_ON_FALSE(g_netif != nullptr, ESP_FAIL, kTag, "create station interface");
 
-    uint8_t mac[6] = {};
-    ESP_RETURN_ON_ERROR(esp_read_mac(mac, ESP_MAC_WIFI_STA), kTag, "read MAC");
-    g_hostname = hostname_from_mac(mac);
-    ESP_RETURN_ON_ERROR(esp_netif_set_hostname(g_netif, g_hostname.data()), kTag, "host name");
+    ESP_RETURN_ON_ERROR(esp_netif_set_hostname(g_netif, device_id()), kTag, "host name");
 
     const wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     ESP_RETURN_ON_ERROR(esp_wifi_init(&init), kTag, "wifi init");
@@ -180,6 +177,16 @@ esp_err_t start(const NetSettings &settings)
     ESP_RETURN_ON_ERROR(esp_wifi_start(), kTag, "wifi start");
     ESP_LOGI(kTag, "started as %s, country %s", g_hostname.data(), g_settings.country.c_str());
     return ESP_OK;
+}
+
+const char *device_id()
+{
+    if (g_hostname[0] == '\0') {
+        uint8_t mac[6] = {};
+        esp_read_mac(mac, ESP_MAC_WIFI_STA);  // from eFuse; cannot fail for the station MAC
+        g_hostname = hostname_from_mac(mac);
+    }
+    return g_hostname.data();
 }
 
 bool connected() { return g_connected; }
