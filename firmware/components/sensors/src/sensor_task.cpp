@@ -4,6 +4,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
+#include <mutex>
 
 #include "esp_check.h"
 #include "esp_log.h"
@@ -21,6 +22,7 @@
 #include "sensors/sgp41.h"
 #include "sensors/sht45.h"
 #include "sensors/single_shot.h"
+#include "sensors/snapshot.h"
 
 namespace sensors {
 
@@ -31,6 +33,12 @@ constexpr TickType_t kTick = pdMS_TO_TICKS(1000);
 constexpr uint32_t kStackBytes = 6144;  // four drivers, two gas index states, log formatting
 // Above the app task (priority 1), well below ESP-IDF's Wi-Fi and network tasks.
 constexpr UBaseType_t kPriority = 5;
+// The handover to the app task: the only state shared with it.
+std::mutex g_snapshot_lock;
+SnapshotBuilder g_snapshot;
+
+uint32_t uptime_s() { return static_cast<uint32_t>(esp_timer_get_time() / 1'000'000); }
+
 // Readings are logged at INFO every this many ticks (every tick at DEBUG).
 constexpr uint32_t kLogEveryTicks = 10;
 // A sensor whose start-up failed is tried again every this many ticks.
@@ -206,6 +214,10 @@ void step_scd41(Scd41 &scd, SingleShotSchedule &schedule, Health &health, uint32
             return;
         }
         health.ok();
+        {
+            std::lock_guard<std::mutex> lock(g_snapshot_lock);
+            g_snapshot.set_co2(reading->co2_ppm, uptime_s());
+        }
         ESP_LOGI(kTag, "SCD41: %u ppm CO2 (own sensor %s C, %s %%RH)", reading->co2_ppm,
                  Milli(reading->temperature_mc).text, Milli(reading->humidity_mpercent).text);
         return;
@@ -271,6 +283,10 @@ void step_sgp41(Sgp41 &sgp, GasIndex &voc, GasIndex &nox, Health &health, uint32
     health.ok();
     const int32_t voc_index = voc.process(raw->voc);
     const int32_t nox_index = nox.process(raw->nox);
+    {
+        std::lock_guard<std::mutex> lock(g_snapshot_lock);
+        g_snapshot.set_gas_index(voc_index, nox_index);
+    }
     if (voc_index == 0) {
         ESP_LOG_LEVEL_LOCAL(level, kTag, "SGP41: raw VOC %u, NOx %u (index algorithms still starting)",
                             raw->voc, raw->nox);
@@ -343,6 +359,10 @@ void task(void *)
             ? sht45.read_measurement() : SensorResult<Sht45Reading>{std::unexpected(sht45_started.error())};
         if (sht) {
             sht45_health.ok();
+            {
+                std::lock_guard<std::mutex> lock(g_snapshot_lock);
+                g_snapshot.add_temperature_humidity(sht->temperature_mc, sht->humidity_mpercent);
+            }
             ESP_LOG_LEVEL_LOCAL(level, kTag, "SHT45: %s C, %s %%RH",
                                 Milli(sht->temperature_mc).text, Milli(sht->humidity_mpercent).text);
         } else {
@@ -355,6 +375,10 @@ void task(void *)
             if (bmp) {
                 bmp580_health.ok();
                 last_pressure_milli_pa = bmp->pressure_milli_pa;
+                {
+                    std::lock_guard<std::mutex> lock(g_snapshot_lock);
+                    g_snapshot.add_pressure(bmp->pressure_milli_pa);
+                }
                 ESP_LOG_LEVEL_LOCAL(level, kTag, "BMP580: %s hPa (die %s C)",
                                     Milli(bmp->pressure_milli_pa / 100).text, Milli(bmp->temperature_mc).text);
             } else {
@@ -371,6 +395,12 @@ void task(void *)
 }
 
 }  // namespace
+
+SensorSnapshot take_snapshot()
+{
+    std::lock_guard<std::mutex> lock(g_snapshot_lock);
+    return g_snapshot.take(uptime_s());
+}
 
 esp_err_t start_task()
 {

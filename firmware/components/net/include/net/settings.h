@@ -22,6 +22,10 @@ class Text {
 public:
     static constexpr std::size_t kMaxLength = N;
 
+    Text() = default;
+    // An initial value; one longer than N leaves the text empty.
+    explicit Text(std::string_view value) { set(value); }
+
     // False (and unchanged) if `value` is longer than N.
     bool set(std::string_view value)
     {

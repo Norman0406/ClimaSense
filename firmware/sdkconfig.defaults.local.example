@@ -3,3 +3,7 @@
 # idf.py fullclean) and build again.
 CONFIG_CLIMASENSE_WIFI_SSID="your-network"
 CONFIG_CLIMASENSE_WIFI_PASSWORD="your-password"
+# MQTT broker (optional; can also be set in the setup portal)
+#CONFIG_CLIMASENSE_MQTT_HOST="mosquitto.local"
+#CONFIG_CLIMASENSE_MQTT_USERNAME="climasense"
+#CONFIG_CLIMASENSE_MQTT_PASSWORD="mqtt-password"

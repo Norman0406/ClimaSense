@@ -24,7 +24,10 @@ struct PageModel {
     bool wifi_connected = false;
     const net::NetSettings *net = nullptr;          // values to show (the password is not)
     const settings::DeviceSettings *device = nullptr;
+    const telemetry::MqttSettings *mqtt = nullptr;  // the password is not shown either
+    bool mqtt_connected = false;
     bool password_stored = false;                   // a password is stored for the shown network
+    bool mqtt_password_stored = false;
     std::span<const net::AccessPoint> networks;
     std::span<const FieldError> errors;
     std::string_view notice;                        // e.g. a storage failure

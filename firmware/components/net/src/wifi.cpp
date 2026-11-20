@@ -214,6 +214,15 @@ bool connected() { return g_connected; }
 
 bool time_synced() { return g_time_synced; }
 
+std::optional<int> rssi()
+{
+    wifi_ap_record_t ap{};
+    if (!g_connected || esp_wifi_sta_get_ap_info(&ap) != ESP_OK) {
+        return std::nullopt;
+    }
+    return ap.rssi;
+}
+
 esp_err_t start_access_point(const char *ssid, std::array<uint8_t, 4> &ip)
 {
     ESP_RETURN_ON_FALSE(g_wifi_started, ESP_ERR_INVALID_STATE, kTag, "Wi-Fi not started");

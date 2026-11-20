@@ -1,6 +1,7 @@
 #include "portal/page.h"
 
 #include <algorithm>
+#include <string>
 
 namespace portal {
 
@@ -168,6 +169,52 @@ std::string render_settings_page(const PageModel &m)
     out += "<label for=\"tz\">Time zone <span class=\"hint\">(POSIX TZ string)</span></label>";
     text_input(out, "tz", m.net != nullptr ? m.net->timezone.view() : std::string_view{}, " maxlength=\"63\"");
     field_error(out, m.errors, field::kTimezone);
+    out += "</details>";
+
+
+    // MQTT
+    const telemetry::MqttSettings empty_mqtt;
+    const telemetry::MqttSettings &mq = m.mqtt != nullptr ? *m.mqtt : empty_mqtt;
+    out += "<h2 style=\"font-size:1.1rem;margin-top:1.6rem\">MQTT broker</h2>";
+    out += "<div class=\"hint\">";
+    if (mq.host.empty()) {
+        out += "No broker set: values are not sent.";
+    } else {
+        out += m.mqtt_connected ? "Connected to the broker." : "Not connected to the broker.";
+    }
+    out += "</div>";
+    out += "<input type=\"hidden\" name=\"mqtt_form\" value=\"1\">";
+    out += "<label for=\"mqtt_host\">Broker <span class=\"hint\">(host name or IPv4 address; empty: off)</span></label>";
+    text_input(out, "mqtt_host", mq.host.view(), " maxlength=\"63\" autocomplete=\"off\"");
+    field_error(out, m.errors, field::kMqttHost);
+    out += "<label for=\"mqtt_port\">Port</label>";
+    text_input(out, "mqtt_port", std::to_string(mq.port), " maxlength=\"5\" inputmode=\"numeric\"");
+    field_error(out, m.errors, field::kMqttPort);
+    out += "<label for=\"mqtt_user\">User name</label>";
+    text_input(out, "mqtt_user", mq.username.view(), " maxlength=\"63\" autocomplete=\"off\"");
+    field_error(out, m.errors, field::kMqttUser);
+    out += "<label for=\"mqtt_pass\">Password <span class=\"hint\">";
+    out += m.mqtt_password_stored ? "(leave empty to keep the stored one)" : "";
+    out += "</span></label>";
+    out += "<input type=\"password\" name=\"mqtt_pass\" id=\"mqtt_pass\" autocomplete=\"off\" maxlength=\"63\">";
+    field_error(out, m.errors, field::kMqttPassword);
+    out += "<label class=\"hint\"><input type=\"checkbox\" name=\"mqtt_nopass\" value=\"1\"> No password</label>";
+
+    const bool mqtt_advanced_error = error_for(m.errors, field::kMqttTopic) != nullptr ||
+                                     error_for(m.errors, field::kHaPrefix) != nullptr;
+    out += mqtt_advanced_error ? "<details open>" : "<details>";
+    out += "<summary>Topic, Home Assistant</summary>";
+    out += "<label for=\"mqtt_topic\">Base topic <span class=\"hint\">(values go to &lt;base&gt;/";
+    out += html_escape(m.device_id);
+    out += "/state)</span></label>";
+    text_input(out, "mqtt_topic", mq.base_topic.view(), " maxlength=\"63\"");
+    field_error(out, m.errors, field::kMqttTopic);
+    out += "<label class=\"hint\"><input type=\"checkbox\" name=\"ha\" value=\"1\"";
+    out += mq.ha_discovery ? " checked" : "";
+    out += "> Home Assistant discovery</label>";
+    out += "<label for=\"ha_prefix\">Discovery prefix</label>";
+    text_input(out, "ha_prefix", mq.ha_prefix.view(), " maxlength=\"31\"");
+    field_error(out, m.errors, field::kHaPrefix);
     out += "</details>";
 
     out += "<button type=\"submit\">Save and restart</button></form>";

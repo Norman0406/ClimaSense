@@ -17,7 +17,6 @@ firmware/sdkconfig
 firmware/sdkconfig.defaults.local
 sdkconfig.old
 .pio/
-dependencies.lock
 
 # --- Python ---
 __pycache__/

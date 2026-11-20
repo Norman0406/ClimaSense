@@ -9,6 +9,7 @@
 
 #include "net/settings.h"
 #include "settings/device.h"
+#include "telemetry/mqtt_settings.h"
 
 namespace portal {
 
@@ -21,6 +22,17 @@ inline constexpr std::string_view kName = "name";
 inline constexpr std::string_view kCountry = "country";
 inline constexpr std::string_view kSntpServer = "sntp";
 inline constexpr std::string_view kTimezone = "tz";
+inline constexpr std::string_view kMqttHost = "mqtt_host";
+inline constexpr std::string_view kMqttPort = "mqtt_port";
+inline constexpr std::string_view kMqttUser = "mqtt_user";
+inline constexpr std::string_view kMqttPassword = "mqtt_pass";
+inline constexpr std::string_view kMqttNoPassword = "mqtt_nopass";  // checkbox: clear the password
+inline constexpr std::string_view kMqttTopic = "mqtt_topic";
+inline constexpr std::string_view kHaDiscovery = "ha";              // checkbox
+inline constexpr std::string_view kHaPrefix = "ha_prefix";
+// Hidden marker sent with the MQTT section. Browsers leave out unticked checkboxes; with the
+// marker present, a missing "ha" means "off" rather than "keep".
+inline constexpr std::string_view kMqttSection = "mqtt_form";
 }  // namespace field
 
 inline constexpr std::size_t kMaxFormBytes = 2048;
@@ -47,6 +59,7 @@ struct FieldError {
 struct FormResult {
     net::NetSettings net;
     settings::DeviceSettings device;
+    telemetry::MqttSettings mqtt;
     std::vector<FieldError> errors;
     bool ok() const { return errors.empty(); }
 };
@@ -57,7 +70,10 @@ struct FormResult {
 // old network's password is never kept for a new one by accident. The country is upper-cased.
 // `net` and `device` hold the result even when there are errors, so the page can show the
 // user's input again (never the password).
+// MQTT: an empty password field keeps the stored password, "no password" clears it; clearing
+// the user name clears the password too (MQTT only sends one with the other).
 FormResult apply_form(std::string_view body, const net::NetSettings &current_net,
-                      const settings::DeviceSettings &current_device);
+                      const settings::DeviceSettings &current_device,
+                      const telemetry::MqttSettings &current_mqtt = {});
 
 }  // namespace portal

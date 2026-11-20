@@ -1,0 +1,147 @@
+#include "telemetry/client.h"
+
+#include <atomic>
+#include <string_view>
+
+#include "esp_check.h"
+#include "esp_log.h"
+#include "mqtt_client.h"
+#include "sdkconfig.h"
+
+#include "telemetry/payload.h"
+
+namespace telemetry {
+
+namespace {
+
+constexpr const char *kTag = "mqtt";
+
+MqttSettings g_settings;  // kept for the life of the program: the client keeps the pointers
+Identity g_identity;
+std::string g_state_topic;
+std::string g_status_topic;
+std::string g_ha_status_topic;
+esp_mqtt_client_handle_t g_client = nullptr;
+std::atomic<bool> g_connected{false};
+
+void publish_discovery()
+{
+    const auto messages = discovery_messages({g_settings.ha_prefix.view(), g_settings.base_topic.view(),
+                                              g_identity.device_id, g_identity.name, g_identity.firmware_version});
+    for (const auto &m : messages) {
+        esp_mqtt_client_enqueue(g_client, m.topic.c_str(), m.payload.data(), static_cast<int>(m.payload.size()), 1,
+                                1, true);
+    }
+    ESP_LOGI(kTag, "Home Assistant discovery: %u messages queued", static_cast<unsigned>(messages.size()));
+}
+
+void on_event(void *, esp_event_base_t, int32_t id, void *data)
+{
+    const auto *event = static_cast<const esp_mqtt_event_t *>(data);
+    switch (static_cast<esp_mqtt_event_id_t>(id)) {
+    case MQTT_EVENT_CONNECTED:
+        g_connected = true;
+        ESP_LOGI(kTag, "connected to %s:%u", g_settings.host.c_str(), g_settings.port);
+        esp_mqtt_client_enqueue(g_client, g_status_topic.c_str(), kOnline.data(), static_cast<int>(kOnline.size()), 1,
+                                1, true);
+        if (g_settings.ha_discovery) {
+            esp_mqtt_client_subscribe_single(g_client, g_ha_status_topic.c_str(), 1);
+            publish_discovery();
+        }
+        break;
+    case MQTT_EVENT_DISCONNECTED:
+        if (g_connected.exchange(false)) {
+            ESP_LOGW(kTag, "disconnected; reconnecting in the background");
+        }
+        break;
+    case MQTT_EVENT_DATA: {
+        // Home Assistant announces "online" on its status topic after a restart: discovery again.
+        const std::string_view topic(event->topic, static_cast<std::size_t>(event->topic_len));
+        const std::string_view payload(event->data, static_cast<std::size_t>(event->data_len));
+        if (g_settings.ha_discovery && topic == g_ha_status_topic && payload == "online") {
+            publish_discovery();
+        }
+        break;
+    }
+    case MQTT_EVENT_ERROR:
+        ESP_LOGW(kTag, "connection error (broker %s:%u)", g_settings.host.c_str(), g_settings.port);
+        break;
+    default:
+        break;
+    }
+}
+
+}  // namespace
+
+MqttSettings default_settings()
+{
+    MqttSettings s;
+    s.host.set(CONFIG_CLIMASENSE_MQTT_HOST);
+    s.port = static_cast<uint16_t>(CONFIG_CLIMASENSE_MQTT_PORT);
+    s.username.set(CONFIG_CLIMASENSE_MQTT_USERNAME);
+    s.password.set(CONFIG_CLIMASENSE_MQTT_PASSWORD);
+    s.base_topic.set(CONFIG_CLIMASENSE_MQTT_BASE_TOPIC);
+#ifdef CONFIG_CLIMASENSE_MQTT_HA_DISCOVERY
+    s.ha_discovery = true;
+#endif
+    s.ha_prefix.set(CONFIG_CLIMASENSE_MQTT_HA_PREFIX);
+    return s;
+}
+
+esp_err_t start(const MqttSettings &settings, const Identity &identity)
+{
+    if (const auto problem = validate(settings)) {
+        ESP_LOGE(kTag, "MQTT settings not usable: %s", to_string(*problem));
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!mqtt_configured(settings)) {
+        ESP_LOGW(kTag, "no broker configured; values are not sent");
+        return ESP_OK;
+    }
+    ESP_RETURN_ON_FALSE(g_client == nullptr, ESP_ERR_INVALID_STATE, kTag, "already started");
+    g_settings = settings;
+    g_identity = identity;
+    g_state_topic = state_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_status_topic = status_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_ha_status_topic = ha_status_topic(g_settings.ha_prefix.view());
+
+    esp_mqtt_client_config_t config{};
+    config.broker.address.hostname = g_settings.host.c_str();
+    config.broker.address.port = g_settings.port;
+    config.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;  // plain, decided 2026-11-20
+    config.credentials.client_id = g_identity.device_id.c_str();
+    if (!g_settings.username.empty()) {
+        config.credentials.username = g_settings.username.c_str();
+        if (!g_settings.password.empty()) {
+            config.credentials.authentication.password = g_settings.password.c_str();
+        }
+    }
+    config.session.last_will.topic = g_status_topic.c_str();
+    config.session.last_will.msg = kOffline.data();
+    config.session.last_will.msg_len = static_cast<int>(kOffline.size());
+    config.session.last_will.qos = 1;
+    config.session.last_will.retain = 1;
+    config.session.keepalive = 60;  // the broker notices a vanished device within about 90 s
+
+    g_client = esp_mqtt_client_init(&config);
+    ESP_RETURN_ON_FALSE(g_client != nullptr, ESP_FAIL, kTag, "client init");
+    ESP_RETURN_ON_ERROR(esp_mqtt_client_register_event(g_client, MQTT_EVENT_ANY, on_event, nullptr), kTag, "events");
+    ESP_RETURN_ON_ERROR(esp_mqtt_client_start(g_client), kTag, "client start");
+    ESP_LOGI(kTag, "publishing to %s every %u s (broker %s:%u%s)", g_state_topic.c_str(),
+             static_cast<unsigned>(kPublishIntervalS), g_settings.host.c_str(), g_settings.port,
+             g_settings.ha_discovery ? ", Home Assistant discovery on" : "");
+    return ESP_OK;
+}
+
+bool connected() { return g_connected; }
+
+bool publish_state(const std::string &json)
+{
+    if (!g_connected || g_client == nullptr) {
+        return false;
+    }
+    return esp_mqtt_client_enqueue(g_client, g_state_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
+                                   true) >= 0;
+}
+
+}  // namespace telemetry

@@ -9,6 +9,7 @@
 #include "net/settings.h"
 #include "settings/device.h"
 #include "settings/kv_store.h"
+#include "telemetry/mqtt_settings.h"
 
 namespace portal {
 
@@ -18,8 +19,10 @@ struct Context {
     settings::KvStore *store = nullptr;  // where saved settings go; must outlive the portal
     net::NetSettings net;                // the settings in use, shown and edited on the page
     settings::DeviceSettings device;
+    telemetry::MqttSettings mqtt;
     const char *firmware_version = "";
     const char *build_id = "";
+    bool (*mqtt_connected)() = nullptr;  // for the status line; nullptr: shown as not connected
 };
 
 // Opens setup mode, or, if it is open already, starts its 10 minutes again. Needs Wi-Fi started

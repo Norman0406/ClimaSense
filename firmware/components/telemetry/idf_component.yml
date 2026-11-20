@@ -1,0 +1,4 @@
+## Registry dependencies of the telemetry component. Exact versions, so builds are reproducible;
+## the resolved set is recorded in firmware/dependencies.lock (versioned).
+dependencies:
+  espressif/mqtt: "==1.1.0"

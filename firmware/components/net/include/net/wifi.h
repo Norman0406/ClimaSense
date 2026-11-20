@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "esp_err.h"
@@ -29,6 +30,9 @@ const char *device_id();
 
 bool connected();
 bool time_synced();
+
+// Signal strength of the connection in dBm; nothing when not connected.
+std::optional<int> rssi();
 
 // Setup mode for the portal: adds an open access point with this name next to the station and
 // pauses reconnect attempts, so the station does not leave the access point's channel to search.

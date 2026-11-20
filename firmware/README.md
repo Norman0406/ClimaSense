@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Steps 1-5 and 7 of the plan below: all four sensors are read (into the log only; publishing comes with MQTT in step 6), the device joins Wi-Fi and gets network time, and every setting can be changed in the setup portal. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 124 passing at commit `1e0633f`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
+Steps 1-5, 6a and 7 of the plan below: all four sensors are read and published over MQTT every 60 s, the device joins Wi-Fi and gets network time, and every setting can be changed in the setup portal. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 147 passing at commit `14b6eca`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -18,6 +18,7 @@ What the firmware does now:
 - starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. The SGP41 is conditioned for its first 10 s, then measured every second with the SHT45's humidity and temperature of the same tick for compensation; Sensirion's Gas Index Algorithm turns its raw signals into the VOC index (100 = the room's usual) and the NOx index (1 = the usual). Both indices are 0 for the algorithm's first 46 samples and keep learning the room's baseline for hours; they start again at every reboot (saving the learned state is planned for step 9). At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second.
 
 - loads its settings (network, device name) from NVS over the build defaults and logs where each came from;
+- publishes the sensor values over MQTT every 60 s (see "MQTT"), with Home Assistant discovery if switched on;
 - opens the setup portal on first boot (no network configured) or on a 3 s press of the BOOT button; see "Setting up a device";
 - joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
 
@@ -44,8 +45,11 @@ components/settings/   settings store: load from NVS over build defaults, valida
                        device name record
 components/portal/     setup portal: DNS answers, form parsing and checks, HTML pages (pure,
                        tested), and the access point / DNS / web server around them
+components/telemetry/  MQTT: settings record and rules, state message and Home Assistant
+                       discovery (pure, tested), the client on espressif/mqtt
 components/net/        settings record and its rules (settings.h), Wi-Fi station, reconnect
                        pauses, host name, network time; Kconfig menu "ClimaSense network"
+dependencies.lock      registry components ESP-IDF resolved (espressif/mqtt), versioned
 sdkconfig.defaults.local.example
                        template for the git-ignored file with the Wi-Fi credentials
 test/host/             unit tests of the hardware-independent logic (GoogleTest), built for the PC;
@@ -82,6 +86,22 @@ A new board (no network configured) opens its setup portal by itself; any board 
 4. **Save and restart.** The device restarts and joins the network; the setup network disappears.
 
 Leaving the password empty keeps the stored one, but only for the same network: a new network needs its password, or "Open network" ticked. Passwords are never shown. The portal closes after 10 minutes, or on a short press of the button; a lost network does not open it (decided, see `docs/decisions.md`).
+
+## MQTT
+
+Set the broker in the setup portal (section "MQTT broker"): host name or IPv4 address, port (1883), user name and password; under the fold-out the base topic (`climasense`) and the Home Assistant switch (off by default). With no broker set, nothing is sent.
+
+Every 60 s the device publishes one JSON message to `<base>/<id>/state`, for example
+
+```json
+{"id":"climasense-a1b2c3","name":"Living room","time":"2026-11-20T14:05:00+01:00",
+ "temperature_c":22.41,"humidity_pct":45.20,"pressure_hpa":963.12,"co2_ppm":812,"co2_age_s":140,
+ "voc_index":104,"nox_index":1,"rssi_dbm":-58,"uptime_s":3600}
+```
+
+Temperature, humidity and pressure are the means of the last minute; VOC and NOx index the latest of that minute. CO2 is measured every 5 minutes: its latest value is repeated with its age `co2_age_s`, and dropped once older than 11 minutes. A value without data is left out, never sent as 0. `<base>/<id>/status` holds `online`, or `offline` once the device has gone (retained; MQTT last will).
+
+mqtt-exporter turns every number into a Prometheus metric, labelled with the topic (so with the device ID). Home Assistant, with the switch on, finds the device with all values and units by itself.
 
 ## Wi-Fi settings at build time
 
@@ -147,7 +167,7 @@ When ESP-IDF is updated here, update the image tag there too.
 3. I2C bus on the low-power controller, address scan.
 4. Sensors one at a time: SHT45, BMP580, SCD41 (single shot every 5 min), SGP41 (1 Hz, index algorithm).
 5. Wi-Fi with fixed credentials from a git-ignored file (done), network time; settings store (done).
-6. MQTT publishing: 6a sensor values, 6b diagnostics (boot report, crash summary, log lines). **Next** (after step 7, decided 2026-11-20); its settings go straight into the portal.
+6. MQTT publishing: 6a sensor values (done), 6b diagnostics (boot report, crash summary, log lines; next).
 7. Captive portal for all settings (Wi-Fi, device name, later MQTT). Done; MQTT fields come with step 6.
 8. OTA updates.
 9. Hardening: watchdog, reconnects, sensor recovery by switching the sensor rail, LED status patterns.

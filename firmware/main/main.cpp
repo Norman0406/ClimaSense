@@ -1,7 +1,8 @@
 // ClimaSense firmware entry point.
 // Report the previous run (its last log lines, a crash dump), bring up the rails, LED and button,
 // start the sensor task (sensors/sensor_task.h), Wi-Fi with network time (net/wifi.h) and, when
-// needed, the setup portal (portal/portal.h). At start the LED shows red, green, blue and white
+// needed, the setup portal (portal/portal.h), and publish the sensor values over MQTT every
+// 60 s (telemetry/client.h). At start the LED shows red, green, blue and white
 // in turn (a check of the LED and its colour balance); a long press opens the setup portal, a
 // short press closes it, or otherwise cycles through the LED colours.
 
@@ -9,6 +10,8 @@
 #include <array>
 #include <cinttypes>
 #include <cstddef>
+#include <ctime>
+#include <string>
 
 #include "esp_app_desc.h"
 #include "esp_chip_info.h"
@@ -27,6 +30,8 @@
 #include "diagnostics/diagnostics.h"
 #include "net/wifi.h"
 #include "portal/portal.h"
+#include "telemetry/client.h"
+#include "telemetry/payload.h"
 #include "settings/nvs_store.h"
 #include "settings/store.h"
 #include "sensors/sensor_task.h"
@@ -96,6 +101,36 @@ void log_loaded(const char *what, const settings::Loaded<Settings> &loaded)
     }
 }
 
+// Current local time as RFC 3339, or empty while the clock is not set yet.
+std::string local_time()
+{
+    if (!net::time_synced()) {
+        return {};
+    }
+    const time_t now = time(nullptr);
+    struct tm local {};
+    localtime_r(&now, &local);
+    char text[32];
+    strftime(text, sizeof(text), "%Y-%m-%dT%H:%M:%S%z", &local);
+    return telemetry::rfc3339_offset(text);
+}
+
+// Takes the sensor snapshot (which starts the next averaging window) and publishes it.
+void publish(const std::string &display_name)
+{
+    const sensors::SensorSnapshot snapshot = sensors::take_snapshot();
+    if (!telemetry::connected()) {
+        return;  // the window still restarts: every message averages one interval
+    }
+    const std::string time = local_time();
+    const telemetry::StateMeta meta{net::device_id(), display_name, time, net::rssi(),
+                                    static_cast<uint32_t>(esp_timer_get_time() / 1'000'000)};
+    const std::string json = telemetry::state_json(snapshot, meta);
+    if (telemetry::publish_state(json)) {
+        ESP_LOGD(kTag, "published: %s", json.c_str());
+    }
+}
+
 void led_self_test()
 {
     for (std::size_t i = 1; i < kColours.size(); ++i) {
@@ -131,10 +166,19 @@ extern "C" void app_main()
              settings::display_name(device.value, net::device_id()).data());
     const auto network = settings::load_net(store, net::default_settings());
     log_loaded("network", network);
+    const auto mqtt = settings::load_mqtt(store, telemetry::default_settings());
+    log_loaded("MQTT", mqtt);
 
     const esp_err_t wifi = net::start(network.value);
     if (wifi != ESP_OK) {
         ESP_LOGE(kTag, "Wi-Fi not started: %s", esp_err_to_name(wifi));  // the sensors keep running
+    }
+    const std::string display_name(settings::display_name(device.value, net::device_id()));
+    if (wifi == ESP_OK) {
+        const telemetry::Identity identity{net::device_id(), display_name, esp_app_get_description()->version};
+        if (const esp_err_t err = telemetry::start(mqtt.value, identity); err != ESP_OK) {
+            ESP_LOGE(kTag, "MQTT not started: %s", esp_err_to_name(err));
+        }
     }
     led_self_test();
 
@@ -144,6 +188,8 @@ extern "C" void app_main()
     portal_context.store = &store;
     portal_context.net = network.value;
     portal_context.device = device.value;
+    portal_context.mqtt = mqtt.value;
+    portal_context.mqtt_connected = telemetry::connected;
     portal_context.firmware_version = esp_app_get_description()->version;
     portal_context.build_id = diagnostics::build_id();
     const auto open_portal = [] {
@@ -157,6 +203,8 @@ extern "C" void app_main()
 
     std::size_t colour_index = 0;
     int64_t next_heartbeat = esp_timer_get_time();
+    // The first message after one full interval, so it averages a full minute of readings.
+    int64_t next_publish = esp_timer_get_time() + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
     int64_t next_blink = 0;
     bool blink_on = false;
     bool portal_was_open = false;
@@ -167,6 +215,11 @@ extern "C" void app_main()
             ESP_LOGI(kTag, "alive, uptime %" PRId64 " s, free heap %" PRIu32 " bytes",
                      now / 1'000'000, esp_get_free_heap_size());
             next_heartbeat += kHeartbeatPeriodUs;
+        }
+
+        if (now >= next_publish) {
+            publish(display_name);
+            next_publish += static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
         }
 
         // While setup mode is open, the LED blinks blue (twice a second).
@@ -180,7 +233,10 @@ extern "C" void app_main()
         }
         portal_was_open = portal_open;
 
-        const int64_t until = portal_open ? std::min(next_heartbeat, next_blink) : next_heartbeat;
+        int64_t until = std::min(next_heartbeat, next_publish);
+        if (portal_open) {
+            until = std::min(until, next_blink);
+        }
         const TickType_t wait = pdMS_TO_TICKS(std::max<int64_t>(until - now, 0) / 1000) + 1;
         const auto event = board::button::wait(wait);
         if (!event) {

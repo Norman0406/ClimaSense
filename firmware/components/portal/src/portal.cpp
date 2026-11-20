@@ -106,6 +106,9 @@ PageModel base_model()
     m.wifi_connected = net::connected();
     m.net = &g_context.net;
     m.device = &g_context.device;
+    m.mqtt = &g_context.mqtt;
+    m.mqtt_connected = g_context.mqtt_connected != nullptr && g_context.mqtt_connected();
+    m.mqtt_password_stored = !g_context.mqtt.password.empty();
     m.password_stored = !g_context.net.password.empty();
     m.networks = g_networks;
     return m;
@@ -148,11 +151,12 @@ esp_err_t handle_save(httpd_req_t *req)
         received += static_cast<std::size_t>(n);
     }
 
-    const FormResult result = apply_form(body, g_context.net, g_context.device);
+    const FormResult result = apply_form(body, g_context.net, g_context.device, g_context.mqtt);
     if (!result.ok()) {
         PageModel m = base_model();
         m.net = &result.net;  // the user's input, so it need not be typed again
         m.device = &result.device;
+        m.mqtt = &result.mqtt;
         m.errors = result.errors;
         ESP_LOGI(kTag, "form not saved: %u problem(s)", static_cast<unsigned>(result.errors.size()));
         return send_page(req, render_settings_page(m));
@@ -160,10 +164,12 @@ esp_err_t handle_save(httpd_req_t *req)
 
     const auto net_error = settings::save_net(*g_context.store, result.net);
     const auto device_error = settings::save_device(*g_context.store, result.device);
-    if (net_error || device_error) {
+    const auto mqtt_error = settings::save_mqtt(*g_context.store, result.mqtt);
+    if (net_error || device_error || mqtt_error) {
         PageModel m = base_model();
         m.net = &result.net;
         m.device = &result.device;
+        m.mqtt = &result.mqtt;
         m.notice = "The settings could not be stored (storage error). Please try again.";
         ESP_LOGE(kTag, "storing the settings failed");
         return send_page(req, render_settings_page(m));
