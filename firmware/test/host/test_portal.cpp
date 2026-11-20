@@ -271,8 +271,16 @@ TEST(Page, NetworkNamesFromTheScanAreEscaped)
     m.device = &device;
     m.networks = networks;
     const std::string page = portal::render_settings_page(m);
-    EXPECT_THAT(page, Not(HasSubstr("<script>")));
+    // The hostile name never appears as markup, only escaped.
+    EXPECT_THAT(page, Not(HasSubstr("<script>alert(1)")));
+    EXPECT_THAT(page, Not(HasSubstr("alert(1)</script>")));
     EXPECT_THAT(page, HasSubstr("&lt;script&gt;alert(1)&lt;/script&gt;"));
+    // The page has exactly one script of its own (the firmware upload) and no other.
+    std::size_t scripts = 0;
+    for (std::size_t at = page.find("<script"); at != std::string::npos; at = page.find("<script", at + 1)) {
+        ++scripts;
+    }
+    EXPECT_EQ(scripts, 1u);
 }
 
 TEST(Page, NeverContainsThePassword)
