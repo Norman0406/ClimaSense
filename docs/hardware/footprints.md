@@ -49,6 +49,19 @@ Status: **drawn from the manufacturers' land-pattern drawings and checked agains
 
 The first version of the SGP41 footprint was wrong: the 2.3 mm in Sensirion's drawing is the distance between pad centres, and it had been read as the outer width, which left the side pads touching the centre pad. KiCad's design rule check on the board caught it; the comparison by eye above had not. It is fixed, the generator now asserts the gap, and the other three footprints were re-read for the same kind of mistake (the LED and BMP580 dimensions are confirmed by a second dimension in their drawings, the ESP32 by KiCad's sibling footprint).
 
+## Compared with JLCPCB's own footprints (2026-11-20)
+
+JLCPCB keeps a footprint of its own for every part number (drawn for its EasyEDA editor, independently of this project). The pads of the four project footprints were compared with those, pad by pad, as they sit on the board:
+
+| Footprint | JLCPCB's footprint | Pad centres | Pad sizes |
+| --- | --- | --- | --- |
+| `ESP32-C6-WROOM-1` (C5366877) | `WIRELM-SMD_ESP32-C6-WROOM-1` | identical, all 37 | identical |
+| SGP41 (C3659325) | `DFN-6_L2.4-W2.4-P0.80-TL-EP` | within 0.013 mm | ours 0.55 × 0.40 mm, theirs 0.585 × 0.448; centre pad 1.25 × 1.70 against 1.25 × 1.65 |
+| BMP580 (C22391138) | `LGA-10_L2.0-W2.0-P0.50-TL_BMP580` | within 0.018 mm | ours 0.25 × 0.275 mm (Bosch's figure), theirs 0.30 × 0.30 |
+| RGB LED (C264519) | `LED-ARRAY-SMD_6P-L1.6-W1.6-TL` | within 0.025 mm | identical |
+
+Pad numbers agree everywhere; JLCPCB numbers the ESP32's nine ground squares 29–37 where ours are all 29. So two independent readings of the datasheets give the same pattern. The library footprints of the other chips and connectors were compared the same way and their pads lie on JLCPCB's; the two differences worth knowing are that the SHT45 footprint has no centre pad where JLCPCB's has one (KiCad's library footprint for the SHT4x leaves it out on purpose, hence its name `…_NoCentralPad`; the four signal pads agree within 0.023 mm), and that L1's pads are 0.4 mm shorter than JLCPCB's (see below).
+
 ## What was not checked
 
 - Nothing has been compared against a physical part. Before ordering, a 1:1 print of the board with the parts laid on it is not possible here (no parts in hand), so the fab's own design-for-manufacturing review and assembling only a couple of boards first are the practical safeguards.
