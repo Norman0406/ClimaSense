@@ -16,7 +16,9 @@
 #include "sensors/bus_scan.h"
 #include "sensors/devices.h"
 #include "sensors/esp_i2c_bus.h"
+#include "sensors/gas_index.h"
 #include "sensors/scd41.h"
+#include "sensors/sgp41.h"
 #include "sensors/sht45.h"
 #include "sensors/single_shot.h"
 
@@ -26,7 +28,7 @@ namespace {
 
 constexpr const char *kTag = "sensors";
 constexpr TickType_t kTick = pdMS_TO_TICKS(1000);
-constexpr uint32_t kStackBytes = 4096;
+constexpr uint32_t kStackBytes = 6144;  // four drivers, two gas index states, log formatting
 // Above the app task (priority 1), well below ESP-IDF's Wi-Fi and network tasks.
 constexpr UBaseType_t kPriority = 5;
 // Readings are logged at INFO every this many ticks (every tick at DEBUG).
@@ -215,6 +217,69 @@ void step_scd41(Scd41 &scd, SingleShotSchedule &schedule, Health &health, uint32
     }
 }
 
+void init_sgp41(Sgp41 &sgp)
+{
+    if (auto r = sgp.request_serial(); !r) {
+        ESP_LOGW(kTag, "SGP41: serial number request failed: %s", to_string(r.error()));
+        return;
+    }
+    wait_ms(Sgp41::kSerialMs);
+    if (const auto serial = sgp.read_serial()) {
+        ESP_LOGI(kTag, "SGP41: serial number 0x%012llx", static_cast<unsigned long long>(*serial));
+    } else {
+        ESP_LOGW(kTag, "SGP41: serial number read failed: %s", to_string(serial.error()));
+    }
+}
+
+// The SGP41's part of a tick: conditioning for its first 10 ticks, then one raw measurement,
+// fed to both gas index algorithms. Must run every tick: the algorithms assume 1 s samples.
+// `sht` is this tick's SHT45 reading, for compensation (defaults if it failed).
+void step_sgp41(Sgp41 &sgp, GasIndex &voc, GasIndex &nox, Health &health, uint32_t &conditioning_left,
+                const SensorResult<Sht45Reading> &sht, esp_log_level_t level)
+{
+    const uint16_t rh = sht ? Sgp41::humidity_ticks(sht->humidity_mpercent) : Sgp41::kDefaultHumidityTicks;
+    const uint16_t t = sht ? Sgp41::temperature_ticks(sht->temperature_mc) : Sgp41::kDefaultTemperatureTicks;
+
+    if (conditioning_left > 0) {
+        --conditioning_left;
+        if (auto r = sgp.start_conditioning(rh, t); !r) {
+            health.failed(r.error());
+            return;
+        }
+        wait_ms(Sgp41::kCommandMs);
+        if (auto r = sgp.read_conditioning(); !r) {
+            health.failed(r.error());
+            return;
+        }
+        health.ok();
+        if (conditioning_left == 0) {
+            ESP_LOGI(kTag, "SGP41: conditioning done, measuring");
+        }
+        return;
+    }
+
+    if (auto r = sgp.start_measurement(rh, t); !r) {
+        health.failed(r.error());
+        return;
+    }
+    wait_ms(Sgp41::kCommandMs);
+    const auto raw = sgp.read_measurement();
+    if (!raw) {
+        health.failed(raw.error());
+        return;
+    }
+    health.ok();
+    const int32_t voc_index = voc.process(raw->voc);
+    const int32_t nox_index = nox.process(raw->nox);
+    if (voc_index == 0) {
+        ESP_LOG_LEVEL_LOCAL(level, kTag, "SGP41: raw VOC %u, NOx %u (index algorithms still starting)",
+                            raw->voc, raw->nox);
+    } else {
+        ESP_LOG_LEVEL_LOCAL(level, kTag, "SGP41: VOC index %" PRId32 ", NOx index %" PRId32 " (raw %u, %u)",
+                            voc_index, nox_index, raw->voc, raw->nox);
+    }
+}
+
 void task(void *)
 {
     wait_for_power_up();
@@ -248,6 +313,13 @@ void task(void *)
     SingleShotSchedule scd41_schedule;
     init_scd41(scd41);
 
+    Sgp41 sgp41{bus};
+    Health sgp41_health{"SGP41"};
+    GasIndex voc_index{GasIndex::Kind::Voc};
+    GasIndex nox_index{GasIndex::Kind::Nox};
+    uint32_t sgp41_conditioning_left = Sgp41::kConditioningSeconds;
+    init_sgp41(sgp41);
+
     TickType_t last_wake = xTaskGetTickCount();
     for (uint32_t tick = 1;; ++tick) {
         vTaskDelayUntil(&last_wake, kTick);
@@ -257,7 +329,6 @@ void task(void *)
         if (!bmp580_ready && tick % kRetryInitTicks == 0) {
             bmp580_ready = init_bmp580(bmp580);
         }
-        // Still to come in step 4: the SGP41 every tick.
 
         // Start both measurements, wait once for the slower one, then read both.
         const SensorResult<void> sht45_started = sht45.start_measurement();
@@ -290,6 +361,9 @@ void task(void *)
                 bmp580_health.failed(bmp.error());
             }
         }
+
+        // After the SHT45, whose reading of this tick compensates it.
+        step_sgp41(sgp41, voc_index, nox_index, sgp41_health, sgp41_conditioning_left, sht, level);
 
         // Last in the tick, so that even the first shot gets the pressure just read.
         step_scd41(scd41, scd41_schedule, scd41_health, tick, last_pressure_milli_pa);

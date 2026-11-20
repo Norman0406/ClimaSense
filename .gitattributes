@@ -8,3 +8,6 @@
 *.kicad_wks text eol=lf
 sym-lib-table text eol=lf
 fp-lib-table text eol=lf
+
+# Vendored third-party code stays byte for byte as released (its README records SHA-256 hashes)
+firmware/**/vendor/** -text

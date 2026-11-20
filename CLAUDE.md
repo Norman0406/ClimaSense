@@ -66,6 +66,7 @@ docs/       Design notes, research, decisions
 - Framework: **ESP-IDF 6.1, in C++** (decided, see `docs/decisions.md`): no exceptions, no RTTI, no heap-allocating containers in the measurement path; vendor drivers stay C. Project in `firmware/`, built with `idf.py`; build and flash steps in `firmware/README.md`.
 - Structure (tasks, sensor schedule, components, testing): `docs/firmware/architecture.md`.
 - `firmware/partitions.csv` is fixed once boards are deployed (changing it needs a USB flash of every board): ask before changing it. Crash and log diagnostics are in `components/diagnostics`; how to read a core dump is in `firmware/README.md`.
+- Third-party code lives unchanged in a `vendor/` folder of the component that uses it, with its licence and a README giving source, version, commit and file hashes (so far: Sensirion's Gas Index Algorithm in `components/sensors/vendor/`). Never edit it; update by replacing it with a newer release.
 - Pin map in code: `firmware/components/board/include/board/pins.h`. Keep it in step with `docs/hardware/schematic.md`.
 - Build: in PowerShell, `. C:\Espressif\tools\Microsoft.v6.1.1.PowerShell_profile.ps1`, then `idf.py build` in `firmware/`. Run it after every firmware change.
 - Keep hardware-independent logic free of ESP-IDF includes and cover it with GoogleTest unit tests in `firmware/test/host/` (built with g++ in WSL, command in `firmware/README.md`). Until g++ is installed there, at least compile-check the tests with the ESP32 compiler (with `-D_GNU_SOURCE` and GoogleTest's headers), and say they have not run.
