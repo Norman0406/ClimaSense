@@ -24,7 +24,7 @@ Settled design decisions for ClimaSense. Background and alternatives are in [`re
 | Programming | **Native USB** of the ESP32-C6 via the USB-C port; OTA over Wi-Fi once deployed | No USB-UART bridge. BOOT + RESET always recovers the board over USB. |
 | Debug access | **UART0 on three unpopulated header holes, a five-hole header on the sensor side, four supply test pads** | Decided 2026-11-20, replacing "none beyond USB" of the day before. The first boards may not work, and with USB as the only access a dead USB port would have meant no way to flash them or read a boot message. The sensor header lets another microcontroller use the sensors if the ESP32 side fails. Nothing is populated, so the parts list is unchanged. A Tag-Connect footprint stays dropped. Details in [`hardware/schematic.md`](hardware/schematic.md). |
 | Power | **USB-C only** | Battery is a possible separate later variant. |
-| Quantity | **At least 5 boards** | |
+| Quantity | **At least 5 boards**; the first order assembles 2 of 5 | Decided 2026-11-20: the first two boards prove the design before the rest is built. |
 | Assembly | Full PCBA at JLCPCB | No hand soldering. |
 | Enclosure | **Deferred**; a 3D-printed case is expected later | The device hangs on a wall in landscape, USB cable down, components facing the room (decided 2026-11-19; an earlier note said it lies flat). |
 | Board | **75 × 34 mm, landscape, 2 layers**, routed | ESP32 at the left end with the antenna at the edge, then USB (on the bottom edge) and power, then the sensors at the right end behind a milled slot. See [`hardware/layout.md`](hardware/layout.md). |

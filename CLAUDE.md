@@ -35,7 +35,7 @@ docs/       Design notes, research, decisions
 - Programming: native USB of the C6 through the USB-C port, OTA when deployed. No USB-UART bridge. UART0 (IO16/IO17) is on `J3` as a fallback if USB does not work (decided 2026-11-20).
 - Not in revision 1.0: ambient light sensor and microphone (deferred idea: detect piano playing outside quiet hours, log daylight), battery operation.
 - The BME680 used on the breadboard prototypes is dropped.
-- Quantity: at least 5 boards, assembled at JLCPCB.
+- Quantity: at least 5 boards, assembled at JLCPCB. The first order (2026-11-20) is 5 boards with 2 assembled, to prove the design before the rest is built.
 
 ## Working on the schematic
 
