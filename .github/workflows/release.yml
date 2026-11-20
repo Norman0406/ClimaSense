@@ -7,8 +7,8 @@
 #     does not start the workflow again.)
 # The image's version is X.Y.Z+<commit> (firmware/cmake/version.cmake), checked before signing.
 # The build is signed with the repository secret OTA_SIGNING_KEY, checked against the key, and
-# published. (GitHub Free, private repository: no environment secrets or required reviewers, so
-# starting the release is the deliberate act; only this workflow uses the secret.) Only release
+# published. (No approval step: starting the release is the deliberate act; only this workflow
+# uses the secret. Release tags cannot be moved or deleted: tag ruleset "Release tags".) Only release
 # images are signed, so only these can be installed over the air. Process: firmware/README.md,
 # "Releases and updates".
 name: Release

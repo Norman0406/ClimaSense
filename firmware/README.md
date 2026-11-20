@@ -94,7 +94,7 @@ Semantic versioning (decided 2026-11-20, `docs/decisions.md`):
 - **The firmware's version without `v`**, plus the commit: `0.1.0+1a2b3c4`. Devices compare the number and ignore what follows `+`.
 - **`0.x` until the firmware has proven itself on the real boards**, then `v1.0.0`.
 - **Major** (`2.0.0`): changes consumers notice (MQTT topics or JSON fields, so Prometheus queries change) or that need a USB flash, such as a new partition table. **Minor** (`1.1.0`): new features, everything existing keeps working, such as a new value in the message. **Patch** (`1.0.1`): fixes only.
-- **Never move or reuse a release tag.** If a release is bad, release the next patch version.
+- **Never move or reuse a release tag.** If a release is bad, release the next patch version. GitHub enforces it: the tag ruleset **"Release tags"** (Settings → Rules → Rulesets, created 2026-11-20) blocks updating and deleting `v*` tags, with nobody on the bypass list; creating them stays allowed, for the Release workflow and for you. To remove a tag after all, an admin has to switch the ruleset off first.
 - The firmware version is independent of the board revision ("Rev 1.0").
 
 ### Making a release
@@ -110,7 +110,7 @@ Commit and push what goes into the release to `main`, then start the **Release**
   git push origin v0.2.0
   ```
 
-Either way, starting it is the deliberate act that releases (there is no approval step on GitHub Free). The workflow builds, checks that the image carries the version `0.2.0+<commit>`, signs it with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
+Either way, starting it is the deliberate act that releases (there is no approval step). The workflow builds, checks that the image carries the version `0.2.0+<commit>`, signs it with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
 
 - `climasense-<version>.bin`: the signed image, for updates and the first USB flash
 - `climasense-<version>.elf`: decodes crashes of exactly this build
@@ -144,7 +144,7 @@ The private key (RSA-3072) was created on 2026-11-20 at `C:\Users\<you>\Document
 
 To store it for the workflow (GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**): name **`OTA_SIGNING_KEY`**, value: the whole content of `ota_signing_key.pem`, from `-----BEGIN RSA PRIVATE KEY-----` to `-----END RSA PRIVATE KEY-----`.
 
-Only the release workflow's "Build and sign" job uses the secret; the job that publishes the release never sees it. On GitHub Free a private repository has no environment secrets and no required reviewers (checked 2026-11-20), so the secret is a repository secret that any workflow in the repository could read; that is acceptable because only you can push here. A protected environment with an approval step would need GitHub Enterprise; the workflow can be switched to one with a single line (`environment:`). The key was created with ESP-IDF's tool, should a new one ever be needed (all devices would then need a USB flash of a release signed with it):
+Only the release workflow's "Build and sign" job uses the secret; the job that publishes the release never sees it. It is a repository secret, which any workflow in the repository could read; that is acceptable because only you can push here. The repository has been **public since 2026-11-20**, and that does not expose the secret: nobody can read a secret's value, workflows started by pull requests from forks get no secrets and only a read-only token, and only people with write access can push tags or start the Release workflow. Public repositories also get environments with required reviewers on GitHub Free; should an approval step ever be wanted, the secret moves into such an environment and the workflow names it in one line (`environment:`). The key was created with ESP-IDF's tool, should a new one ever be needed (all devices would then need a USB flash of a release signed with it):
 
 ```powershell
 espsecure generate-signing-key --version 2 --scheme rsa3072 ota_signing_key.pem

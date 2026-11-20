@@ -33,7 +33,7 @@ CONFIG_LWIP_MAX_SOCKETS=16
 # (RSA-3072, Secure Boot V2 scheme, checked when an update is installed; hardware Secure Boot is
 # not enabled, so a USB flash still works). Only release builds are signed: every build here is
 # unsigned, and the release workflow (.github/workflows/release.yml) signs the image afterwards
-# with the key from its protected environment. The running firmware's own signature block holds
+# with the key from the repository secret OTA_SIGNING_KEY. The running firmware's own signature block holds
 # the public key that updates are checked against: a board accepts updates only after a signed
 # release has been flashed onto it once over USB.
 CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
