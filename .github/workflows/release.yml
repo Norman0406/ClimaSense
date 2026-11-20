@@ -1,8 +1,9 @@
 # Firmware releases: a signed image for every version tag (decided 2026-11-20).
 #
-# Push a tag vX.Y.Z matching firmware/version.txt; the build waits for approval in the "release"
-# environment (the only place the signing key is), is signed, checked against the key, and
-# published as a GitHub Release. Only release images are signed; every other build is not, so
+# Push a tag vX.Y.Z matching firmware/version.txt; the build is signed with the repository secret
+# OTA_SIGNING_KEY, checked against the key, and published as a GitHub Release. (GitHub Free, private
+# repository: no environment secrets or required reviewers there, so pushing the version tag is the
+# deliberate act that releases; only this workflow uses the secret.) Only release images are signed; every other build is not, so
 # only these can be installed over the air. Setup and process: firmware/README.md, "Releases".
 name: Release
 
@@ -19,9 +20,6 @@ jobs:
     name: Build and sign
     runs-on: ubuntu-24.04
     container: espressif/idf:v6.1.1
-    # The signing key is a secret of this environment only; its protection rules (required
-    # reviewer, tags only) make every run wait for approval.
-    environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -51,7 +49,7 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
           if [ -z "$OTA_SIGNING_KEY" ]; then
-            echo "::error::the release environment has no OTA_SIGNING_KEY secret"
+            echo "::error::the repository has no OTA_SIGNING_KEY secret (Settings, Secrets and variables, Actions)"
             exit 1
           fi
           key="$RUNNER_TEMP/ota_signing_key.pem"

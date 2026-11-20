@@ -93,7 +93,7 @@ If the board does not show up or flashing fails: hold BOOT, press and release RE
    ```powershell
    git push origin v0.2.0
    ```
-3. The **Release** workflow (`.github/workflows/release.yml`) starts and waits for your approval (GitHub → Actions → the run → "Review deployments" → approve). It checks that the tag matches `version.txt`, builds, signs the image with the key from the `release` environment, verifies the signature, and publishes a GitHub Release with:
+3. The **Release** workflow (`.github/workflows/release.yml`) starts by itself: pushing the version tag is the deliberate act that releases. It checks that the tag matches `version.txt`, builds, signs the image with the key from the repository secret, verifies the signature, and publishes a GitHub Release with:
    - `climasense-<version>.bin`: the signed image, for updates and the first USB flash
    - `climasense-<version>.elf`: decodes crashes of exactly this build
    - `bootloader.bin`, `partition-table.bin`, `ota_data_initial.bin`, `flash_args`: for a full USB flash
@@ -120,16 +120,11 @@ The device restarts into the new firmware, which runs **on trial**: it is kept o
 
 ### The signing key and the GitHub setup (once)
 
-The private key (RSA-3072) was created on 2026-11-20 at `C:\Users\<you>\Documents\climasense-keys\ota_signing_key.pem`, outside the repository (`*.pem` is git-ignored). Builds do not need it; only the release workflow does, from a protected GitHub environment. **Back the key up** (password manager or offline copy): without it, no further updates over the air, only over USB.
+The private key (RSA-3072) was created on 2026-11-20 at `C:\Users\<you>\Documents\climasense-keys\ota_signing_key.pem`, outside the repository (`*.pem` is git-ignored). Builds do not need it; only the release workflow does, from a repository secret. **Back the key up** (password manager or offline copy): without it, no further updates over the air, only over USB.
 
-To set up the environment (GitHub → the repository → **Settings → Environments → New environment**):
+To store it for the workflow (GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**): name **`OTA_SIGNING_KEY`**, value: the whole content of `ota_signing_key.pem`, from `-----BEGIN RSA PRIVATE KEY-----` to `-----END RSA PRIVATE KEY-----`.
 
-1. Name: **`release`**.
-2. **Required reviewers:** yourself, so every release run waits for your approval.
-3. **Deployment branches and tags:** "Selected branches and tags" → add the tag rule `v*`.
-4. **Environment secrets → Add secret:** name **`OTA_SIGNING_KEY`**, value: the whole content of `ota_signing_key.pem`, from `-----BEGIN RSA PRIVATE KEY-----` to `-----END RSA PRIVATE KEY-----`.
-
-Only the release workflow's "Build and sign" job can read the secret, and only after approval; the job that publishes the release never sees it. The key was created with ESP-IDF's tool, should a new one ever be needed (all devices would then need a USB flash of a release signed with it):
+Only the release workflow's "Build and sign" job uses the secret; the job that publishes the release never sees it. On GitHub Free a private repository has no environment secrets and no required reviewers (checked 2026-11-20), so the secret is a repository secret that any workflow in the repository could read; that is acceptable because only you can push here. A protected environment with an approval step would need GitHub Enterprise; the workflow can be switched to one with a single line (`environment:`). The key was created with ESP-IDF's tool, should a new one ever be needed (all devices would then need a USB flash of a release signed with it):
 
 ```powershell
 espsecure generate-signing-key --version 2 --scheme rsa3072 ota_signing_key.pem
