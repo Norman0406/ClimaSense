@@ -33,7 +33,7 @@ SILK_W, FAB_W, CRTYD_W = 0.12, 0.1, 0.05
 
 
 class Footprint:
-    def __init__(self, name: str, descr: str, tags: str, ref_at, value_at):
+    def __init__(self, name: str, descr: str, tags: str, ref_at, value_at, attr=("smd",)):
         self.name = name
         self._n = 0
         self.items: list = []
@@ -45,7 +45,7 @@ class Footprint:
             self._prop("Value", name, value_at, "F.Fab"),
             self._prop("Datasheet", "", (0, 0), "F.Fab", hide=True),
             self._prop("Description", "", (0, 0), "F.Fab", hide=True),
-            S("attr", Sym("smd")),
+            S("attr", *[Sym(a) for a in attr]),
             S("duplicate_pad_numbers_are_jumpers", Sym("no")),
         ]
         self.tail: list = []
@@ -117,6 +117,13 @@ class Footprint:
                   S("chamfer", Sym("top_left"))]
         p.append(S("uuid", self._uid()))
         self.items.append(p)
+
+    def hole(self, number, x, y, pad, drill):
+        """Plated through hole with a round pad on both sides."""
+        self.pad_numbers.append(str(number))
+        self.items.append(S("pad", str(number), Sym("thru_hole"), Sym("circle"), S("at", x, y), S("size", pad, pad),
+                            S("drill", drill), S("layers", "*.Cu", "*.Mask"),
+                            S("remove_unused_layers", Sym("no")), S("uuid", self._uid())))
 
     def paste(self, x, y, w, h):
         """Stencil aperture without copper (used under exposed pads)."""
@@ -324,7 +331,39 @@ def led_19_337() -> Footprint:
     return fp
 
 
-FOOTPRINTS = (esp32_c6_wroom_1, sgp41, bmp580, led_19_337)
+# --------------------------------------------------------------------------
+# Unpopulated pin headers: a straight row of holes for a 2.54 mm pin header
+# Hole and pad as in KiCad's PinHeader_1xNN_P2.54mm_Vertical: 1.0 mm hole, 1.7 mm pad.
+# Three holes for the fallback serial port, five for the sensor side's header.
+# --------------------------------------------------------------------------
+def header(pins: int) -> Footprint:
+    PITCH, HOLE, PAD = 2.54, 1.0, 1.7
+    fp = Footprint(
+        f"PinHeader_1x{pins:02d}_P2.54mm_NotFitted",
+        f"{pins} holes for a 2.54 mm pin header, not populated",
+        f"pin header 1x{pins:02d} 2.54mm",
+        ref_at=(0, -2.3), value_at=(0, 2.4),
+        attr=("through_hole", "exclude_from_pos_files", "exclude_from_bom", "dnp"))
+    half = (pins - 1) / 2 * PITCH
+    for i in range(pins):
+        fp.hole(i + 1, round(i * PITCH - half, 3), 0, PAD, HOLE)
+    fp.rect(-half - PITCH / 2, -PITCH / 2, half + PITCH / 2, PITCH / 2, "F.Fab", FAB_W)
+    fp.text("${REFERENCE}", (0, 0), "F.Fab", size=0.8, thickness=0.12)
+    # The courtyard is the envelope of the pads, not of a fitted header: the board is made
+    # with the holes empty.
+    fp.courtyard(half + PAD / 2 + 0.1, PAD / 2 + 0.1)
+    return fp
+
+
+def serial_header() -> Footprint:
+    return header(3)
+
+
+def sensor_header() -> Footprint:
+    return header(5)
+
+
+FOOTPRINTS = (esp32_c6_wroom_1, sgp41, bmp580, led_19_337, serial_header, sensor_header)
 
 
 def main():

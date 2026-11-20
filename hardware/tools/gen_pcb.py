@@ -113,6 +113,13 @@ PLACEMENT = {
     "R11": (pin_x(21), 5.4, 90),             # LED blue
     "D1": (pin_x(20), 2.1, 90),              # status LED
     "R7": (pin_x(15), 5.4, 270),             # BOOT pull-up, its signal pad towards the pin
+    # Fallback serial port: three holes in the corner above the module's serial pins (TXD0 is
+    # pin 25, RXD0 pin 24), clear of the antenna keep-out on the left and the LED on the right.
+    # From the left: GND, TX, RX; TX stands straight above its module pin.
+    "J3": (pin_x(25), 4.0, 0),
+    # Test pads for a multimeter, each next to its supply: 5 V below the buck converter (label beside it); the others have theirs below:
+    # 3.3 V between the module and the USB connector, sensor 3.3 V at the I2C pull-ups, and ground.
+    "TP1": (36.0, 19.1, 0), "TP2": (27.6, 24.2, 0), "TP3": (44.6, 19.0, 0), "TP4": (44.6, 23.4, 0),
     "SW2": (29.6, 4.5, 90),                  # BOOT / USER
     "SW1": (29.6, 13.5, 90),                 # RESET
     # --- USB input ---------------------------------------------------------
@@ -176,26 +183,45 @@ PLACEMENT = {
     "U8": (55.05, 25.0, 0),      # BMP580; .05 for the same reason as the USB connector
     "C13": (58.0, 25.7, 0),
     "C14": (58.0, 24.3, 0),
+    # Header at the bottom edge of the sensor side, from the left: GND, 3V3, SDA, SCL, INT.
+    "J4": (58.0, 31.8, 0),
     "U5": (71.8, 19.0, 0),       # SHT45 on its tongue, below the two warm sensors
     "C8": (74.0, 19.0, 90),      # beyond the sensor, level with its supply and ground pads
 }
 
 # The board hangs with the USB cable down. Arrow on the silkscreen, right of the USB connector:
-# x, y of the tip, length of the head, y of the tail. "UP" is printed below the tail, in the
+# x, y of the tip, length of the head, y of the tail. "Up" is printed below the tail, in the
 # size and on the line of the board name.
 UP_ARROW = (43.5, 28.0, 0.9, 30.4)
 
+# the board name and the "Up" under the arrow stand on one line, in one size
+NAME_Y, NAME_SIZE = 32.2, 0.8
 # text, x, y, height - each button label sits directly below its button
 SILK_LABELS = (
-    ("ClimaSense Rev 1.0", 59.5, 31.6, 1.0),   # numbering: see "Revision naming" in docs/decisions.md
+    # numbering: see "Revision naming" in docs/decisions.md. In the strip below the module: the
+    # sensor header took its old place at the bottom of the sensor side.
+    ("ClimaSense Rev 1.0", 19.8, NAME_Y, NAME_SIZE),
+    # the sensor header: its pins, and the rule for the 3.3 V pin
+    ("GND", 52.92, 30.0, 0.8), ("3V3", 55.46, 30.0, 0.8), ("SDA", 58.0, 30.0, 0.8),
+    ("SCL", 60.54, 30.0, 0.8), ("INT", 63.08, 30.0, 0.8),
+    ("3V3: cut off first", 58.5, 28.7, 0.8),
     ("BOOT", 29.6, 9.0, 0.8),
     ("RESET", 29.6, 17.95, 0.8),
     ("QWIIC", 37.3, 3.3, 0.8),
+    # the pins of the fallback serial port, each above its hole
+    ("GND", 9.06, 2.3, 0.8),
+    ("TX", 11.6, 2.3, 0.8),
+    ("RX", 14.14, 2.3, 0.8),
+    # the test pads, each below its pad (3VS: the sensors' 3.3 V)
+    ("5V", 37.9, 19.1, 0.8),
+    ("3V3", 27.6, 22.6, 0.8),
+    ("3VS", 44.6, 20.7, 0.8),
+    ("GND", 44.6, 25.1, 0.8),
     # sensor names: below the part, like the button labels. The SCD41's stands right of its
     # 10 uF capacitor. The SGP41's is above: below it there is a via and then the cut-out.
     ("SCD41", 59.4, 13.9, 0.8),
     ("SGP41", 66.0, 7.6, 0.8),
-    ("BMP580", 55.05, 27.1, 0.8),
+    ("BMP580", 55.05, 22.9, 0.8),
     ("SHT45", 71.8, 21.1, 0.8),
 )
 
@@ -352,6 +378,10 @@ BUCK_AREA = (33.0, 8.2, 38.6, 18.2)
 # cannot be cut off from the rest of the ground. Without this the router has done exactly
 # that: it reported the board as routed while KiCad counted two open ground connections.
 USB_GROUND_AREAS = ((31.0, 22.6, 35.4, 26.0), (28.3, 26.0, 37.8, 28.8))
+# And below the sensor regulator U3: its ground vias and those of its input capacitor end here.
+# Signal tracks on the bottom layer once closed this patch in, leaving the regulator's ground
+# joined to the rest through the top pour alone. The strip keeps it open to the south.
+REGULATOR_GROUND_AREA = (40.2, 17.2, 43.2, 21.5)
 
 
 def P(x, y):
@@ -489,16 +519,18 @@ def main():
 
     # --- silkscreen labels ---------------------------------------------------
     # Reference designators are not printed (see above); these few labels are.
-    for text, x, y, size in SILK_LABELS:
+    for text, x, y, size, *angle in SILK_LABELS:
         label = pcbnew.PCB_TEXT(board)
         label.SetText(text)
+        if angle:
+            label.SetTextAngleDegrees(angle[0])
         label.SetPosition(P(x, y))
         label.SetLayer(pcbnew.F_SilkS)
         label.SetTextSize(VECTOR2I(FromMM(size), FromMM(size)))
         label.SetTextThickness(FromMM(0.15))
         board.Add(label)
 
-    # Which way up the board hangs: an arrow towards the top edge with "UP" under it.
+    # Which way up the board hangs: an arrow towards the top edge with "Up" under it.
     x, tip, head, tail = UP_ARROW
     shaft = pcbnew.PCB_SHAPE(board)
     shaft.SetShape(pcbnew.SHAPE_T_SEGMENT)
@@ -515,10 +547,10 @@ def main():
     arrowhead.SetWidth(FromMM(0.1))
     board.Add(arrowhead)
     up = pcbnew.PCB_TEXT(board)
-    up.SetText("UP")
-    up.SetPosition(P(x, tail + 1.2))
+    up.SetText("Up")
+    up.SetPosition(P(x, NAME_Y))        # on one line with the board name
     up.SetLayer(pcbnew.F_SilkS)
-    up.SetTextSize(VECTOR2I(FromMM(1.0), FromMM(1.0)))
+    up.SetTextSize(VECTOR2I(FromMM(NAME_SIZE), FromMM(NAME_SIZE)))
     up.SetTextThickness(FromMM(0.15))
     board.Add(up)
 
@@ -549,7 +581,7 @@ def main():
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
-            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS)],
+            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS, REGULATOR_GROUND_AREA)],
             internally_joined=INTERNALLY_JOINED,
             # the strip below the module's bottom pad row is where its pins escape; the trunk stays out of it
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],

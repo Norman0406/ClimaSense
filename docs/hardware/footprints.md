@@ -13,6 +13,8 @@ Status: **drawn from the manufacturers' land-pattern drawings and checked agains
 | `Bosch_LGA-10_2x2mm_P0.5mm_BMP580` | U8 | Bosch BST-BMP580-DS004-02, figure 25 | 10 pads of 0.25 × 0.275 mm on 0.5 mm pitch, rows 1.525 mm apart |
 | `LED_RGB_Everlight_19-337_1.6x1.6mm` | D1 | Everlight 19-337/R6GHBHC-A01/2T, page 9 | corner pads 0.55 × 0.4 mm, middle pads 0.7 × 0.5 mm |
 
+| `PinHeader_1x03_P2.54mm_NotFitted`, `PinHeader_1x05_P2.54mm_NotFitted` | J3, J4 | KiCad's `PinHeader_1xNN_P2.54mm_Vertical` | holes 1.0 mm, pads 1.7 mm, 2.54 mm pitch, in a straight row; marked not populated |
+
 ## Notes per footprint
 
 **ESP32-C6-WROOM-1**

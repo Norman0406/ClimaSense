@@ -346,7 +346,7 @@ class Schematic:
 
     # -- placement --------------------------------------------------------
     def add(self, lib_id, ref, value, x, y, rot=0, footprint=None, fields=None,
-            ref_at=None, value_at=None, in_bom=True, hide_value=False):
+            ref_at=None, value_at=None, in_bom=True, hide_value=False, dnp=False):
         self._check((x, y))
         sym = self._symbol(lib_id)
         part = Part(self, lib_id, ref, value, x, y, rot, sym)
@@ -375,7 +375,8 @@ class Schematic:
         node = [
             Sym("symbol"), S("lib_id", lib_id), S("at", x, y, rot), S("unit", 1), S("body_style", 1),
             S("exclude_from_sim", Sym("no")), S("in_bom", Sym("yes" if in_bom else "no")),
-            S("on_board", Sym("yes")), S("in_pos_files", Sym("yes")), S("dnp", Sym("no")),
+            S("on_board", Sym("yes")), S("in_pos_files", Sym("no" if dnp else "yes")),
+            S("dnp", Sym("yes" if dnp else "no")),
             S("uuid", self._uid("sym")),
             prop("Reference", ref, rx, ry, fa, hide=is_power, justify=rj),
             prop("Value", value, vx, vy, fa, hide=hide_value, justify=vj),

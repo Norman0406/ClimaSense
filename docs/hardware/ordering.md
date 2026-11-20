@@ -54,6 +54,7 @@ The silkscreen marks pin 1 of every chip with a small triangle or a missing corn
 | U6, SCD41 | Pin-1 corner at the silkscreen mark (the part is square, so it fits in four ways) |
 | D1, LED | Pin-1 mark at the silkscreen mark |
 | L1, F1, capacitors, resistors, buttons | Sitting on their pads; direction does not matter |
+| J3, J4, TP1–TP4 | **Empty.** The two rows of holes (top left, bottom right) and the four round pads are not populated and must not appear in the parts list |
 
 The rotation and centre of J1, J2, U1, U3, U4 and U9 are corrected in the placement file, because JLCPCB draws those parts differently from KiCad (table `CORRECTIONS` in `gen_fab.py`, measured against JLCPCB's own footprints). The preview is the confirmation that the corrections are right; if one of these six looks turned or shifted, fix the table rather than the order page, and tell JLCPCB's engineer in the remark what you saw.
 

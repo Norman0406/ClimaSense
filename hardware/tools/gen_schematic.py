@@ -333,10 +333,12 @@ def build(lib: Library) -> Schematic:
         # sits on IO18.
         "12": "QWIIC_EN", "16": "SENS_EN",
         "17": "QWIIC_SDA", "18": "QWIIC_SCL",
+        # UART0, on the fallback serial header J3
+        "25": "UART_TX", "24": "UART_RX",
     }
     for pin, net in mcu_nets.items():
         sch.label(u_mcu, pin, net)
-    for pin in ("23", "4", "5", "8", "9", "27", "26", "25", "24"):
+    for pin in ("23", "4", "5", "8", "9", "27", "26"):
         sch.nc(u_mcu, pin)
     sch.power(u_mcu, "2", "+3V3")
     g = [sch.stub(u_mcu, p)[0] for p in ("1", "28", "29")]
@@ -372,6 +374,22 @@ def build(lib: Library) -> Schematic:
     sch.wire((n_boot[0] + 7.62, n_boot[1]), sw_boot.pos(1))
     sch.label_at(n_boot[0] + 7.62, n_boot[1], "BOOT", 0)
     sch.power(sw_boot, "2", "GND")
+
+    # Fallback serial port. If USB does not work there is otherwise no way to flash the board
+    # or to see its boot messages. Three holes for a pin header, not populated.
+    j3 = sch.add("Connector_Generic:Conn_01x03", "J3", "UART0", 172.72, 147.32,
+                 footprint="climasense:PinHeader_1x03_P2.54mm_NotFitted", in_bom=False, dnp=True)
+    sch.power(j3, "1", "GND", 17.78)
+    sch.label(j3, "2", "UART_TX")
+    sch.label(j3, "3", "UART_RX")
+    sch.text(149.86, 162.56,
+             "Fallback serial port (UART0), not populated: for flashing and boot messages\\n"
+             "if USB does not work. 3.3 V logic only. TX is the ESP32's output.", size=1.27)
+    # test pads for a multimeter on the three supplies and ground
+    for i, net in enumerate(("+5V", "+3V3", "+3V3_SENS", "GND")):
+        tp = sch.add("Connector:TestPoint", f"TP{i + 1}", net.lstrip("+"), 157.48 + i * 7.62, 132.08,
+                     footprint="TestPoint:TestPoint_Pad_D1.5mm", in_bom=False)
+        sch.power(tp, "1", net)
 
     # strapping: GPIO8 must be high to enter download mode
     pullup("10k", 27.94, 172.72, "+3V3", "IO8")
@@ -470,6 +488,18 @@ def build(lib: Library) -> Schematic:
     sch.power_at(*g[1], "GND", (0, 1))
     cap_between("100nF", 378.46, 167.64, "+3V3_SENS")
     cap_between("100nF", 393.7, 167.64, "+3V3_SENS")
+
+    # Header on the sensor side, not populated: the sensors' bus for a logic analyser, or for
+    # another microcontroller if the ESP32 side does not work. The 3.3 V pin may only be fed
+    # after the sensor side has been cut off the board: fed while joined and unpowered, the
+    # current would run backwards through the sensor regulator U3.
+    j4 = sch.add("Connector_Generic:Conn_01x05", "J4", "SENSORS", 408.94, 139.7,
+                 footprint="climasense:PinHeader_1x05_P2.54mm_NotFitted", in_bom=False, dnp=True)
+    sch.power(j4, "1", "GND", 17.78)
+    sch.power(j4, "2", "+3V3_SENS", 22.86)
+    sch.label(j4, "3", "I2C_SDA")
+    sch.label(j4, "4", "I2C_SCL")
+    sch.label(j4, "5", "BMP_INT")
 
     sch.text(350.52, 187.96,
              "I2C addresses\\n"

@@ -22,7 +22,7 @@ Settled design decisions for ClimaSense. Background and alternatives are in [`re
 | Extras | **RGB status LED, Qwiic connector** | The Qwiic connector has its own I2C bus and its own switchable, current-limited supply (decided 2026-11-19): it was either that or removing it, so that nothing plugged in can disturb the on-board sensors. |
 | Buttons | **Two**: combined BOOT/user button, and RESET | BOOT/user is reachable from outside the enclosure (long press → Wi-Fi setup portal); RESET is board-only. |
 | Programming | **Native USB** of the ESP32-C6 via the USB-C port; OTA over Wi-Fi once deployed | No USB-UART bridge. BOOT + RESET always recovers the board over USB. |
-| Debug access | **None beyond USB** | Decided 2026-11-19. Bare UART test pads and a Tag-Connect TC2030-IDC footprint were both considered and dropped; UART0 is not brought out. BOOT + RESET over USB is the recovery path. |
+| Debug access | **UART0 on three unpopulated header holes, a five-hole header on the sensor side, four supply test pads** | Decided 2026-11-20, replacing "none beyond USB" of the day before. The first boards may not work, and with USB as the only access a dead USB port would have meant no way to flash them or read a boot message. The sensor header lets another microcontroller use the sensors if the ESP32 side fails. Nothing is populated, so the parts list is unchanged. A Tag-Connect footprint stays dropped. Details in [`hardware/schematic.md`](hardware/schematic.md). |
 | Power | **USB-C only** | Battery is a possible separate later variant. |
 | Quantity | **At least 5 boards** | |
 | Assembly | Full PCBA at JLCPCB | No hand soldering. |

@@ -57,7 +57,9 @@ These went beyond what had been decided beforehand; all were accepted on 2026-11
 | 19 | IO21 | `LED_G` | green, active low, 100 Ω |
 | 20 | IO22 | `LED_R` | red, active low, 330 Ω |
 | 21 | IO23 | `LED_B` | blue, active low, 100 Ω |
-| 4, 5, 8, 9, 23, 24, 25, 26, 27 | IO4, IO5, IO0, IO1, IO15, IO17 (RXD0), IO16 (TXD0), IO3, IO2 | — | unused, marked no-connect |
+| 25 | IO16 (TXD0) | `UART_TX` | fallback serial port J3, the ESP32's output |
+| 24 | IO17 (RXD0) | `UART_RX` | fallback serial port J3, the ESP32's input |
+| 4, 5, 8, 9, 23, 26, 27 | IO4, IO5, IO0, IO1, IO15, IO3, IO2 | — | unused, marked no-connect |
 
 The Qwiic data and clock lines are on the two module pins nearest the connector.
 
@@ -68,6 +70,20 @@ Two buses, one normal I2C controller: the ESP32-C6 has one ordinary I2C controll
 IO0/IO1 are deliberately left free: they are the 32 kHz crystal pins, useful for a battery variant.
 
 The LED colours are on IO21 = green, IO22 = red, IO23 = blue. Red and green were swapped on 2026-11-19 so that the three LED tracks run straight on the board; the firmware has to use this order.
+
+## Access for bring-up (added 2026-11-20)
+
+None of this is populated; the parts list and the placement file do not contain it.
+
+| | What | Where on the board |
+| --- | --- | --- |
+| J3 | Fallback serial port, UART0: three holes for a 2.54 mm pin header, `GND`, `TX`, `RX` | top left, above the module |
+| J4 | Sensor header: five holes, `GND`, `3V3` (sensor supply), `SDA`, `SCL`, `INT` | bottom edge of the sensor side |
+| TP1–TP4 | Test pads for a multimeter: `5V`, `3V3`, `3VS` (sensor supply), `GND` | each next to its supply |
+
+**Fallback serial port.** If USB does not work, a 3.3 V USB-serial adapter on J3 can still flash the board and show the boot messages: adapter RX to `TX`, adapter TX to `RX`, ground to `GND`; the board is powered through its USB-C socket as usual. Hold BOOT, press RESET, and flash with `esptool` on the adapter's port. The pins are 3.3 V logic and not 5 V tolerant. The firmware's own log goes to USB unless it is built with the console on UART0; the ROM's boot messages always appear on J3.
+
+**Sensor header.** With the board powered and the ESP32 idle, another microcontroller can use the sensors through `GND`, `SDA` and `SCL`; the pull-ups and the supply are the board's own. It is also the place to clip on a logic analyser. **Do not feed the `3V3` pin while the sensor side is joined to the board**: with the board unpowered the current would run backwards through the sensor regulator U3, which its datasheet warns against. The pin is for measuring, and for powering the sensor side after it has been cut off at the three bridges. The silkscreen says so.
 
 ## I2C addresses
 
@@ -174,8 +190,8 @@ Editing the schematic in KiCad is fine and expected. **Once you do, do not re-ru
 `check_schematic.py` does four things with KiCad's own command-line tool:
 
 1. runs the electrical rules check and fails on any violation — currently **0 violations**;
-2. exports KiCad's netlist and compares every net, pin by pin, against the netlist the generator intended — currently **49 components, 29 nets, all matching**;
-3. checks that every part has a footprint and every symbol pin a pad with the same number — currently **all 49 parts pass**;
+2. exports KiCad's netlist and compares every net, pin by pin, against the netlist the generator intended — currently **55 components, 31 nets, all matching**;
+3. checks that every part has a footprint and every symbol pin a pad with the same number — currently **all 55 parts pass** (49 populated, two headers and four test pads not);
 4. plots the schematic to `hardware/build/climasense.pdf`.
 
 Pin numbers and application circuits were checked against these datasheets: ESP32-C6-WROOM-1 (v1.4, pin table and strapping pins), SGP41 (v1.0, pin assignment and application circuit), BMP580 (BST-BMP580-DS004-02, pin-out and I2C wiring), SCD4x (v1.5, pin assignment and supply requirements), TPS62A01 (SLUSEG9E, pin functions and component values), TLV755P (enable thresholds), Everlight 19-337 (pin polarity). Symbols taken unchanged from KiCad's library (USB-C connector, USBLC6-2SC6, TPS62A01, TLV75533, SHT4x, SCD41) were not re-checked pin by pin.

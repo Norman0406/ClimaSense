@@ -8,7 +8,7 @@ KiCad 10 project for the ClimaSense PCB. The board is intended to be fully manuf
 | `climasense.kicad_sch` | Schematic, revision 1.0 |
 | `climasense.kicad_pcb` | Board, revision 1.0: placed and routed by script, not yet reviewed by a person (see [`../docs/hardware/layout.md`](../docs/hardware/layout.md)) |
 | `lib/climasense.kicad_sym` | Project symbols: ESP32-C6-WROOM-1, SGP41, BMP580, RGB LED, sensor-rail power symbol |
-| `lib/climasense.pretty/` | Project footprints for the same four parts (see [`../docs/hardware/footprints.md`](../docs/hardware/footprints.md)) |
+| `lib/climasense.pretty/` | Project footprints for the same four parts and the two unpopulated pin headers (see [`../docs/hardware/footprints.md`](../docs/hardware/footprints.md)) |
 | `lib/climasense.3dshapes/` | Simple 3D models for the parts KiCad has none for, written by `tools/gen_models.py` |
 | `sym-lib-table`, `fp-lib-table` | Tell KiCad where the project libraries are |
 | `tools/` | Scripts that generate and verify the schematic, the footprints and the board |
@@ -66,4 +66,4 @@ This **overwrites** `climasense.kicad_sch`. It is only meant for the period befo
 "C:\Program Files\KiCad\10.0\bin\python.exe" hardware/tools/gen_pcb.py
 ```
 
-This **overwrites** `climasense.kicad_pcb`: it places the parts, routes the board and fills the ground pours. It needs KiCad's own Python and takes about two minutes. Do not run it once the board has been edited by hand in KiCad.
+This **overwrites** `climasense.kicad_pcb`: it places the parts, routes the board and fills the ground pours. It needs KiCad's own Python and takes about three minutes. Do not run it once the board has been edited by hand in KiCad.

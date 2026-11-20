@@ -130,9 +130,9 @@ def run(board, origin, geo, log=print):
         if p["smd"]:
             R.block_rect(*p["rect"], grow=0.05, classes=("via",))    # no via in or touching a pad
     # The USB connector's metal shell lies flat on the board, with only the solder mask
-    # between it and the copper: no via under it, and no track on its side of the board.
-    R.block_rect(*geo["usb_body"], classes=("via",))
-    R.block_rect(*geo["usb_body"], layers=(TOP,), classes=("sig", "pwr", "wide"))
+    # between it and the copper: no via and no track under it. That holds for the bottom
+    # layer too (decided 2026-11-20): the ground under the connector stays whole.
+    R.block_rect(*geo["usb_body"], classes=("via", "sig", "pwr", "wide"))
 
     used = set()     # every node a committed path passes through
 
@@ -838,6 +838,54 @@ def run(board, origin, geo, log=print):
     tracks, cut = chamfer(tracks)
     if cut:
         log(f"  cut {cut} right-angle corners")
+
+    # One-step diagonals into the side of a track. A branch that reaches a straight track of
+    # its own net with a last diagonal step of 0.1 mm starts that step inside the track's
+    # copper; KiCad then reports the piece as a dangling end. Let the branch run straight
+    # into the track instead, at a right angle, which is how a T-junction should look.
+    def square_up(tracks):
+        def key(x, y):
+            return (round(x, 4), round(y, 4))
+        done = 0
+        for i, t in enumerate(tracks):
+            if t is None:
+                continue
+            a, b = key(*t[0:2]), key(*t[2:4])
+            if abs(abs(a[0] - b[0]) - R.step) > 1e-6 or abs(abs(a[1] - b[1]) - R.step) > 1e-6:
+                continue
+            for end, start in ((b, a), (a, b)):
+                for o in tracks:
+                    if o is None or o is t or o[6] != t[6] or o[4] != t[4] or end in (key(*o[0:2]), key(*o[2:4])):
+                        continue
+                    if not touches(end, o[0:2], o[2:4]):
+                        continue
+                    horizontal = abs(o[1] - o[3]) < 1e-6
+                    if not horizontal and abs(o[0] - o[2]) > 1e-6:
+                        continue                                      # only into straight tracks
+                    foot = (start[0], end[1]) if horizontal else (end[0], start[1])
+                    if not touches(foot, o[0:2], o[2:4]):
+                        continue
+                    # the piece before, if it runs in the new direction, simply gets longer
+                    prev = next((k for k, q in enumerate(tracks) if q is not None and q is not t and q[6] == t[6] and q[4] == t[4]
+                                 and start in (key(*q[0:2]), key(*q[2:4]))
+                                 and (abs(q[0] - q[2]) < 1e-6) == horizontal and (abs(q[1] - q[3]) < 1e-6) != horizontal), None)
+                    if prev is None:
+                        tracks[i] = (*start, *foot, *t[4:])
+                    else:
+                        q = tracks[prev]
+                        far = key(*q[2:4]) if key(*q[0:2]) == start else key(*q[0:2])
+                        tracks[prev] = (*far, *foot, *q[4:])
+                        tracks[i] = None
+                    done += 1
+                    break
+                else:
+                    continue
+                break
+        return [t for t in tracks if t is not None], done
+
+    tracks, squared = square_up(tracks)
+    if squared:
+        log(f"  squared up {squared} one-step diagonals into a track")
 
     # --- hand the result to KiCad ---------------------------------------------
     def P(x, y):
