@@ -65,4 +65,6 @@ If anything looks wrong and you cannot tell why, stop there. Nothing is charged 
 
 ## Cost and import (Switzerland)
 
+**Ordered on 2026-11-20** with the settings on this page: 187.64 USD paid, which is the quote below plus shipping, less a 30 USD coupon. The order then waits for JLCPCB's file review and for the placement drawing to be approved in the order history.
+
 Quote of 2026-11-20 for 5 boards with ENIG, 2 of them assembled: boards 21.20 USD (17.20 of it the ENIG finish), assembly 173.04 USD (parts 86.42, feeder loading 43.40, setup 25.75, stencil 8.27, X-ray 6.60, the rest small), together 194.24 USD; DHL Express about 23.40 USD on top, before any coupon, Swiss VAT (8.1 %) and the carrier's clearance fee. JLCPCB may add a charge after its review for the assembly remark and for the four sensors, which it marks as difficult to process. The customs description chosen on the order page is "Temperature Sensor" (HS code 902590).
