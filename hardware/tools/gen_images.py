@@ -52,7 +52,11 @@ def main():
     if r.returncode != 0:
         raise SystemExit("gen_models.py failed - no pictures written.")
     OUT.mkdir(parents=True, exist_ok=True)
-    render("board-angle.png", 1600, 800, "--perspective", "--rotate", "-50,0,-25", "--zoom", "1.2", "--pan", "-0.5,0.6,0")
+    # The angled view is lit from the camera only: KiCad's side lights, on by default, put bright
+    # patches of glare on the solder mask there. Seen straight from above it is the other way
+    # round (a camera light washes the whole board out), so that view keeps the default lights.
+    render("board-angle.png", 1600, 800, "--perspective", "--rotate", "-35,0,-20", "--zoom", "1.3", "--pan", "-0.3,0.3,0",
+           "--light-side", "0", "--light-camera", "1")
     render("board-top.png", 1600, 760, "--side", "top", "--zoom", "1.8")
     copper("copper-top.svg", "F.Cu")
     copper("copper-bottom.svg", "B.Cu")
