@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Step 4 of the plan below, in progress: the SHT45 and BMP580 are read; SCD41 and SGP41 follow. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 47 passing at commit `f7c6bb5`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
+Step 4 of the plan below, in progress: the SHT45, BMP580 and SCD41 are read; the SGP41 follows. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 60 passing at commit `7a688f6`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -15,7 +15,7 @@ What the firmware does now:
 - switches the sensor rail on and the Qwiic rail off, puts a pull-down on `BMP_INT`;
 - shows red, green, blue and white on the status LED in turn at start (to check the LED and its colour balance by eye);
 - BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go;
-- starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. A failing sensor is logged when it starts failing and when it works again, not every second.
+- starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second.
 
 How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
 
@@ -30,7 +30,8 @@ components/board/      pin map (include/board/pins.h, mirrored from docs/hardwar
                        supply rails, status LED, button
 components/sensors/    I2C interface (i2c_bus.h) and its ESP-IDF implementation, device list
                        and bus parameters (devices.h), address scan, the sensor task,
-                       Sensirion framing and CRC (sensirion.h), SHT45 and BMP580 drivers
+                       Sensirion framing and CRC (sensirion.h), SHT45, BMP580 and SCD41
+                       drivers, the SCD41's single-shot schedule (single_shot.h)
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
 test/host/             unit tests of the hardware-independent logic (GoogleTest), built for the PC
 ```

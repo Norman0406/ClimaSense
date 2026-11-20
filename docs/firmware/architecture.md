@@ -9,9 +9,11 @@ The sensors are read **continuously in the background**; publishing takes a snap
 | Sensor | Needs | Schedule |
 | --- | --- | --- |
 | **SGP41** (VOC/NOx) | A reading every second, each one compensated with the current T/RH. Sensirion's index algorithm assumes that 1 s rhythm and learns the room's baseline over hours. | Every 1 s tick |
-| **SCD41** (CO2) | Single shot: command, wait 5 s, read. Accepts the ambient pressure for compensation. | Started every 5 minutes, collected 5 ticks later; pressure from the BMP580 |
+| **SCD41** (CO2) | Single shot: command, wait 5 s, read. Accepts the ambient pressure for compensation. | Started every 5 minutes, collected 6 ticks later (`SingleShotSchedule`); pressure from the BMP580 |
 | **SHT45** (T/RH) | On demand, about 8 ms. | Every tick (the SGP41 needs it); the publisher averages |
 | **BMP580** (pressure) | On demand, a few ms. | Every tick, or every few ticks |
+
+**CO2 every 5 minutes, kept on 2026-11-20 after asking whether it could be faster.** The SCD41 can measure every 5 s (periodic, ~15 mA), every 30 s (low-power periodic, ~3.2 mA) or in single shots as often as every 5 s. Single shot every 5 minutes (~0.45 mA) was chosen for accuracy rather than energy: the SCD41 is the largest heat source next to the SHT45, and its automatic self-calibration is tuned for exactly this interval in single-shot mode, so nothing has to be written to its EEPROM. The cost is a slow reaction (an opened window shows up to 5 minutes late). Revisit after step 10 has measured the SHT45's self-heating: 30 s low-power periodic mode is the alternative if faster CO2 values are wanted (about 8 mW more, self-calibration unchanged).
 
 ## Tasks
 

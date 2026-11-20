@@ -8,7 +8,8 @@ namespace sensors {
 
 // Starts the task. Call once, after board::init().
 // Waits for the sensors' power-up time, opens the bus on the low-power I2C controller, logs an
-// address scan, then reads the SHT45 and BMP580 every second (step 4 adds the SCD41 and SGP41).
+// address scan, then reads the SHT45 and BMP580 every second and takes an SCD41 single shot every 5 minutes
+// (step 4 adds the SGP41).
 esp_err_t start_task();
 
 }  // namespace sensors

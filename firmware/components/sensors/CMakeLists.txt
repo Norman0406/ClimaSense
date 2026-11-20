@@ -3,6 +3,7 @@ idf_component_register(
         "src/bmp580.cpp"
         "src/bus_scan.cpp"
         "src/esp_i2c_bus.cpp"
+        "src/scd41.cpp"
         "src/sensor_task.cpp"
         "src/sht45.cpp"
     INCLUDE_DIRS "include"

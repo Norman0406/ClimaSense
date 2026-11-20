@@ -16,7 +16,9 @@
 #include "sensors/bus_scan.h"
 #include "sensors/devices.h"
 #include "sensors/esp_i2c_bus.h"
+#include "sensors/scd41.h"
 #include "sensors/sht45.h"
+#include "sensors/single_shot.h"
 
 namespace sensors {
 
@@ -145,6 +147,74 @@ bool init_bmp580(Bmp580 &bmp)
     return true;
 }
 
+void init_scd41(Scd41 &scd)
+{
+    // In case the SCD41 kept running periodic measurements across an ESP32 reset.
+    if (auto r = scd.stop_periodic_measurement(); !r) {
+        ESP_LOGW(kTag, "SCD41: stop command failed: %s", to_string(r.error()));
+        return;
+    }
+    wait_ms(Scd41::kStopMs);
+    if (const auto serial = scd.read_serial()) {
+        ESP_LOGI(kTag, "SCD41: serial number 0x%012llx", static_cast<unsigned long long>(*serial));
+    } else {
+        ESP_LOGW(kTag, "SCD41: serial number read failed: %s", to_string(serial.error()));
+    }
+    if (const auto asc = scd.automatic_self_calibration_enabled()) {
+        if (*asc) {
+            ESP_LOGI(kTag, "SCD41: automatic self-calibration on");
+        } else {
+            ESP_LOGW(kTag, "SCD41: automatic self-calibration is OFF (factory default is on)");
+        }
+    }
+}
+
+// One tick of the SCD41's single-shot cycle. Runs at the end of the tick, after the BMP580;
+// the schedule's first poll comes 6 ticks after the start, which covers the 5 s measurement
+// even though the start is late in its tick. `pressure_milli_pa` is 0 if there is no BMP580
+// reading yet.
+void step_scd41(Scd41 &scd, SingleShotSchedule &schedule, Health &health, uint32_t tick,
+                int32_t pressure_milli_pa)
+{
+    switch (schedule.next(tick)) {
+    case SingleShotSchedule::Step::Wait:
+        return;
+    case SingleShotSchedule::Step::Start:
+        if (pressure_milli_pa > 0) {
+            if (auto r = scd.set_ambient_pressure(pressure_milli_pa); !r) {
+                ESP_LOGW(kTag, "SCD41: pressure compensation not set: %s", to_string(r.error()));
+            }
+        }
+        if (auto r = scd.start_single_shot(); r) {
+            schedule.started(tick);
+        } else {
+            schedule.start_failed(tick);
+            health.failed(r.error());
+        }
+        return;
+    case SingleShotSchedule::Step::Poll: {
+        const auto ready = scd.data_ready();
+        if (ready && !*ready) {
+            return;  // not yet; try again next tick
+        }
+        const auto reading = ready ? scd.read_measurement() : SensorResult<Scd41Reading>{std::unexpected(ready.error())};
+        schedule.done();
+        if (!reading) {
+            health.failed(reading.error());
+            return;
+        }
+        health.ok();
+        ESP_LOGI(kTag, "SCD41: %u ppm CO2 (own sensor %s C, %s %%RH)", reading->co2_ppm,
+                 Milli(reading->temperature_mc).text, Milli(reading->humidity_mpercent).text);
+        return;
+    }
+    case SingleShotSchedule::Step::GiveUp:
+        schedule.done();
+        health.failed(SensorError::NotReady);
+        return;
+    }
+}
+
 void task(void *)
 {
     wait_for_power_up();
@@ -171,6 +241,12 @@ void task(void *)
     Bmp580 bmp580{bus};
     Health bmp580_health{"BMP580"};
     bool bmp580_ready = init_bmp580(bmp580);
+    int32_t last_pressure_milli_pa = 0;  // for the SCD41's pressure compensation
+
+    Scd41 scd41{bus, wait_ms};
+    Health scd41_health{"SCD41"};
+    SingleShotSchedule scd41_schedule;
+    init_scd41(scd41);
 
     TickType_t last_wake = xTaskGetTickCount();
     for (uint32_t tick = 1;; ++tick) {
@@ -181,7 +257,7 @@ void task(void *)
         if (!bmp580_ready && tick % kRetryInitTicks == 0) {
             bmp580_ready = init_bmp580(bmp580);
         }
-        // Still to come in step 4: SGP41 every tick, SCD41 single shot every 5 minutes.
+        // Still to come in step 4: the SGP41 every tick.
 
         // Start both measurements, wait once for the slower one, then read both.
         const SensorResult<void> sht45_started = sht45.start_measurement();
@@ -207,12 +283,16 @@ void task(void *)
                 ? bmp580.read_measurement() : SensorResult<Bmp580Reading>{std::unexpected(bmp580_started.error())};
             if (bmp) {
                 bmp580_health.ok();
+                last_pressure_milli_pa = bmp->pressure_milli_pa;
                 ESP_LOG_LEVEL_LOCAL(level, kTag, "BMP580: %s hPa (die %s C)",
                                     Milli(bmp->pressure_milli_pa / 100).text, Milli(bmp->temperature_mc).text);
             } else {
                 bmp580_health.failed(bmp.error());
             }
         }
+
+        // Last in the tick, so that even the first shot gets the pressure just read.
+        step_scd41(scd41, scd41_schedule, scd41_health, tick, last_pressure_milli_pa);
     }
 }
 
