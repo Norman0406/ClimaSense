@@ -1,5 +1,6 @@
 #include "portal/portal.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdio>
@@ -20,6 +21,7 @@
 #include "net/wifi.h"
 #include "portal/dns_answer.h"
 #include "portal/form.h"
+#include "ota/ota.h"
 #include "portal/page.h"
 #include "settings/store.h"
 
@@ -182,6 +184,53 @@ esp_err_t handle_save(httpd_req_t *req)
     return sent;
 }
 
+
+// Firmware upload: the raw image as the request body (sent by the page's script).
+esp_err_t handle_update(httpd_req_t *req)
+{
+    char query[32] = {};
+    char force_value[4] = {};
+    const bool force = httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK &&
+                       httpd_query_key_value(query, "force", force_value, sizeof(force_value)) == ESP_OK &&
+                       force_value[0] == '1';
+    httpd_resp_set_type(req, "text/plain; charset=utf-8");
+
+    ota::Upload upload;
+    if (upload.begin(force) != ESP_OK) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, ("Not started: " + upload.error()).c_str());
+    }
+    std::array<uint8_t, 4096> chunk{};
+    std::size_t remaining = req->content_len;
+    while (remaining > 0) {
+        const int n = httpd_req_recv(req, reinterpret_cast<char *>(chunk.data()), std::min(remaining, chunk.size()));
+        if (n == HTTPD_SOCK_ERR_TIMEOUT) {
+            continue;
+        }
+        if (n <= 0) {
+            upload.abort();
+            return ESP_FAIL;  // connection gone
+        }
+        if (upload.write(std::span<const uint8_t>(chunk.data(), static_cast<std::size_t>(n))) != ESP_OK) {
+            // Read nothing more; the browser gets the reason and the connection is closed.
+            httpd_resp_set_status(req, "400 Bad Request");
+            httpd_resp_set_hdr(req, "Connection", "close");
+            return httpd_resp_sendstr(req, ("Not installed: " + upload.error()).c_str());
+        }
+        remaining -= static_cast<std::size_t>(n);
+    }
+    if (upload.finish() != ESP_OK) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, ("Not installed: " + upload.error()).c_str());
+    }
+    const std::string done = "Version " + upload.version() +
+                             " installed. The device restarts and tries it; if it does not come up properly, it returns "
+                             "to the previous version by itself.";
+    const esp_err_t sent = httpd_resp_sendstr(req, done.c_str());
+    esp_timer_start_once(g_restart_timer, kRestartDelayUs);
+    return sent;
+}
+
 // Anything else, including the addresses phones and laptops probe to detect a portal: a
 // redirect to the page. With a body, which iOS needs to recognise the portal (as in ESP-IDF's
 // captive portal example).
@@ -203,9 +252,11 @@ esp_err_t start_server()
     static const httpd_uri_t root{.uri = "/", .method = HTTP_GET, .handler = handle_root, .user_ctx = nullptr};
     static const httpd_uri_t save{.uri = "/save", .method = HTTP_POST, .handler = handle_save, .user_ctx = nullptr};
     static const httpd_uri_t scan{.uri = "/scan", .method = HTTP_GET, .handler = handle_scan, .user_ctx = nullptr};
+    static const httpd_uri_t update{.uri = "/update", .method = HTTP_POST, .handler = handle_update, .user_ctx = nullptr};
     httpd_register_uri_handler(g_server, &root);
     httpd_register_uri_handler(g_server, &save);
     httpd_register_uri_handler(g_server, &scan);
+    httpd_register_uri_handler(g_server, &update);
     httpd_register_err_handler(g_server, HTTPD_404_NOT_FOUND, handle_other);
     return ESP_OK;
 }

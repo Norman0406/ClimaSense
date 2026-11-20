@@ -219,6 +219,24 @@ std::string render_settings_page(const PageModel &m)
 
     out += "<button type=\"submit\">Save and restart</button></form>";
 
+
+    // Firmware update: a form of its own, outside the settings form. The file goes to /update as
+    // the request body, sent by a few lines of script (no multipart parsing on the device).
+    out += "<h2 style=\"font-size:1.1rem;margin-top:1.6rem\">Firmware</h2>";
+    out += "<div class=\"hint\">Running ";
+    out += html_escape(m.firmware_version);
+    out += ". Choose a signed ClimaSense image (climasense.bin).</div>";
+    out += "<form id=\"fw\"><input type=\"file\" id=\"fwfile\" accept=\".bin\">";
+    out += "<label class=\"hint\"><input type=\"checkbox\" id=\"fwforce\"> Allow an older version</label>";
+    out += "<button type=\"submit\">Update firmware</button></form><div id=\"fwmsg\" class=\"box\" hidden></div>";
+    out += "<script>document.getElementById('fw').onsubmit=async function(e){e.preventDefault();"
+           "var f=document.getElementById('fwfile').files[0];if(!f)return;"
+           "var m=document.getElementById('fwmsg');m.hidden=false;m.textContent='Uploading, please wait...';"
+           "try{var r=await fetch('/update'+(document.getElementById('fwforce').checked?'?force=1':''),"
+           "{method:'POST',body:f});m.textContent=await r.text();}"
+           "catch(x){m.textContent='The connection was lost. If the device restarted, the update went through.';}};"
+           "</script>";
+
     out += "<footer>Firmware ";
     out += html_escape(m.firmware_version);
     out += ", build ";

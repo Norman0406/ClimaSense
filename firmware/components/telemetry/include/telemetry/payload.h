@@ -24,6 +24,8 @@ std::string status_topic(std::string_view base_topic, std::string_view device_id
 std::string boot_topic(std::string_view base_topic, std::string_view device_id);       // <base>/<id>/boot
 std::string log_topic(std::string_view base_topic, std::string_view device_id);        // <base>/<id>/log
 std::string log_level_topic(std::string_view base_topic, std::string_view device_id);  // <base>/<id>/set/log_level
+std::string update_topic(std::string_view base_topic, std::string_view device_id);     // <base>/<id>/set/ota
+std::string update_status_topic(std::string_view base_topic, std::string_view device_id);  // <base>/<id>/ota
 
 inline constexpr std::string_view kOnline = "online";
 inline constexpr std::string_view kOffline = "offline";
@@ -74,6 +76,7 @@ struct BootInfo {
     std::string_view build_id;
     std::string_view reset_reason;
     std::string_view previous_log;  // the log lines kept from before the reset; may be empty
+    bool on_trial = false;          // a new firmware not yet confirmed after an update
     std::optional<CrashInfo> crash;
 };
 

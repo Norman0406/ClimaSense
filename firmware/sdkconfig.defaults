@@ -28,3 +28,24 @@ CONFIG_ESP_TASK_WDT_PANIC=y
 # Sockets: the setup portal's web server (up to 7 plus 3 internal), its DNS responder, SNTP,
 # and later MQTT and OTA. Phones open several connections at once while probing for a portal.
 CONFIG_LWIP_MAX_SOCKETS=16
+
+# Updates over the air (step 8, decided 2026-11-20): only images signed with our key are accepted
+# (RSA-3072, Secure Boot V2 scheme, checked when an update is installed; hardware Secure Boot is
+# not enabled, so a USB flash still works). Local builds are signed with the key below, kept
+# outside the repository; CI builds unsigned (sdkconfig.ci). The running firmware's own signature
+# block holds the public key that updates are checked against, so the firmware flashed over USB
+# must be signed too.
+CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
+CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME=y
+CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="../../climasense-keys/ota_signing_key.pem"
+
+# A new image runs on trial until the firmware confirms it; a crash or reset before that returns
+# to the previous one.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Plain HTTP for downloads from a server on the local network. ESP-IDF marks this as risky
+# because a fake server could deliver an image; the signature check above rejects any image not
+# signed with our key, however it arrived. The firmware is not secret, so encryption adds nothing.
+CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=y

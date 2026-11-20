@@ -77,6 +77,16 @@ std::string log_level_topic(std::string_view base_topic, std::string_view device
     return std::string(base_topic) + "/" + std::string(device_id) + "/set/log_level";
 }
 
+std::string update_topic(std::string_view base_topic, std::string_view device_id)
+{
+    return std::string(base_topic) + "/" + std::string(device_id) + "/set/ota";
+}
+
+std::string update_status_topic(std::string_view base_topic, std::string_view device_id)
+{
+    return std::string(base_topic) + "/" + std::string(device_id) + "/ota";
+}
+
 std::string sanitize_utf8(std::string_view text)
 {
     std::string out;
@@ -223,6 +233,9 @@ std::string boot_json(const BootInfo &info)
     add_string(out, "firmware", info.firmware_version);
     add_string(out, "build", info.build_id);
     add_string(out, "reset_reason", info.reset_reason);
+    if (info.on_trial) {
+        out += ",\"on_trial\":true";
+    }
     if (info.crash) {
         const CrashInfo &c = *info.crash;
         out += ",\"crash\":{";

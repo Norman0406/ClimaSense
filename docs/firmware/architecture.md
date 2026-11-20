@@ -37,6 +37,7 @@ firmware/
     diagnostics/           build fingerprint, last log lines across resets, crash dump report
     settings/              settings store: NVS over build defaults, device name
     portal/                setup portal: DNS answers, form, pages, access point and web server
+    ota/                   updates: version and command logic, trial guard (pure), download, upload
     sensors/               (step 3/4) bus access and the four drivers
     net/                   Wi-Fi, network time, settings record (step 5); MQTT, portal, OTA later
   test/host/               tests that run on the PC
@@ -72,6 +73,14 @@ Until the boards arrive there are no sensors to test against (no breakouts for t
 - **Client** (`components/telemetry`, on `espressif/mqtt`): plain TCP to the broker in the settings, client ID = device ID, keepalive 60 s, last will `offline` (retained, QoS 1) on `<base>/<id>/status`. On every connection: `online` (retained), and with Home Assistant discovery on, one retained config message per value to `<prefix>/sensor/<id>/<field>/config`, again whenever Home Assistant announces `online` on `<prefix>/status`. Reconnects by itself.
 - **State message** every 60 s from the app task (the first after a full minute), queued without waiting, QoS 0, not retained, dropped while disconnected: `{"id","name","time","temperature_c","humidity_pct","pressure_hpa","co2_ppm","co2_age_s","voc_index","nox_index","rssi_dbm","uptime_s"}`, numbers as JSON numbers (two decimals for the means), a field left out when there is no value, `time` (RFC 3339, local) only once the clock is set. Built by pure functions (`telemetry/payload.h`), tested byte for byte.
 - **Settings:** `telemetry::MqttSettings` (broker, port, user, password, base topic, Home Assistant switch and prefix), with build defaults in the Kconfig menu "ClimaSense MQTT", stored and edited like the others; the portal's MQTT section sends a hidden marker so that an unticked checkbox means "off".
+
+## Updates over the air
+
+- **Signed images only** (`sdkconfig.defaults`): ESP-IDF's signed apps without hardware Secure Boot, RSA-3072. The running firmware's signature block holds the public key; an update is checked against it when it is finished (`esp_https_ota_finish`, `esp_ota_end`), so an image not signed with our key never becomes bootable, however it arrived. The firmware flashed over USB must be signed as well (local builds are). CI builds unsigned images (`sdkconfig.ci`, added when the `CI` variable is set).
+- **From a URL** (`ota::start_from_url`): an MQTT message on `<base>/<id>/set/ota` with `<url>` or `<url> force` (retained commands are ignored, or every restart would update again); a task of its own downloads with `esp_https_ota` over HTTP or HTTPS, refuses an older or non-`x.y.z` version unless forced, reports `{"state","progress","detail"}` on `<base>/<id>/ota` (starting, downloading in 10 % steps, refused, failed, restarting) and restarts.
+- **By upload** in the setup portal (`ota::Upload`, `POST /update`): the page's script sends the file as the request body; the version is read from the image's first 80 bytes before anything is written (`ota::image_version`), then the image is written to the free slot and checked.
+- **Trial and rollback**: after an update the new firmware starts in `ESP_OTA_IMG_PENDING_VERIFY`. `app_main` asks `ota::TrialGuard` once a second: accepted once healthy (connected to the broker if one is set, else to Wi-Fi if a network is set) after at least 3 minutes; rejected after 10 minutes otherwise, which marks it invalid and restarts into the previous firmware. A crash or reset during the trial also returns to the previous firmware (the bootloader does that). The boot report says `"on_trial":true`. No new update is accepted while on trial.
+- **Version**: `firmware/version.txt`, `x.y.z`, read by `CMakeLists.txt` as `PROJECT_VER`; raise it for every release.
 
 ## Debugging
 

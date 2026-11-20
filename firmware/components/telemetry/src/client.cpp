@@ -5,6 +5,7 @@
 
 #include "esp_check.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
 #include "mqtt_client.h"
 #include "sdkconfig.h"
 
@@ -30,6 +31,11 @@ std::string g_boot_report;            // set before start(), then only read
 std::atomic<int> g_boot_msg_id{-1};
 std::atomic<bool> g_boot_delivered{false};
 std::atomic<int> g_log_level_request{-1};  // a diagnostics::LogLevel, or -1
+std::string g_update_topic;
+std::string g_update_status_topic;
+portMUX_TYPE g_update_lock = portMUX_INITIALIZER_UNLOCKED;
+std::string g_update_request;  // under g_update_lock
+bool g_update_requested = false;
 
 void publish_discovery()
 {
@@ -56,6 +62,7 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
             publish_discovery();
         }
         esp_mqtt_client_subscribe_single(g_client, g_log_level_topic.c_str(), 1);
+        esp_mqtt_client_subscribe_single(g_client, g_update_topic.c_str(), 1);
         if (!g_boot_report.empty() && !g_boot_delivered) {
             g_boot_msg_id = esp_mqtt_client_enqueue(g_client, g_boot_topic.c_str(), g_boot_report.data(),
                                                     static_cast<int>(g_boot_report.size()), 1, 1, true);
@@ -78,6 +85,13 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
         const std::string_view payload(event->data, static_cast<std::size_t>(event->data_len));
         if (g_settings.ha_discovery && topic == g_ha_status_topic && payload == "online") {
             publish_discovery();
+        } else if (topic == g_update_topic && !event->retain) {
+            // A retained command would update again after every restart; such ones are ignored.
+            std::string request(payload);
+            taskENTER_CRITICAL(&g_update_lock);
+            g_update_request.swap(request);
+            g_update_requested = true;
+            taskEXIT_CRITICAL(&g_update_lock);
         } else if (topic == g_log_level_topic) {
             if (const auto level = diagnostics::parse_level_name(payload)) {
                 g_log_level_request = static_cast<int>(*level);
@@ -132,6 +146,8 @@ esp_err_t start(const MqttSettings &settings, const Identity &identity)
     g_boot_topic = boot_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_log_topic = log_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_log_level_topic = log_level_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_update_topic = update_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_update_status_topic = update_status_topic(g_settings.base_topic.view(), g_identity.device_id);
 
     esp_mqtt_client_config_t config{};
     config.broker.address.hostname = g_settings.host.c_str();
@@ -175,6 +191,32 @@ bool publish_log(const std::string &json)
     }
     return esp_mqtt_client_enqueue(g_client, g_log_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
                                    true) >= 0;
+}
+
+std::optional<std::string> take_update_request()
+{
+    std::string request;
+    bool requested = false;
+    taskENTER_CRITICAL(&g_update_lock);
+    if (g_update_requested) {
+        request.swap(g_update_request);
+        g_update_requested = false;
+        requested = true;
+    }
+    taskEXIT_CRITICAL(&g_update_lock);
+    if (!requested) {
+        return std::nullopt;
+    }
+    return request;
+}
+
+bool publish_update_status(const std::string &json)
+{
+    if (!g_connected || g_client == nullptr) {
+        return false;
+    }
+    return esp_mqtt_client_enqueue(g_client, g_update_status_topic.c_str(), json.data(),
+                                   static_cast<int>(json.size()), 1, 0, true) >= 0;
 }
 
 std::optional<diagnostics::LogLevel> take_log_level_request()

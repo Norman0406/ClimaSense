@@ -47,4 +47,11 @@ bool publish_log(const std::string &json);
 // A log level received on <base>/<id>/set/log_level since the last call, if any.
 std::optional<diagnostics::LogLevel> take_log_level_request();
 
+// The payload of an update command received on <base>/<id>/set/ota since the last call, if any
+// (parsed by ota::parse_update_command).
+std::optional<std::string> take_update_request();
+
+// Queues an update status message on <base>/<id>/ota (QoS 1, not retained).
+bool publish_update_status(const std::string &json);
+
 }  // namespace telemetry

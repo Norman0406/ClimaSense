@@ -28,6 +28,7 @@ add_executable(host_tests
     test_led_logic.cpp
     test_log_ring.cpp
     test_net.cpp
+    test_ota.cpp
     test_portal.cpp
     test_scd41.cpp
     test_settings.cpp
@@ -39,6 +40,7 @@ add_executable(host_tests
     ${FW}/components/board/src/led_logic.cpp
     ${FW}/components/diagnostics/src/log_line.cpp
     ${FW}/components/net/src/settings.cpp
+    ${FW}/components/ota/src/logic.cpp
     ${FW}/components/portal/src/dns_answer.cpp
     ${FW}/components/portal/src/form.cpp
     ${FW}/components/portal/src/page.cpp
@@ -57,6 +59,7 @@ target_include_directories(host_tests PRIVATE
     ${FW}/components/board/include
     ${FW}/components/diagnostics/include
     ${FW}/components/net/include
+    ${FW}/components/ota/include
     ${FW}/components/portal/include
     ${FW}/components/sensors/include
     ${FW}/components/sensors/vendor/gas_index_algorithm

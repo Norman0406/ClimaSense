@@ -44,9 +44,13 @@ jobs:
       - name: Build
         working-directory: firmware
         shell: bash
+        env:
+          # Builds unsigned (sdkconfig.ci): CI has no signing key. Set here explicitly rather than
+          # relying on the runner passing its CI variable into the container.
+          CI: "true"
         run: |
-          # The container runs as root on a checkout owned by the runner; without this,
-          # `git describe` (the app version) fails.
+          # The container runs as root on a checkout owned by the runner; without this, git
+          # commands in the build (ESP-IDF reads the repository state) fail.
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           . "$IDF_PATH/export.sh"
           idf.py build

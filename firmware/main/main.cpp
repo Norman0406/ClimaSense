@@ -29,6 +29,7 @@
 #include "board/led.h"
 #include "diagnostics/diagnostics.h"
 #include "net/wifi.h"
+#include "ota/ota.h"
 #include "portal/portal.h"
 #include "telemetry/client.h"
 #include "telemetry/payload.h"
@@ -143,6 +144,7 @@ std::string boot_report(const std::string &display_name)
     info.build_id = diagnostics::build_id();
     info.reset_reason = diagnostics::reset_reason_name(esp_reset_reason());
     info.previous_log = diagnostics::previous_log();
+    info.on_trial = ota::on_trial();
     const auto crash = diagnostics::crash_summary();
     if (crash) {
         info.crash = telemetry::CrashInfo{crash->reason, crash->task,  crash->pc,         crash->mcause,
@@ -224,6 +226,11 @@ extern "C" void app_main()
     }
     telemetry::set_boot_report(boot_report(display_name));
     bool dump_erased = false;
+    // After an update, the new firmware is on trial until it has shown it works (ota/logic.h).
+    bool on_trial = ota::on_trial();
+    if (on_trial) {
+        ESP_LOGW(kTag, "firmware %s is on trial after an update", esp_app_get_description()->version);
+    }
     if (wifi == ESP_OK) {
         const telemetry::Identity identity{net::device_id(), display_name, esp_app_get_description()->version};
         if (const esp_err_t err = telemetry::start(mqtt.value, identity); err != ESP_OK) {
@@ -281,6 +288,32 @@ extern "C" void app_main()
                     ESP_LOGI(kTag, "core dump reported over MQTT and erased");
                 }
                 dump_erased = true;
+            }
+            // An update command over MQTT.
+            if (const auto request = telemetry::take_update_request()) {
+                if (const auto command = ota::parse_update_command(*request)) {
+                    ota::start_from_url(*command, telemetry::publish_update_status);
+                } else {
+                    telemetry::publish_update_status(ota::status_json(
+                        "refused", std::nullopt, "expected \"<http(s) URL>\" or \"<URL> force\""));
+                }
+            }
+            if (on_trial) {
+                const auto uptime_s = static_cast<uint32_t>(now / 1'000'000);
+                const bool healthy =
+                    ota::trial_healthy(telemetry::mqtt_configured(mqtt.value), telemetry::connected(),
+                                       net::wifi_configured(network.value), net::connected());
+                switch (ota::TrialGuard{}.check(uptime_s, healthy)) {
+                case ota::TrialGuard::Verdict::Accept:
+                    ota::accept();
+                    on_trial = false;
+                    break;
+                case ota::TrialGuard::Verdict::Reject:
+                    ota::reject();  // restarts into the previous firmware
+                    break;
+                case ota::TrialGuard::Verdict::Wait:
+                    break;
+                }
             }
             next_log_check = now + kLogCheckPeriodUs;
         }
