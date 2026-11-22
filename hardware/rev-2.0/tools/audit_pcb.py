@@ -32,7 +32,7 @@ import pcbnew
 HW = Path(__file__).resolve().parent.parent
 PCB = HW / "climasense.kicad_pcb"
 ORIGIN = (100.0, 60.0)       # board origin on the sheet, as in gen_pcb.py
-SLOT_X = 48.0                # the ground pours end here; right of it ground is tracks
+SLOT_X = 76.0                # the ground pours end here (the sensor slot); right of it ground is tracks
 MM = 1e-6
 RHO, COPPER = 1.72e-8, 35e-6  # ohm metre; 1 oz copper thickness in metres
 NEAR = 0.45                  # edge-to-edge gap counted as "side by side", mm
@@ -189,6 +189,10 @@ def tidiness(tracks, vias, pads, boxes):
                     den = (a[0] - b[0]) * (c[1] - d[1]) - (a[1] - b[1]) * (c[0] - d[0])
                     u = ((a[0] - c[0]) * (c[1] - d[1]) - (a[1] - c[1]) * (c[0] - d[0])) / den
                     x = (a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1]))
+                    # a branch that starts on a diagonal track is a T, not a crossing: its end
+                    # lies on the other track only to within the rounding of KiCad's coordinates
+                    if min(math.dist(x, e) for e in (a, b, c, d)) < 1e-3:
+                        continue
                     if not pad_at(net, x, la):
                         found.append(f"   {net} on {la} at ({x[0]:.1f}, {x[1]:.1f})")
     out.append(f"A net crossing itself: {len(found) or 'none'}")

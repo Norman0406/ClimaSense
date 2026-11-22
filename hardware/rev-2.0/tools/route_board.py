@@ -34,7 +34,7 @@ import time
 import pcbnew
 from pcbnew import FromMM, VECTOR2I
 
-from router import BLOCK, BOT, TOP, Router
+from router import BLOCK, BOT, FREE, TOP, Router
 
 W_SIG, W_PWR, W_WIDE = 0.2, 0.4, 0.6
 WIDTH = {"sig": W_SIG, "pwr": W_PWR, "wide": W_WIDE}
@@ -283,6 +283,25 @@ def run(board, origin, geo, log=print):
         seeds.setdefault(net, []).append(dict(
             pad=None, pts=[(x_a, y), (x_b, y)],
             nodes={R.node(x_a + k * R.step, y, TOP) for k in range(steps + 1)}))
+
+    # --- fixed feeds: hand-drawn top-layer runs that lead to the start of a fixed track ----
+    # They become part of that fixed track's copper, so the router may join the net anywhere
+    # along them; what stays unused at their far end is pruned like any other spur.
+    keep_x = {}            # index of a fixed track -> x on it that must survive the trimming
+    for feed in geo.get("fixed_feeds", ()):
+        net = nid(feed["net"])
+        index, x_a, x_b, y = next(f for f, (name, *_) in zip(fixed_tracks, geo["fixed_tracks"]) if nid(name) == net)
+        seed = next(s for s in seeds[net] if (x_a, y) in s["pts"])
+        for width, pts in feed["tracks"]:
+            R.add_track(net, pts, TOP, width)
+            for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
+                steps = max(1, int(round(max(abs(xb - xa), abs(yb - ya)) / R.step)))
+                for k in range(steps + 1):
+                    node = R.node(xa + (xb - xa) * k / steps, ya + (yb - ya) * k / steps, TOP)
+                    seed["nodes"].add(node)
+                    width_at[node] = max(width_at.get(node, 0.0), width)
+            seed["pts"] = seed["pts"] + list(pts)
+        keep_x.setdefault(index, []).append(x_a)
 
     # --- ESP32 ground pad: the twelve thermal vias of Espressif's land pattern ---
     # The pad is nine squares on a 1.25 mm pitch. A via sits in the middle of every gap
@@ -534,10 +553,78 @@ def run(board, origin, geo, log=print):
         width_at.clear()
         width_at.update(base_width)
 
+    # --- pockets of the ground pours -------------------------------------------
+    # Tracks of other nets can close off part of a pour on both layers at once. KiCad then
+    # counts the ground pads and vias inside as unconnected, though the router has joined
+    # every pad to "the pour". Estimate the pours from the grid: wherever a thin ground track
+    # could lie, inside the pours' outline, copper will be. Ground vias and through-hole pads
+    # join the layers. Every piece holding ground copper beyond the largest is a pocket.
+    pour_x0, pour_x1 = geo["antenna_x"] + 0.2, bx0 - 0.1
+
+    def ground_pockets():
+        nx, ny = R.nx, R.ny
+        ix0, ix1 = int(math.ceil(pour_x0 / R.step)), int(pour_x1 / R.step)
+        label = [[0] * n, [0] * n]
+        parent = []
+
+        def find_root(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for layer in (TOP, BOT):
+            g, lab = R.grid["sig"][layer], label[layer]
+            for iy in range(1, ny - 1):
+                row = iy * nx
+                for ix in range(ix0, ix1 + 1):
+                    start = row + ix
+                    if lab[start] or not (g[start] == FREE or g[start] == gnd):
+                        continue
+                    parent.append(len(parent))
+                    comp = len(parent)
+                    lab[start] = comp
+                    stack = [start]
+                    while stack:
+                        i = stack.pop()
+                        jx = i % nx
+                        for j in ((i - 1,) if jx > ix0 else ()) + ((i + 1,) if jx < ix1 else ()) + (i - nx, i + nx):
+                            if 0 <= j < n and not lab[j] and (g[j] == FREE or g[j] == gnd):
+                                lab[j] = comp
+                                stack.append(j)
+        holders = []
+        for x, y, net in R.vias:
+            if net == gnd and pour_x0 <= x <= pour_x1:
+                a, b = label[TOP][R.cell(x, y)], label[BOT][R.cell(x, y)]
+                if a and b:
+                    parent[find_root(a - 1)] = find_root(b - 1)
+                holders.append(((x, y), a or b))
+        legs = {}            # legs of one terminal are joined inside the part (push buttons)
+        for p in pads:
+            if p["net"] == gnd and pour_x0 <= p["x"] <= pour_x1:
+                labs = [label[layer][R.cell(p["x"], p["y"])] for layer in p["layers"]]
+                labs = [v for v in labs if v]
+                if p["ref"] in geo.get("internally_joined", ()):
+                    labs += legs.get((p["ref"], p["num"]), [])
+                    legs.setdefault((p["ref"], p["num"]), []).extend(labs[:1])
+                for v in labs[1:]:
+                    parent[find_root(v - 1)] = find_root(labs[0] - 1)
+                if labs:
+                    holders.append(((p["x"], p["y"]), labs[0]))
+        groups = {}
+        for xy, v in holders:
+            groups.setdefault(find_root(v - 1), []).append(xy)
+        if len(groups) <= 1:
+            return []
+        main = max(groups.values(), key=len)
+        return [g[0] for g in groups.values() if g is not main]
+
     best = None
     for attempt in range(1, geo.get("attempts", MAX_ATTEMPTS) + 1):
         restore()
         failures = route_everything(order)
+        failures += [dict(label="GND (pour pocket)", a=dict(pad=dict(ref=f"({x:.1f}", num=f"{y:.1f})")), b=None, length=0)
+                     for x, y in ground_pockets()]
         log(f"  attempt {attempt}: {len(failures)} unrouted, {len(R.tracks)} segments, {len(R.vias)} vias, "
             f"{time.time() - t0:.0f} s" + ("" if not failures else "  [" + ", ".join(describe(e) for e in failures[:8]) + "]"))
         if best is None or len(failures) < len(best["failures"]):
@@ -559,7 +646,7 @@ def run(board, origin, geo, log=print):
             drop.update(range(*p["stub_tracks"]))
     for index, x_a, x_b, y in fixed_tracks:
         xs = [x_a + k * R.step for k in range(int(round((x_b - x_a) / R.step)) + 1)]
-        hit = [x for x in xs if R.node(x, y, TOP) in used_nodes]
+        hit = [x for x in xs if R.node(x, y, TOP) in used_nodes] + keep_x.get(index, [])
         if hit:
             tracks[index] = (round(min(hit), 4), y, round(max(hit), 4), y) + tracks[index][4:]
     tracks = [t for i, t in enumerate(tracks) if i not in drop and (t[0], t[1]) != (t[2], t[3])]

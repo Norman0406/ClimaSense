@@ -465,6 +465,34 @@ PLACEMENT.update({
     **{f"C{n}": (50.4 + 1.6 * i, 29.4, 270) for i, n in enumerate(range(17, 25))},
 })
 POWER_NETS = POWER_NETS + ("/EPD_SW", "/EPD_RESE")
+# Bottom-layer ground that no signal may cut. The sensor island's ground reaches the main pours
+# only through the strip between the FPC slot and the sensor slot; the bottom layer of that
+# strip, and of the FPC landing area between J5 and the slot round both ends of the slot, stays
+# ground, so the sensor bus crosses there on the top layer. In the first generated board the bus
+# ran on the bottom layer there and walled off pockets of the pours. The boost converter gets
+# an unbroken ground under it, like the buck converter.
+DISPLAY_GROUND_AREAS = ((66.7, 0.3, 75.9, 33.7),       # FPC landing area and the strip, full height
+                        (58.6, 7.5, 66.7, 26.0),       # behind J5: its ground pins' vias land here
+                        (48.7, 1.6, 58.3, 8.7),        # under the boost converter's switching loop
+                        # Along the bottom edge below the module, to under the USB connector: tracks
+                        # from the module's corner pins ran round the ESP32's capacitors on both layers
+                        # and closed in the ground via of the EN capacitor C7.
+                        (7.1, 30.0, 28.4, 33.7))
+# The sensor bus to the bridge, drawn by hand on the top layer: along the bottom edge below the
+# display capacitors (nothing else runs there), then up the strip right of the FPC slot to the
+# fixed tracks across the bridge. Left to the router, it crossed the display area diagonally and
+# walled off pockets of the ground pours, and BMP_INT found no way through at all.
+# name, x where it starts (left), x of the run up the strip, y along the bottom edge. The run
+# that ends highest on the bridge turns up first, so that no two cross; 0.2 mm gaps, the supply
+# 0.4 mm wide. The left ends are staggered like steps, the lowest run the longest, so that the
+# router can reach each run's end from above (between parallel runs there is no room for a via).
+SENSOR_BUS = (("+3V3_SENS", 44.0, 73.6, 31.9), ("/I2C_SCL", 42.4, 74.1, 32.4), ("/I2C_SDA", 40.8, 74.5, 32.8),
+              ("/BMP_INT", 39.2, 74.9, 33.2))
+SENSOR_BUS_BRIDGE_Y = {"+3V3_SENS": 16.1, "/I2C_SCL": 16.9, "/I2C_SDA": 17.7, "/BMP_INT": 18.5}   # as `bridge` below
+SENSOR_BUS_FEEDS = tuple(
+    dict(net=name, tracks=((0.4 if name == "+3V3_SENS" else 0.2,
+                            ((x0, y), (x - 1.0, y), (x, y - 1.0), (x, SENSOR_BUS_BRIDGE_Y[name]))),))
+    for name, x0, x, y in SENSOR_BUS)
 SILK_LABELS = SILK_LABELS + (("DISPLAY", J5_X + 1.0, 26.6, 0.8),)
 
 
@@ -714,6 +742,9 @@ def main():
         # can leave at 45 degrees without having to cross its neighbour.
         bridge = (("GND", 15.3, 1.1), ("+3V3_SENS", 16.1, 1.7), ("/I2C_SCL", 16.9, 2.3), ("/I2C_SDA", 17.7, 1.7),
                   ("/BMP_INT", 18.5, 1.1))
+        # Revision 2.0: the bus reaches the bridge from below, up the strip between the FPC
+        # slot and the sensor slot, so each fixed track starts where its feed comes up.
+        start_x = {name: x for name, _, x, _ in SENSOR_BUS}
         failures = route_board.run(board, ORIGIN, dict(
             W=W, H=H,
             cutouts=[(SLOT_X[0], y1, SLOT_X[1], y2) for y1, y2 in SLOTS_Y] + list(TONGUE_CUTOUTS) + [FPC_SLOT],
@@ -722,17 +753,20 @@ def main():
             module_ref="U4", module_epad="29",
             holes=MOUNTING_HOLES, hole_keepout=3.3,
             bridge_x=SLOT_X, bridge_y={name: y for name, y, _ in bridge},
-            fixed_tracks=[(name, SLOT_X[0] - 1.8, SLOT_X[1] + reach, y) for name, y, reach in bridge] + [
+            fixed_tracks=[(name, start_x.get(name, SLOT_X[0] - 1.8), SLOT_X[1] + reach, y)
+                          for name, y, reach in bridge] + [
                 # staggered on the sensor's side for the same reason
                 (name, TONGUE_NECK_X[0] - 0.9, TONGUE_NECK_X[1] + 0.9 + 0.6 * k, y)
                 for k, (name, y) in enumerate(TONGUE_NECK_TRACKS)],
             # the connector's shell, from just behind its row of pads to the board edge
             usb_body=(PLACEMENT["J1"][0] - 4.6, PLACEMENT["J1"][1] - 3.3, PLACEMENT["J1"][0] + 4.6, H),
+            fixed_feeds=SENSOR_BUS_FEEDS,
             thin_only=TONGUE_AREA,
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1", "J5", "Q1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
-            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS, REGULATOR_GROUND_AREA)],
+            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS, REGULATOR_GROUND_AREA,
+                                                                               *DISPLAY_GROUND_AREAS)],
             internally_joined=INTERNALLY_JOINED,
             # the strip below the module's bottom pad row is where its pins escape; the trunk stays out of it
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],
