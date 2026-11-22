@@ -70,6 +70,14 @@ Status pick_status(const StatusInputs &in)
     return Status::Ok;
 }
 
+Status shown_status(const StatusInputs &in, bool led_enabled, bool asked)
+{
+    if (led_enabled || asked) {
+        return pick_status(in);
+    }
+    return in.setup_open ? Status::Setup : Status::Ok;
+}
+
 LedStep status_led(Status status, uint32_t elapsed_ms, bool show_ok)
 {
     switch (status) {

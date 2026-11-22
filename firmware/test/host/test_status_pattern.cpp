@@ -6,6 +6,8 @@
 
 using board::LedStep;
 using board::pick_status;
+using board::shown_status;
+using board::shows_send_flash;
 using board::Rgb;
 using board::Status;
 using board::status_led;
@@ -172,5 +174,37 @@ TEST(StatusLed, FlashesAreShort)
             lit_ms += lit(status_led(s, t, false)) ? 1 : 0;
         }
         EXPECT_LE(lit_ms, 300u) << board::to_string(s);
+    }
+}
+
+TEST(StatusShown, LedOnShowsEverything)
+{
+    StatusInputs in = all_well();
+    in.broker_connected = false;
+    EXPECT_EQ(shown_status(in, true, false), Status::NoBroker);
+}
+
+TEST(StatusShown, LedOffIsDarkExceptForSetupAndWhenAsked)
+{
+    StatusInputs in = all_well();
+    in.wifi_connected = false;
+    EXPECT_EQ(shown_status(in, false, false), Status::Ok);  // Ok, not asked: dark
+    EXPECT_FALSE(lit(status_led(shown_status(in, false, false), 0, false)));
+    EXPECT_EQ(shown_status(in, false, true), Status::NoWifi);  // a button press asks
+
+    in.updating = true;
+    EXPECT_EQ(shown_status(in, false, false), Status::Ok);  // an update over MQTT at night stays dark
+    in.updating = false;
+    in.setup_open = true;
+    EXPECT_EQ(shown_status(in, false, false), Status::Setup);  // opened at the button
+}
+
+TEST(StatusShown, SendFlashOnlyWithTheLedOnAndOverQuietPatterns)
+{
+    EXPECT_TRUE(shows_send_flash(Status::Ok, true));
+    EXPECT_TRUE(shows_send_flash(Status::SensorFault, true));
+    EXPECT_FALSE(shows_send_flash(Status::Ok, false));
+    for (const Status s : {Status::NoBroker, Status::NoWifi, Status::Setup, Status::Updating}) {
+        EXPECT_FALSE(shows_send_flash(s, true)) << board::to_string(s);
     }
 }

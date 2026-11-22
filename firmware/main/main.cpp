@@ -111,20 +111,23 @@ std::string local_time()
     return telemetry::rfc3339_offset(text);
 }
 
-// Takes the sensor snapshot (which starts the next averaging window) and publishes it.
-void publish(const std::string &display_name)
+// Takes the sensor snapshot (which starts the next averaging window) and publishes it. True if
+// the message was queued.
+bool publish(const std::string &display_name)
 {
     const sensors::SensorSnapshot snapshot = sensors::take_snapshot();
     if (!telemetry::connected()) {
-        return;  // the window still restarts: every message averages one interval
+        return false;  // the window still restarts: every message averages one interval
     }
     const std::string time = local_time();
     const telemetry::StateMeta meta{net::device_id(), display_name, time, net::rssi(),
                                     static_cast<uint32_t>(esp_timer_get_time() / 1'000'000)};
     const std::string json = telemetry::state_json(snapshot, meta);
-    if (telemetry::publish_state(json)) {
-        ESP_LOGD(kTag, "published: %s", json.c_str());
+    if (!telemetry::publish_state(json)) {
+        return false;
     }
+    ESP_LOGD(kTag, "published: %s", json.c_str());
+    return true;
 }
 
 // The boot report: what the last run left behind (reset reason, its last log lines, a crash).
@@ -184,8 +187,9 @@ void led_self_test()
 // start whenever the status changes. Only the app task drives the LED.
 class StatusLed {
 public:
-    // Updates the LED; returns when it next needs a look (esp_timer time, us).
-    int64_t update(board::Status status, bool show_ok, int64_t now)
+    // Updates the LED; returns when it next needs a look (esp_timer time, us). Until
+    // `flash_until`, a green flash for a sent message covers the pattern.
+    int64_t update(board::Status status, bool show_ok, int64_t flash_until, int64_t now)
     {
         if (status != status_ || show_ok != show_ok_) {
             if (status != status_) {
@@ -196,7 +200,10 @@ public:
             since_ = now;
         }
         const auto elapsed_ms = static_cast<uint32_t>((now - since_) / 1000);
-        const board::LedStep step = board::status_led(status_, elapsed_ms, show_ok_);
+        board::LedStep step = board::status_led(status_, elapsed_ms, show_ok_);
+        if (now < flash_until) {
+            step = {board::colour::kGreen, static_cast<uint32_t>((flash_until - now + 999) / 1000)};
+        }
         if (!shown_ || step.colour.r != shown_colour_.r || step.colour.g != shown_colour_.g ||
             step.colour.b != shown_colour_.b) {
             board::led::set(step.colour, kBrightness);
@@ -264,7 +271,9 @@ extern "C" void app_main()
             ESP_LOGE(kTag, "MQTT not started: %s", esp_err_to_name(err));
         }
     }
-    led_self_test();
+    if (device.value.status_led) {
+        led_self_test();  // not with the LED switched off: a restart at night stays dark
+    }
 
     // Setup mode (captive portal): on first boot, i.e. with no network configured, and on a long
     // press of the BOOT button; a short press closes it.
@@ -290,6 +299,8 @@ extern "C" void app_main()
     int64_t next_publish = esp_timer_get_time() + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
     int64_t next_log_check = 0;
     int64_t show_status_until = 0;
+    int64_t flash_until = 0;
+    board::Status shown = board::Status::Ok;
     StatusLed status_led;
     net::OfflineGuard offline_guard;
 
@@ -354,7 +365,9 @@ extern "C" void app_main()
         }
 
         if (now >= next_publish) {
-            publish(display_name);
+            if (publish(display_name) && board::shows_send_flash(shown, device.value.status_led)) {
+                flash_until = now + static_cast<int64_t>(board::kSendFlashMs) * 1000;
+            }
             next_publish += static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
         }
 
@@ -365,7 +378,9 @@ extern "C" void app_main()
         status.broker_configured = telemetry::mqtt_configured(mqtt.value);
         status.broker_connected = telemetry::connected();
         status.sensors_working = sensors::working();
-        const int64_t next_led = status_led.update(board::pick_status(status), now < show_status_until, now);
+        const bool asked = now < show_status_until;
+        shown = board::shown_status(status, device.value.status_led, asked);
+        const int64_t next_led = status_led.update(shown, asked, flash_until, now);
 
         int64_t until = std::min({next_heartbeat, next_publish, next_log_check, next_led});
         if (show_status_until > now) {

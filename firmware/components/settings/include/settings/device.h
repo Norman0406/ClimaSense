@@ -1,4 +1,5 @@
-// Device settings: the name shown for this board. Pure, tested on the PC.
+// Device settings: the name shown for this board, and whether the status LED is on. Pure, tested
+// on the PC.
 //
 // The device ID (the host name, from the MAC address) is fixed and goes into the MQTT topics;
 // the name is set in the portal and only travels as information, so renaming never breaks a
@@ -15,6 +16,9 @@ namespace settings {
 
 struct DeviceSettings {
     net::Text<32> name;  // UTF-8, up to 32 bytes; empty: the ID is shown instead
+    // The status LED (board/status_pattern.h). Off, e.g. in a bedroom: dark except while the
+    // setup portal is open and when a short press on the button asks for the status.
+    bool status_led = true;
 };
 
 enum class DeviceProblem : uint8_t {

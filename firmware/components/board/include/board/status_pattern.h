@@ -8,6 +8,10 @@
 //   NoBroker       yellow, two short flashes every 3 s (Wi-Fi up, MQTT broker not reached)
 //   SensorFault    red, one short flash every 3 s (a sensor keeps failing)
 //   Ok             off; green while a short button press asks for the status
+//
+// On top of Ok and SensorFault, every state message sent over MQTT shows as a short green flash.
+// With the LED switched off in the settings (e.g. in a bedroom), only the setup portal and a
+// button press light it.
 #pragma once
 
 #include <cstdint>
@@ -37,6 +41,19 @@ struct StatusInputs {
 
 // The most important status that applies.
 Status pick_status(const StatusInputs &in);
+
+// The status the LED shows. `led_enabled`: the setting. `asked`: a short button press asked for
+// the status. With the LED off, only the setup portal shows (it was opened at the button), and
+// everything does while asked.
+Status shown_status(const StatusInputs &in, bool led_enabled, bool asked);
+
+// A sent message: a green flash this long, over the statuses whose pattern it cannot be
+// mistaken for, and only with the LED on.
+inline constexpr uint32_t kSendFlashMs = 80;
+constexpr bool shows_send_flash(Status status, bool led_enabled)
+{
+    return led_enabled && (status == Status::Ok || status == Status::SensorFault);
+}
 
 struct LedStep {
     Rgb colour;

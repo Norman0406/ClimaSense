@@ -242,6 +242,24 @@ TEST(ApplyForm, MissingFieldsKeepTheirValues)
     EXPECT_EQ(r.device.name.view(), "Office");
 }
 
+TEST(ApplyForm, StatusLedCheckbox)
+{
+    settings::DeviceSettings on;
+    // The section marker without the checkbox: unticked, so off.
+    auto r = portal::apply_form("device_form=1&name=Bedroom", current_net(), on);
+    ASSERT_TRUE(r.ok());
+    EXPECT_FALSE(r.device.status_led);
+    r = portal::apply_form("device_form=1&led=1", current_net(), r.device);
+    ASSERT_TRUE(r.ok());
+    EXPECT_TRUE(r.device.status_led);
+    // Without the marker (a form from elsewhere): kept.
+    settings::DeviceSettings off;
+    off.status_led = false;
+    r = portal::apply_form("name=Bedroom", current_net(), off);
+    ASSERT_TRUE(r.ok());
+    EXPECT_FALSE(r.device.status_led);
+}
+
 TEST(ApplyForm, FirstSetupOfAnUnconfiguredDevice)
 {
     net::NetSettings blank = current_net();
@@ -281,6 +299,19 @@ TEST(Page, NetworkNamesFromTheScanAreEscaped)
         ++scripts;
     }
     EXPECT_EQ(scripts, 1u);
+}
+
+TEST(Page, StatusLedCheckboxShowsTheSetting)
+{
+    const net::NetSettings net = current_net();
+    settings::DeviceSettings device;
+    portal::PageModel m;
+    m.net = &net;
+    m.device = &device;
+    EXPECT_THAT(portal::render_settings_page(m), HasSubstr("name=\"led\" value=\"1\" checked"));
+    EXPECT_THAT(portal::render_settings_page(m), HasSubstr("name=\"device_form\""));
+    device.status_led = false;
+    EXPECT_THAT(portal::render_settings_page(m), Not(HasSubstr("name=\"led\" value=\"1\" checked")));
 }
 
 TEST(Page, NeverContainsThePassword)

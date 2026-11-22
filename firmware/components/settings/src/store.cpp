@@ -72,6 +72,13 @@ Loaded<DeviceSettings> load_device(KvStore &store, const DeviceSettings &default
     Loaded<DeviceSettings> result{defaults};
     bool bad = false;
     load_field(store, key::kDeviceName, result.value.name, result.stored_fields, bad, result.store_failed);
+    if (const auto led = load_raw(store, key::kStatusLed, result.stored_fields, bad, result.store_failed)) {
+        if (*led == "1" || *led == "0") {
+            result.value.status_led = *led == "1";
+        } else {
+            bad = true;
+        }
+    }
     if (bad || validate(result.value)) {
         result.value = defaults;
         result.rejected = true;
@@ -163,7 +170,9 @@ std::optional<SaveError> save_device(KvStore &store, const DeviceSettings &setti
     if (validate(settings)) {
         return SaveError::Invalid;
     }
-    const bool ok = save_field(store, key::kDeviceName, settings.name) && store.commit().has_value();
+    const bool ok = save_field(store, key::kDeviceName, settings.name) &&
+                    store.set(key::kStatusLed, settings.status_led ? "1" : "0").has_value() &&
+                    store.commit().has_value();
     return ok ? std::nullopt : std::optional<SaveError>{SaveError::StoreFailed};
 }
 
