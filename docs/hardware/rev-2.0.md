@@ -32,41 +32,51 @@ Seen from the component side (the side that faces the wall), with the same left-
 | Zone (x, mm) | Contents |
 | --- | --- |
 | 0 – 26 | ESP32-C6 module, antenna at the left edge (unchanged) |
-| 26 – 48 | USB-C, protection, fuse, regulators, buttons, Qwiic (as 1.0, rearranged where the new parts need room) |
-| 48 – ~70 | **New**: FPC slot, FPC connector, boost circuit for the panel |
-| ~71.5 – 73 | Milled slot to the sensor island (as 1.0) |
-| ~73 – ~99 | Sensor island and SHT45 tongue (as 1.0, moved right) |
+| 26 – ~71 | USB-C, protection, fuse, regulators, buttons, Qwiic as in 1.0, plus the FPC connector and the boost circuit for the panel. The panel lies on the other side of this zone, from x ≈ 12 to 71 |
+| ~72.5 – 73.7 | FPC slot (about 13.5 × 1.2 mm), just beyond the panel's edge |
+| ~75 – 76.5 | Milled slot to the sensor island (as 1.0) |
+| ~76.5 – ~101 | Sensor island and SHT45 tongue (as 1.0, moved right) |
 
-- **Size: about 99 × 34 mm** (1.0: 75 × 34). The height stays: the panel is 29.2 mm high. **Assumption**: the panel's left edge keeps 5 mm from the end of the antenna keep-out (x = 6.9 mm in 1.0), so it spans about x = 12 to 71. Espressif asks for no metal near the antenna; the panel has thin metal tracks on glass. Less gap gives a shorter board.
+- **Size: about 101 × 34 mm** (1.0: 75 × 34). The height stays: the panel is 29.2 mm high. **Assumption**: the panel's left edge keeps 5 mm from the end of the antenna keep-out (x = 6.9 mm in 1.0), so it spans about x = 12 to 71. Espressif asks for no metal near the antenna; the panel has thin metal tracks on glass. Less gap gives a shorter board.
+- The component side under the panel is free for parts, since the panel is on the other side. Only the FPC slot has to lie beyond the panel's edge.
 - Seen from the room the board is mirrored: the antenna end is on the right, the sensors on the left. Up stays up, so the arrangement of the sensors for rising heat is unchanged.
-- **Mounting holes**: the two at the antenna end are outside the panel; the two on the sensor island stay where they are. Nothing changes there.
+- **Mounting holes**: the two at the antenna end are outside the panel; the two on the sensor island stay where they are.
 - **Under the panel** (on the back side): no parts, as everywhere on the back. Vias are covered by solder mask. The panel is held by the case or by double-sided tape; the tape must not cover the FPC slot.
 - **J3 (the serial header)** lies under the panel. Its holes stay; a pin header would have to be soldered in from the component side and cut flush on the back, or the panel taken off first.
 
-**Open**: the exact panel position depends on where its FPC leaves the glass (centred on a short edge or offset) and how long the tail is. Good Display's drawing has it; the text of the specification could not be read here (see [Not checked yet](#not-checked-yet)).
-
 ## FPC slot and connector
 
-- The tail leaves the panel at its short edge towards the sensor side, so that the FPC and the boost circuit stay away from the antenna. It goes through a slot about 14 × 1.2 mm (the tail is about 12.5 mm wide for 24 contacts, **to be confirmed**) just beyond the panel's edge and into a connector on the component side next to the slot.
-- **Which side of the tail carries the contacts decides the connector.** A tail that goes through the slot and carries on in the same direction arrives with the face that was against the board facing away from it; one that turns back arrives the other way round. Two ways to settle it:
-  - **Dual-contact connector** (contacts top and bottom): works either way. Candidate: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, LCSC **C3249999**, flip lock, 2.0 mm high, extended part. Price and stock not seen yet.
-  - **Bottom-contact connector** once the drawing shows the contact side: BOOMELE 0.5-24P FG, LCSC **C20688**, flip lock, 2.0 mm high, extended part, 1,100 in stock at LCSC, from about 0.08 USD. This is the common one.
-  - **Recommendation**: C20688 if the drawing settles the contact side, otherwise C3249999.
-- Hand assembly: 0.5 mm pitch is the finest pitch on the board after the sensors; with a stencil and a hot plate it is fine. Bridges are cleared with the rework station and flux.
+From Good Display's drawing (GDEY0213B74 specification, page 7, initial version 2021-03-17):
+
+- The tail leaves the middle of a short edge: 12.50 mm wide, its edge 8.15 ± 0.3 mm from the panel's long edge, so it is centred to within 0.2 mm.
+- It reaches 14.30 ± 0.3 mm beyond the glass. The last 6.00 mm carry a stiffener; contacts are 0.30 mm thick, 24 at 0.5 mm pitch over 11.5 mm.
+- The contacts are drawn on the display side of the tail; the stiffener is behind them. **Assumption** from the drawing: it shows the contacts in the front view. To be confirmed on the real panel.
+
+The tail leaves towards the sensor side, so that the FPC and the boost circuit stay away from the antenna. Two ways through the board:
+
+| | Route | Contacts on the component side face | Connector | Board |
+| --- | --- | --- | --- | --- |
+| **A (proposed)** | Through the slot, then **back** under the panel's edge (a U-turn round the slot's edge) | up, away from the board | **dual-contact**: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, LCSC **C3249999**, flip lock, 2.0 mm high | about 101 mm |
+| B | Through the slot and **onwards**, away from the panel (an S-bend) | down, onto the board | bottom-contact: BOOMELE 0.5-24P FG, LCSC **C20688**, flip lock, 2.0 mm high, the common one, about 0.08 USD | about 7 mm longer: the connector has to sit beyond the slot |
+
+- In route A the connector sits under the panel's edge, with its opening facing the slot. A dual-contact connector also works if the assumption about the contact side above is wrong.
+- **The tail is short.** Of its 14.3 mm, 6 mm are stiff, which leaves about 8 mm to reach the slot, pass through the 1.6 mm board in two bends and come out on top. Feasible, but **check with a 1:1 paper print of the board edge and the real panel** before ordering.
+- Both connectors are extended parts at JLCPCB; for a board assembled at home that costs nothing extra. Price and stock of C3249999 have not been seen yet.
+- Hand assembly: 0.5 mm pitch is fine with a stencil and a hot plate. Bridges are cleared with the rework station and flux.
 
 ## Schematic additions
 
 ### Panel connector and boost circuit
 
-**Assumption**: Good Display's usual reference circuit for its 24-pin SSD16xx panels; its values have **not** been checked against the GDEY0213B74 specification yet. Pin numbers below are from the specification of the front-lit variant GDEY0213B74-FL01, which uses the same 24-pin layout (its pins 6 and 7 go to a temperature sensor of the front light).
+From the reference circuit in the GDEY0213B74 specification (page 29). The panel makes its driving voltages itself from the two pins `GDR` (gate drive) and `RESE` (current sense); the board adds a boost converter and a charge pump.
 
 | FPC pin | Name | Connection |
 | --- | --- | --- |
 | 1, 4 | NC | open |
-| 2 | GDR | gate of the boost MOSFET |
-| 3 | RESE | MOSFET source, sense resistor to ground |
+| 2 | GDR | MOSFET gate, 1 MΩ to ground |
+| 3 | RESE | MOSFET source, 2.2 Ω to ground |
 | 5 | VSH2 | 1 µF to ground |
-| 6, 7 | TSCL, TSDA | open (temperature sensor of the front-lit variant) |
+| 6, 7 | TSCL, TSDA | open (an external temperature sensor; not used) |
 | 8 | BS1 | ground: 4-wire SPI |
 | 9 | BUSY | `EPD_BUSY` |
 | 10 | RES# | `EPD_RST` |
@@ -77,25 +87,28 @@ Seen from the component side (the side that faces the wall), with the same left-
 | 15, 16 | VDDIO, VCI | +3V3, 1 µF to ground |
 | 17 | VSS | ground |
 | 18 | VDD | 1 µF to ground (internal regulator) |
-| 19 | VPP | 1 µF to ground (test pin) |
+| 19 | VPP | open (no capacitor drawn in the reference circuit) |
 | 20 | VSH1 | 1 µF to ground |
-| 21 | VGH | 1 µF to ground, fed by the boost |
+| 21 | VGH | `PREVGH`: boost output, 1 µF to ground |
 | 22 | VSL | 1 µF to ground |
-| 23 | VGL | 1 µF to ground, fed by the charge pump |
+| 23 | VGL | `PREVGL`: charge pump output, 1 µF to ground |
 | 24 | VCOM | 1 µF to ground |
 
-Boost circuit: inductor from +3V3 to the switch node, N-MOSFET from the switch node to `RESE`, sense resistor from `RESE` to ground, one Schottky diode from the switch node to `VGH`, and a capacitor plus two Schottky diodes from the switch node as a charge pump down to `VGL`. The capacitors on `VGH`, `VGL`, `VSH1`, `VSH2`, `VSL`, `VCOM` see up to about ±20 V and need a 25 V rating.
+Boost and charge pump: 47 µH from +3V3 (4.7 µF at its input) to the switch node; the MOSFET from the switch node to `RESE`; a Schottky diode from the switch node to `PREVGH`; 4.7 µF from the switch node to a junction with two Schottky diodes, one from the junction to ground, one from `PREVGL` to the junction, so that `PREVGL` is pumped negative.
 
-| Part | Proposed | LCSC | Note |
-| --- | --- | --- | --- |
-| FPC connector | see above | C20688 or C3249999 | extended |
-| N-MOSFET | AO3400A, SOT-23, 30 V | C20917 | basic; Good Display uses a Si1308EDL. **To check**: rating, gate threshold at the panel's gate drive |
-| 3 Schottky diodes | B5819W, SOD-123, 40 V 1 A | C8598 | basic; Good Display uses MBR0530 (30 V). |
-| Inductor | 10 µH, small SMD | open | **To check**: value against the specification |
-| Sense resistor | about 2.2 Ω, 0402 | open | **To check**: value against the specification |
-| Capacitors | 1 µF 25 V, 0402 (CL05A105KA5NQNC) | C52923 | already on the board, about 11 more |
+| Ref (Good Display) | Part | Good Display's requirement | Proposed | LCSC |
+| --- | --- | --- | --- | --- |
+| P1 | FPC connector | 24 pins, 0.5 mm | see above | C3249999 or C20688 |
+| Q1 | N-MOSFET | Si1308EDL, or: ≥ 30 V, Vgs(th) ≤ 1.5 V, Rds(on) ≤ 400 mΩ | Si1308EDL (SOT-323) as drawn; AO3400A (SOT-23, 30 V, Vgs(th) ≤ 1.45 V) meets the same figures and is a basic part | to look up; AO3400A C20917 |
+| D1–D3 | Schottky diodes | MBR0530, or: ≥ 30 V, ≥ 500 mA, Vf ≤ 430 mV | MBR0530 (SOD-123) | to look up |
+| L1 | Inductor | 47 µH, 500 mA, "refer to NR3015" (Taiyo Yuden, 3 × 3 mm) | NR3015T470M or equivalent | to look up |
+| R1, R2 | 1 MΩ, 2.2 Ω | 0603/0805, 1 %, ≥ 0.05 W | 0402, 1 %, 0.0625 W: meets the rating, smaller than drawn | to look up |
+| C2, C5–C7, C9–C12 | 8 × 1 µF | 0603/0805, X5R/X7R, ≥ 25 V | 1 µF 25 V **0603** | to look up |
+| C3, C4 | 2 × 4.7 µF | as above | 4.7 µF 25 V 0805 | to look up |
 
-The LCSC numbers in this table were written from memory, not looked up: **all to be verified** before the BOM is final.
+- **The 25 V capacitors go to 0603 and 0805, as Good Display asks**, even though the rest of the board is 0402. A 1 µF 0402 ceramic keeps only a small part of its capacitance at 20 V; the larger case keeps more.
+- The panel's voltages are about ±20 V on `VGH`/`VGL`, so 25 V capacitors and 30 V diodes and MOSFET.
+- LCSC numbers marked "to look up" are not chosen yet; the AO3400A number is from memory.
 
 ### Pins
 
@@ -137,14 +150,15 @@ Supply (USB-C, fuse, buck converter, sensor and Qwiic regulators), sensors and t
 
 ## Not checked yet
 
-- **The GDEY0213B74 specification itself**: the reference circuit (component values), the FPC drawing (tail width, position, length, contact side). The PDF is on Good Display's site (product page 391, "Specification") but could not be downloaded from the tools used here; it needs to be read before the schematic is final.
+- The GDEY0213B74 specification was read on 2026-11-22 (37 pages, revision 1.0 of 2021-03-17): pin table, drawing, reference circuit. Not yet read: its DC characteristics (an image in the PDF) for current in deep sleep and the SPI clock limit.
+- Which side of the FPC tail carries the contacts, on a real panel.
 - LCSC numbers, stock and prices of every new part (see the table above).
 - Whether the panel can be bought as a single piece at a sensible price outside Good Display's own shop (LCSC listings were out of stock on 2026-11-22).
 - The side-press button part.
 
 ## Next steps
 
-1. Norman: confirm moving the BMP580 interrupt to IO0, and the board length, and get the specification PDF into the project.
+1. Norman: confirm moving the BMP580 interrupt to IO0, the board length (about 101 mm) and FPC route A with the dual-contact connector.
 2. Schematic: add the panel block and the new pins in `gen_schematic.py`, run `check_schematic.py`.
 3. Footprints: FPC connector and side button in `gen_footprints.py` if KiCad's library has none that fit.
 4. Board: new outline, FPC slot and placement in `gen_pcb.py`, route, `check_pcb.py`, `audit_pcb.py`. These need KiCad on Norman's computer.
