@@ -7,15 +7,10 @@
 #include "sensors/gas_index.h"
 #include "sensors/voc_baseline.h"
 
-using sensors::clock_valid;
-using sensors::FlashVocBaseline;
 using sensors::GasIndex;
 using sensors::GasIndexState;
-using sensors::kClockValidFromUnixS;
-using sensors::kVocFlashSaveS;
 using sensors::kVocMatureSamples;
 using sensors::kVocMaxGapS;
-using sensors::restorable;
 using sensors::RtcVocBaseline;
 using sensors::seal;
 using sensors::unseal;
@@ -24,7 +19,6 @@ using sensors::VocBaselineKeeper;
 namespace {
 
 constexpr GasIndexState kState{1'234'567, 89'012};
-constexpr int64_t kNow = kClockValidFromUnixS + 1'000'000;
 
 // A raw VOC signal around `mean` with a slow wobble and some noise, one sample a second.
 uint16_t signal(uint32_t t, int32_t mean)
@@ -66,32 +60,6 @@ TEST(VocBaselineRtc, ImplausibleStateIsRejectedEvenWithAValidChecksum)
     EXPECT_FALSE(unseal(seal(GasIndexState{100, -1})).has_value());
 }
 
-TEST(VocBaselineFlash, RestorableUpToTenMinutesAfterSaving)
-{
-    const FlashVocBaseline copy{kState, kNow};
-    EXPECT_TRUE(restorable(copy, kNow));
-    EXPECT_TRUE(restorable(copy, kNow + 60));
-    EXPECT_TRUE(restorable(copy, kNow + kVocMaxGapS));
-    EXPECT_FALSE(restorable(copy, kNow + kVocMaxGapS + 1));
-    EXPECT_FALSE(restorable(copy, kNow + 86'400));
-}
-
-TEST(VocBaselineFlash, NotRestorableWithoutAClockOrFromTheFuture)
-{
-    const FlashVocBaseline copy{kState, kNow};
-    EXPECT_FALSE(restorable(copy, 5));            // clock not set yet (1970)
-    EXPECT_FALSE(restorable(copy, kNow - 1));     // saved "after" now: the clock went back
-    EXPECT_FALSE(restorable(FlashVocBaseline{kState, 100}, 400));  // saved without a clock
-    EXPECT_FALSE(restorable(FlashVocBaseline{GasIndexState{0, 0}, kNow}, kNow));
-}
-
-TEST(VocBaselineFlash, ClockValidity)
-{
-    EXPECT_FALSE(clock_valid(0));
-    EXPECT_FALSE(clock_valid(kClockValidFromUnixS - 1));
-    EXPECT_TRUE(clock_valid(kClockValidFromUnixS));
-}
-
 TEST(VocBaselineKeeper, MatureAfterThreeHoursOfSamples)
 {
     VocBaselineKeeper keeper;
@@ -108,21 +76,6 @@ TEST(VocBaselineKeeper, MatureAtOnceWhenRestored)
     VocBaselineKeeper keeper;
     keeper.restored();
     EXPECT_TRUE(keeper.mature());
-}
-
-TEST(VocBaselineKeeper, FlashSaveEveryFiveMinutesOnceMatureAndTheClockIsSet)
-{
-    VocBaselineKeeper keeper;
-    EXPECT_FALSE(keeper.flash_save_due(kNow));  // not mature
-    keeper.restored();
-    EXPECT_FALSE(keeper.flash_save_due(100));   // no clock
-    EXPECT_TRUE(keeper.flash_save_due(kNow));   // the first one at once
-
-    keeper.flash_saved(kNow);
-    EXPECT_FALSE(keeper.flash_save_due(kNow + 1));
-    EXPECT_FALSE(keeper.flash_save_due(kNow + kVocFlashSaveS - 1));
-    EXPECT_TRUE(keeper.flash_save_due(kNow + kVocFlashSaveS));
-    EXPECT_TRUE(keeper.flash_save_due(kNow - 3600));  // the clock jumped back: save again
 }
 
 TEST(GasIndexState, RestoredAlgorithmCarriesOnLikeTheUninterruptedOne)

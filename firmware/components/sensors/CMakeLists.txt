@@ -11,5 +11,5 @@ idf_component_register(
         "vendor/gas_index_algorithm/sensirion_gas_index_algorithm.c"
     INCLUDE_DIRS "include" "vendor/gas_index_algorithm"
     REQUIRES esp_driver_i2c
-    PRIV_REQUIRES board esp_timer nvs_flash
+    PRIV_REQUIRES board esp_timer
 )

@@ -6,7 +6,6 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
-#include <ctime>
 #include <mutex>
 #include <optional>
 
@@ -18,7 +17,6 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "nvs.h"
 
 #include "board/board.h"
 #include "board/pins.h"
@@ -54,11 +52,9 @@ std::atomic<bool> g_working{true};
 // own supply capacitors to discharge, so that every sensor starts from a power-on reset.
 constexpr uint32_t kRailOffMs = 1000;
 
-// The VOC algorithm's learned state (sensors/voc_baseline.h): in RTC memory, which keeps it
-// across a software reset, and in NVS, which keeps it across a power cut.
+// The VOC algorithm's learned state (sensors/voc_baseline.h), in RTC memory, which keeps it
+// across a software reset.
 RTC_NOINIT_ATTR RtcVocBaseline g_rtc_voc;
-constexpr const char *kNvsNamespace = "sensors";
-constexpr const char *kNvsVocKey = "voc_baseline";
 
 uint32_t uptime_s() { return static_cast<uint32_t>(esp_timer_get_time() / 1'000'000); }
 
@@ -451,38 +447,10 @@ bool rtc_memory_survived()
            reason != ESP_RST_UNKNOWN;
 }
 
-std::optional<FlashVocBaseline> load_flash_voc()
-{
-    nvs_handle_t handle = 0;
-    if (nvs_open(kNvsNamespace, NVS_READONLY, &handle) != ESP_OK) {
-        return std::nullopt;  // nothing saved yet
-    }
-    FlashVocBaseline copy{};
-    std::size_t length = sizeof(copy);
-    const esp_err_t err = nvs_get_blob(handle, kNvsVocKey, &copy, &length);
-    nvs_close(handle);
-    if (err != ESP_OK || length != sizeof(copy)) {
-        return std::nullopt;
-    }
-    return copy;
-}
-
-bool save_flash_voc(const FlashVocBaseline &copy)
-{
-    nvs_handle_t handle = 0;
-    if (nvs_open(kNvsNamespace, NVS_READWRITE, &handle) != ESP_OK) {
-        return false;
-    }
-    const bool ok = nvs_set_blob(handle, kNvsVocKey, &copy, sizeof(copy)) == ESP_OK && nvs_commit(handle) == ESP_OK;
-    nvs_close(handle);
-    return ok;
-}
-
 // Keeps the VOC algorithm's learned state across reboots (sensors/voc_baseline.h).
 class VocKeeper {
 public:
-    // At start, before the first sample: takes over the state from before a software reset, or
-    // remembers the flash copy until the clock is set.
+    // At start, before the first sample: takes over the state from before a software reset.
     void start(GasIndex &voc)
     {
         const std::optional<GasIndexState> kept = rtc_memory_survived() ? unseal(g_rtc_voc) : std::nullopt;
@@ -494,48 +462,17 @@ public:
             return;
         }
         g_rtc_voc = RtcVocBaseline{};  // written again once the state may be kept
-        pending_ = load_flash_voc();
-        if (!pending_) {
-            ESP_LOGI(kTag, "SGP41: no saved VOC baseline; learning the room (about 3 hours)");
-        }
+        ESP_LOGI(kTag, "SGP41: no saved VOC baseline; learning the room (about 3 hours)");
     }
 
     // Once a tick. `sampled`: the algorithm got a sample this tick.
     void tick(GasIndex &voc, bool sampled, uint32_t uptime_s)
     {
-        const int64_t now = static_cast<int64_t>(time(nullptr));
-        if (pending_) {
-            if (clock_valid(now)) {
-                if (restorable(*pending_, now)) {
-                    voc.restore(pending_->state);
-                    keeper_.restored();
-                    // The flash copy keeps its time until 5 minutes of new samples are in it, so
-                    // that several short power cuts in a row still add up to at most 10 minutes.
-                    keeper_.flash_saved(now);
-                    ESP_LOGI(kTag, "SGP41: VOC baseline restored from flash (saved %" PRId64 " s ago)",
-                             now - pending_->saved_unix_s);
-                } else {
-                    ESP_LOGI(kTag, "SGP41: saved VOC baseline too old; learning the room (about 3 hours)");
-                }
-                pending_.reset();
-            } else if (uptime_s > kVocMaxGapS) {
-                ESP_LOGI(kTag, "SGP41: clock not set; saved VOC baseline not used");
-                pending_.reset();
-            }
-        }
-
         if (sampled) {
             keeper_.sample();
             last_sample_s_ = uptime_s;
             if (keeper_.mature()) {
                 g_rtc_voc = seal(voc.state());
-                if (keeper_.flash_save_due(now)) {
-                    keeper_.flash_saved(now);  // also on failure: not again every second
-                    if (!save_flash_voc(FlashVocBaseline{voc.state(), now}) && !flash_failed_) {
-                        ESP_LOGW(kTag, "SGP41: VOC baseline not saved to flash");
-                        flash_failed_ = true;
-                    }
-                }
             }
         } else if (uptime_s - last_sample_s_ > kVocMaxGapS) {
             g_rtc_voc = RtcVocBaseline{};  // no samples for 10 minutes: no longer resumable
@@ -544,9 +481,7 @@ public:
 
 private:
     VocBaselineKeeper keeper_;
-    std::optional<FlashVocBaseline> pending_;
     uint32_t last_sample_s_ = 0;
-    bool flash_failed_ = false;
 };
 
 // Static, not on the task's stack: the drivers, the gas index states and the keeper.

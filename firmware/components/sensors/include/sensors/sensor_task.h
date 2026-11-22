@@ -8,13 +8,12 @@
 
 namespace sensors {
 
-// Starts the task. Call once, after board::init() and nvs_flash_init() (the VOC baseline is
-// kept in NVS).
+// Starts the task. Call once, after board::init().
 // Waits for the sensors' power-up time, opens the bus on the low-power I2C controller, logs an
 // address scan, then every second reads the SHT45, BMP580 and SGP41 (VOC and NOx index) and every 5 minutes
 // takes an SCD41 single shot. A sensor that keeps failing is recovered by switching the sensor
 // rail off and on (sensors/recovery.h); the VOC algorithm's learned state is kept across
-// reboots (sensors/voc_baseline.h).
+// software resets (sensors/voc_baseline.h).
 esp_err_t start_task();
 
 // False while a sensor, or the bus, keeps failing (the rule that triggers a recovery). Thread-safe.

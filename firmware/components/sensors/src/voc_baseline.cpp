@@ -37,13 +37,4 @@ std::optional<GasIndexState> unseal(const RtcVocBaseline &copy)
     return state;
 }
 
-bool restorable(const FlashVocBaseline &copy, int64_t now_unix_s)
-{
-    if (!clock_valid(now_unix_s) || !clock_valid(copy.saved_unix_s) || !plausible(copy.state)) {
-        return false;
-    }
-    const int64_t age = now_unix_s - copy.saved_unix_s;
-    return age >= 0 && age <= kVocMaxGapS;
-}
-
 }  // namespace sensors

@@ -234,8 +234,8 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(board::init());
     ESP_ERROR_CHECK(board::led::init());
     ESP_ERROR_CHECK(board::button::init());
-    ESP_ERROR_CHECK(init_nvs());  // before the sensor task, which keeps the VOC baseline in NVS
     ESP_ERROR_CHECK(sensors::start_task());
+    ESP_ERROR_CHECK(init_nvs());
 
     // Settings: stored ones (from the portal, step 7) take precedence over the build defaults.
     static settings::NvsStore store;
