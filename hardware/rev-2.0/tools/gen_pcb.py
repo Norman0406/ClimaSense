@@ -226,7 +226,7 @@ SILK_LABELS = (
     ("TX", 11.6, 2.3, 0.8),
     ("RX", 14.14, 2.3, 0.8),
     # the test pads, each below its pad (3VS: the sensors' 3.3 V)
-    ("5V", 37.9, 19.1, 0.8),
+    ("5V", 37.7, 19.1, 0.8),
     ("3V3", 27.6, 22.6, 0.8),
     ("3VS", 44.6, 20.7, 0.8),      # moved with TP3 in revision 2.0 (below)
     ("GND", 44.6, 25.1, 0.8),
@@ -593,17 +593,20 @@ PREROUTED = PREROUTED + (
 # ones the router found for the clean board of 2026-11-22 (commit e8b8ee3, ROUTE_SEED 5), with the
 # probe pads (1.0 mm, copper only) placed in line on top-layer sections, so that a pad adds no
 # branch. Left to the router, a row of probe pads forced every display line into a detour and the
-# board no longer routed. Left of J5 the three SPI lines dip in nested U shapes into the free area
-# below the bundle, each with its pad on the bottom of its U: CS innermost, SCK, then SDI (MOSI),
-# which comes in along y 20.4 from the left. BUSY has its pad above the bundle, on its run down past
-# C26; DC on its run down the right of J5's pad row. RST has no pad. The pull-up R20 on CS sits on
-# CS's run down from its via at x 40, its +3V3 pad towards the feedback divider (the router joins it).
+# board no longer routed. Left of J5 the three SPI lines run as a staircase (2026-11-22, Norman):
+# CS straight at y 16.5 into its pin, SCK 1.2 mm below it (y 17.7) and SDI (MOSI) 1.2 mm below that
+# (y 18.9), each rising to its pin after its pad; the pads sit on the lines 3.6 mm apart in x (x 47.0,
+# 50.6, 54.2), so that each label fits to the right of its pad before the next pad begins, and SDI's
+# label ends before J5's ground via. (Before, the three lines dipped
+# in nested U shapes 1.5 mm lower, CS with a detour.) BUSY has its pad above the bundle, on its run down
+# past C26; DC on its run down the right of J5's pad row, between two ground vias. RST has no pad. The
+# pull-up R20 on CS sits on CS's run down from its via at x 40, its +3V3 pad towards the feedback divider
+# (the router joins it).
 # The CS, SCK and SDI labels are printed to the right of their pads, centred on the pad's height, in
 # a staircase like the pads; DC's on its right too, BSY's below its pad (the diodes are close on its
-# right). The U bottoms are 1.2 mm apart and the pads 2.0 mm or more, so that their courtyards do
-# not overlap.
-EPD_PADS = {"TP5": (50.6, 19.2), "TP6": (52.6, 20.4), "TP7": (49.0, 18.0), "TP8": (50.2, 13.3), "TP11": (60.9, 6.5)}
-EPD_PAD_LABELS = (("SCK", 52.6, 19.1), ("SDI", 54.6, 20.4), ("CS", 50.6, 18.0), ("BSY", 50.2, 14.7), ("DC", 62.6, 6.5))
+# right).
+EPD_PADS = {"TP5": (50.6, 17.7), "TP6": (54.2, 18.9), "TP7": (47.0, 16.5), "TP8": (50.2, 13.3), "TP11": (60.9, 6.6)}
+EPD_PAD_LABELS = (("SCK", 52.5, 17.7), ("SDI", 56.1, 18.9), ("CS", 48.6, 16.5), ("BSY", 48.3, 13.3), ("DC", 63.0, 6.6))
 R20_AT = (39.49, 15.0)        # EPD_CS pull-up, horizontal: +3V3 pad at x 38.98, CS pad at x 40.0
 EPD_LINES = (
     dict(net="EPD_SCK", pads=("U4.4", "TP5.1", "J5.12"), vias=((11.6, 26.9), (43.7, 17.1)), tracks=(
@@ -612,13 +615,13 @@ EPD_LINES = (
         (0.2, ((11.6, 26.9), (15.4, 23.1), (15.4, 14.7), (26.7, 3.4), (29.8, 3.4), (32.3, 0.9), (34.3, 0.9),
                (34.8, 1.4), (34.8, 1.7), (34.9, 1.8), (37.1, 1.8), (37.2, 1.7), (37.2, 1.4), (37.7, 0.9),
                (38.5, 0.9), (38.9, 1.3), (38.9, 1.5), (43.7, 6.3), (43.7, 17.1)), "bottom"),
-        (0.2, ((43.7, 17.1), (43.8, 17.0), (46.1, 17.0), (48.3, 19.2), (53.4, 19.2), (55.6, 17.0), (59.9, 17.0))),
+        (0.2, ((43.7, 17.1), (44.3, 17.7), (51.2, 17.7), (51.9, 17.0), (59.9, 17.0))),
     )),
     dict(net="EPD_MOSI", pads=("U4.5", "TP6.1", "J5.11"), vias=((22.4, 27.8), (33.8, 21.2)), tracks=(
         (0.2, ((12.9, 25.8), (12.9, 27.8), (13.3, 28.2), (18.2, 28.2), (18.4, 28.0), (18.4, 27.8), (18.6, 27.6),
                (19.8, 27.6), (19.9, 27.7), (19.9, 27.8), (20.3, 28.2), (22.0, 28.2), (22.4, 27.8))),
         (0.2, ((22.4, 27.8), (30.5, 19.7), (32.3, 19.7), (33.8, 21.2)), "bottom"),
-        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (41.2, 20.4), (52.9, 20.4), (55.8, 17.5),
+        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (42.7, 18.9), (54.8, 18.9), (56.2, 17.5),
                (59.9, 17.5))),
     )),
     dict(net="EPD_CS", pads=("U4.23", "R20.2", "TP7.1", "J5.13"),
@@ -627,8 +630,7 @@ EPD_LINES = (
         (0.2, ((16.1, 6.8), (22.4, 6.8)), "bottom"),
         (0.2, ((22.4, 6.8), (36.4, 6.8), (40.0, 10.4))),
         (0.2, ((40.0, 10.4), (40.0, 13.0)), "bottom"),
-        (0.2, ((40.0, 13.0), (40.0, 16.0), (40.5, 16.5), (46.3, 16.5), (47.8, 18.0), (53.9, 18.0), (55.4, 16.5),
-               (59.9, 16.5))),
+        (0.2, ((40.0, 13.0), (40.0, 16.0), (40.5, 16.5), (59.9, 16.5))),
     )),
     dict(net="EPD_RST", pads=("U4.16", "J5.15"), vias=((40.6, 11.8), (40.9, 13.0)), tracks=(
         (0.2, ((23.0, 8.2), (23.0, 7.4), (23.2, 7.2), (36.0, 7.2), (40.6, 11.8))),
@@ -654,11 +656,28 @@ EPD_LINES = (
 # The pocket closed in by RST above and CS below (its run down at x 40, its horizontal and its U) is
 # kept ground on the top layer. Otherwise the router threads +3V3 through it between two vias,
 # sandwiched between the two display lines.
-EPD_POCKETS = ((40.25, 13.4, 41.0, 16.3), (41.0, 14.2, 41.8, 16.3), (41.8, 15.0, 42.6, 16.3), (42.6, 15.7, 58.0, 16.3),
-               (47.0, 16.3, 54.0, 17.8))
+EPD_POCKETS = ((40.25, 13.4, 41.0, 16.3), (41.0, 14.2, 41.8, 16.3), (41.8, 15.0, 42.6, 16.3),
+               # between RST and CS, either side of CS's pad
+               (42.6, 15.7, 46.2, 16.3), (47.8, 15.7, 58.0, 16.3),
+               # between CS and SCK, round the pads
+               (44.4, 16.7, 46.2, 17.5), (46.2, 17.3, 47.8, 17.5), (47.8, 16.7, 49.8, 17.5),
+               # between SCK and SDI (MOSI), round the pads
+               (43.2, 17.9, 49.8, 18.7), (51.4, 17.9, 53.4, 18.7), (52.1, 17.2, 55.4, 18.1))
 PREROUTED = PREROUTED + EPD_LINES
+# Three ground test pads get their way into the pours drawn by hand, so that their via does not sit
+# against the pad or under its label (2026-11-22, Norman): the router puts it right beside the pad.
+# TP4 (middle) moves 0.8 mm down, its via 1 mm above its edge; TP13 (top, by the boost converter)
+# keeps its place, its via 1 mm to its right; TP14 (UART GND) has its via midway to the TX pad.
+# R15's ground pad (the Qwiic switch's gate pull-down) gets its via below it: with the SPI lines
+# in their staircase the router put it to the left, where I2C_SDA and the RST and CS vias closed it in.
+GND_PAD_VIAS = {"TP4.1": ((44.6, 24.2), (44.6, 22.4)), "TP13.1": ((60.0, 2.4), (61.8, 2.4)),
+                "TP14.1": ((9.06, 4.0), (10.3, 4.0)), "R15.2": ((42.3, 12.52), (42.3, 13.5))}
+PREROUTED = PREROUTED + tuple(dict(net="GND", pads=(pad_name,), vias=(via,), tracks=((0.4, (pad, via)),))
+                              for pad_name, (pad, via) in GND_PAD_VIAS.items())
 PLACEMENT.update({ref: (x, y, 0) for ref, (x, y) in EPD_PADS.items()})
 PLACEMENT["R20"] = (*R20_AT, 0)
+PLACEMENT["TP4"] = (*GND_PAD_VIAS["TP4.1"][0], 0)
+SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[:3] != ("GND", 44.6, 25.1)) + (("GND", 44.6, 25.9, 0.8),)
 # The I2C pull-ups move to where the hand-drawn bus starts at the bottom edge (in 1.0 they sat
 # on the bus's straight run to the bridge, which revision 2.0 no longer passes): each signal pad
 # drops straight onto its bus run's free end, the supply pads join the supply run to the right.
@@ -757,6 +776,21 @@ def add_fpc_tail(board):
     board.Add(tail)
 
 
+def stitch_avoid():
+    """Where no ground stitching via may go: under a silkscreen label (0.3 mm round its letters, whose
+    size is estimated) and within 1 mm of a test pad's edge (2026-11-22, Norman)."""
+    out = []
+    for text, x, y, size, *angle in SILK_LABELS:
+        w, h = 0.9 * size * len(text) / 2 + 0.3, size / 2 + 0.3
+        if angle and angle[0] in (90, 270):
+            w, h = h, w
+        out.append((x - w, y - h, x + w, y + h))
+    for ref, (x, y, _) in PLACEMENT.items():
+        if ref.startswith("TP"):
+            out.append((x - 1.5, y - 1.5, x + 1.5, y + 1.5))
+    return out
+
+
 def option(name):
     """Value of --name=value, "" for a bare --name, None if absent."""
     for x in sys.argv[1:]:
@@ -850,7 +884,8 @@ def seed_batch(spec):
                     "-o", str(HW / "build" / "drc.json"), str(BOARD_FILE)], check=True, capture_output=True)
     print(f"kept seed {best['seed']} ({best['open']} open, {best['vias']} vias, {best['track_mm']} mm) -> "
           f"{BOARD_FILE.name}; pours filled in {time.time() - t_fill:.0f} s; {time.time() - t0:.0f} s in total"
-          + ("" if best["seed"] == ROUTE_SEED else f"; set ROUTE_SEED = {best['seed']} to get it from a single run"))
+          + ("" if best["seed"] == ROUTE_SEED or keep is not None
+             else f"; set ROUTE_SEED = {best['seed']} to get it from a single run"))
     if best["open"]:
         raise SystemExit(f"no seed routed the board completely (best: {best['open']} open)")
 
@@ -880,7 +915,8 @@ def main():
         if keep_file.exists():
             keep = route_board.read_previous(keep_file, ORIGIN)
             state = state_file(keep_file)
-            keep["hand"] = json.loads(state.read_text())["hand"] if state.exists() else None
+            record = json.loads(state.read_text()) if state.exists() else {}
+            keep["hand"], keep["reserved"] = record.get("hand"), record.get("reserved")
             names = [x for x in (option("--reroute") or "").split(",") if x]
             keep["reroute"] = set(names) | {"/" + x for x in names if not x.startswith("/")}
         else:
@@ -1144,7 +1180,7 @@ def main():
             # the strip below the module's bottom pad row is where its pins escape; the trunk stays out of it
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],
             solid_pour_pads={"J1", "J2", "U1", "U2", "U3", "U9"},
-            stitch_pitch=STITCH_PITCH, stitch_extra=STITCH_EXTRA,
+            stitch_pitch=STITCH_PITCH, stitch_extra=STITCH_EXTRA, stitch_avoid=stitch_avoid(),
             via_cost=float(next((x.split('=')[1] for x in sys.argv[1:] if x.startswith('--via-cost=')), 30)),
             debug="--debug" in sys.argv[1:],
             attempts=next((int(x.split("=")[1]) for x in sys.argv[1:] if x.startswith("--attempts=")), 12),
@@ -1154,8 +1190,8 @@ def main():
         failures = route_board.run(board, ORIGIN, geo)
         timing.update(geo.get("timing", {}))
         (HW / "build").mkdir(exist_ok=True)
-        state_file(out_file).write_text(json.dumps(dict(hand=route_board.hand_drawn_hashes(geo), seed=geo["seed"]),
-                                                   indent=1))
+        state_file(out_file).write_text(json.dumps(dict(hand=route_board.hand_drawn_hashes(geo), seed=geo["seed"],
+                                                        reserved=route_board.reserved_areas(geo)), indent=1))
 
     t_save = time.time()
     pcbnew.SaveBoard(str(out_file), board)
