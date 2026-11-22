@@ -1,0 +1,4 @@
+(version 1)
+(rule "Side switch: boss holes to its own pads"
+	(condition "A.memberOfFootprint('SW*') && B.memberOfFootprint('SW*')")
+	(constraint hole_clearance (min 0.2mm)))

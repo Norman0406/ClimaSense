@@ -343,17 +343,18 @@ def build(lib: Library) -> Schematic:
         # e-paper display (revision 2.0). BUSY is driven by the panel, so it sits on IO3, not
         # on a start-up configuration pin (IO4, IO5, IO15 are); the ESP32 drives the others only
         # after start.
-        # RST sits on IO10 (pin 11), at the module's end nearest the connector; it floats while
-        # the chip is in reset, which only holds the panel in an undefined state until start.
-        "26": "EPD_BUSY", "11": "EPD_RST", "4": "EPD_SCK", "5": "EPD_MOSI", "23": "EPD_CS",
+        # RST sits on IO18 (pin 16, upper row, beside CS and BUSY; decided 2026-11-22, swapped
+        # with SENS_EN so that the lower row's corridor routes). IO18 is pulled up while the chip is
+        # in reset, so the panel is simply not held in reset then; the firmware pulses RST at start.
+        "26": "EPD_BUSY", "16": "EPD_RST", "4": "EPD_SCK", "5": "EPD_MOSI", "23": "EPD_CS",
         "9": "EPD_DC",
         # IO18 to IO23 have a weak pull-up while the chip is in reset (chip datasheet table 2-1),
         # IO10 and IO11 have none. An enable that must stay low in reset (QWIIC_EN, held by
-        # a 100 k pull-down) therefore sits on IO11; SENS_EN, which is pulled high anyway,
-        # sits on IO18.
-        "12": "QWIIC_EN", "16": "SENS_EN",
+        # a 100 k pull-down) therefore sits on IO11; SENS_EN, which R5 pulls high, sits on IO10
+        # (revision 2.0; IO18 on 1.0): floating in reset does not matter with its pull-up.
+        "12": "QWIIC_EN", "11": "SENS_EN",
         "17": "QWIIC_SDA", "18": "QWIIC_SCL",
-        # UART0, on the fallback serial header J3
+        # UART0, on the fallback serial pads (TP14-TP16; 1.0: header J3)
         "25": "UART_TX", "24": "UART_RX",
     }
     for pin, net in mcu_nets.items():
@@ -375,8 +376,8 @@ def build(lib: Library) -> Schematic:
     c_en = cap("1uF", n_en[0], n_en[1] + 3.81)
     sch.power_at(*c_en.pos(2), "GND", (0, 1))
     sw_rst = sch.add("Switch:SW_Push", "SW1", "RESET", 48.26, n_en[1],
-                     footprint="Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A",
-                     fields={"LCSC": "C318884", "MPN": "TS-1187A-B-A-B"})
+                     footprint="climasense:Alps_SKRTLAE010_SidePush",
+                     fields={"LCSC": "C110293", "MPN": "SKRTLAE010"})
     sch.wire(n_en, (n_en[0] + 7.62, n_en[1]))
     sch.wire((n_en[0] + 7.62, n_en[1]), sw_rst.pos(1))
     sch.label_at(n_en[0] + 7.62, n_en[1], "EN", 0)
@@ -387,34 +388,49 @@ def build(lib: Library) -> Schematic:
     sch.power_at(*r_boot.pos(1), "+3V3", (0, -1))
     n_boot = r_boot.pos(2)
     sw_boot = sch.add("Switch:SW_Push", "SW2", "BOOT / USER", 48.26, n_boot[1],
-                      footprint="Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A",
-                      fields={"LCSC": "C318884", "MPN": "TS-1187A-B-A-B"})
+                      footprint="climasense:Alps_SKRTLAE010_SidePush",
+                      fields={"LCSC": "C110293", "MPN": "SKRTLAE010"})
     sch.wire(n_boot, (n_boot[0] + 7.62, n_boot[1]))
     sch.wire((n_boot[0] + 7.62, n_boot[1]), sw_boot.pos(1))
     sch.label_at(n_boot[0] + 7.62, n_boot[1], "BOOT", 0)
     sch.power(sw_boot, "2", "GND")
 
     # Fallback serial port. If USB does not work there is otherwise no way to flash the board
-    # or to see its boot messages. Three holes for a pin header, not populated.
-    j3 = sch.add("Connector_Generic:Conn_01x03", "J3", "UART0", 172.72, 147.32,
-                 footprint="climasense:PinHeader_1x03_P2.54mm_NotFitted", in_bom=False, dnp=True)
-    sch.power(j3, "1", "GND", 17.78)
-    sch.label(j3, "2", "UART_TX")
-    sch.label(j3, "3", "UART_RX")
+    # or to see its boot messages. Revision 2.0: three of KiCad's standard 1.5 mm test pads on the
+    # component side instead of 1.0's header J3, whose holes would have come out under the display
+    # panel (decided 2026-11-22). From the left on the board: GND, TX, RX.
+    for i, net in enumerate(("GND", "UART_TX", "UART_RX")):
+        tp = sch.add("Connector:TestPoint", f"TP{14 + i}", "UART0 " + ("GND", "TX", "RX")[i], 172.72 + i * 7.62, 147.32,
+                     footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
+        if net == "GND":
+            sch.power(tp, "1", "GND")
+        else:
+            sch.label(tp, "1", net)
     sch.text(149.86, 162.56,
              "Fallback serial port (UART0), not populated: for flashing and boot messages\\n"
              "if USB does not work. 3.3 V logic only. TX is the ESP32's output.", size=1.27)
-    # test pads for a multimeter on the three supplies and ground
+    # test pads for a multimeter on the three supplies and ground (revision 2.0: every test and
+    # probe pad is KiCad's 1.0 mm one, decided 2026-11-22)
     for i, net in enumerate(("+5V", "+3V3", "+3V3_SENS", "GND")):
         tp = sch.add("Connector:TestPoint", f"TP{i + 1}", net.lstrip("+"), 157.48 + i * 7.62, 132.08,
-                     footprint="TestPoint:TestPoint_Pad_D1.5mm", in_bom=False)
+                     footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
         sch.power(tp, "1", net)
     # Revision 2.0: small probe pads (1.0 mm, copper only) for a logic analyser on the display's
     # SPI lines and BUSY, and on the sensors' I2C bus, which 1.0 brought out on the sensor header J4.
-    for i, net in enumerate(("EPD_SCK", "EPD_MOSI", "EPD_CS", "EPD_BUSY", "I2C_SDA", "I2C_SCL")):
-        tp = sch.add("Connector:TestPoint", f"TP{i + 5}", net, 157.48 + i * 7.62, 119.38,
+    for i, (ref, net) in enumerate((("TP9", "I2C_SDA"), ("TP10", "I2C_SCL"))):
+        tp = sch.add("Connector:TestPoint", ref, net, 157.48 + (i + 4) * 7.62, 119.38,
                      footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
         sch.label(tp, "1", net)
+    # the BMP580's interrupt, and a second ground pad for a scope's ground clip by the display
+    # parts. (A pad for the display's D/C line by the module was tried and dropped: it sat in the
+    # crowded corridor below the module and the board no longer routed.)
+    for i, (net, size) in enumerate((("BMP_INT", "1.0"),)):
+        tp = sch.add("Connector:TestPoint", f"TP{i + 12}", net, 157.48 + (i + 7) * 7.62, 119.38,
+                     footprint=f"TestPoint:TestPoint_Pad_D{size}mm", in_bom=False)
+        sch.label(tp, "1", net)
+    tp = sch.add("Connector:TestPoint", "TP13", "GND", 157.48 + 8 * 7.62, 119.38,
+                 footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
+    sch.power(tp, "1", "GND")
 
     # strapping: GPIO8 must be high to enter download mode
     pullup("10k", 27.94, 172.72, "+3V3", "IO8")
@@ -444,7 +460,7 @@ def build(lib: Library) -> Schematic:
              "Boot: IO9 low at reset enters download mode (IO8 must be high).\\n"
              "USB D+/D- go straight to the ESP32-C6 USB Serial/JTAG controller.\\n"
              "IO6/IO7 are the LP I2C pins, usable from the low-power core.\\n"
-             "IO10 is unused (spare).", size=1.27)
+             "IO2 is unused (spare).", size=1.27)
 
     # ======================================================================
     # Sensors (I2C, powered from +3V3_SENS)

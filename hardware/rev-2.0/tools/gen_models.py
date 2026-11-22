@@ -26,6 +26,7 @@ MATERIALS = {
     "die": ((0.45, 0.47, 0.50), 0.3, 0.5, 0.0),
     "hole": ((0.02, 0.02, 0.02), 0.0, 0.0, 0.0),
     "lens": ((0.96, 0.95, 0.80), 0.3, 0.4, 0.35),
+    "kapton": ((0.85, 0.50, 0.10), 0.3, 0.4, 0.0),
 }
 
 
@@ -260,14 +261,110 @@ def gdey0213b74():
     return m
 
 
+# --------------------------------------------------------------------------
+# Side-push switch - Alps SKRT catalogue, drawing No. 1: body 4.5 wide, 2.56 deep behind the
+# button, 3.3 high; round button 2.0 across, 0.84 proud of the body, its centre 1.7 above the
+# board. Footprint frame: guide bosses on y = 0, button towards +y.
+# --------------------------------------------------------------------------
+def alps_skrt():
+    m = Model("Alps_SKRTLAE010")
+    front, back = 2.05 - 0.84, -(3.4 - 2.05)
+    m.box("metal", -2.25, back, 2.25, front, 0, 3.3)
+    m.box("black", -2.0, back + 0.2, 2.0, front - 0.05, 0.2, 3.2)
+    m.box("white", -1.0, front, 1.0, 2.05, 0.7, 2.7)
+    return m
+
+
+# --------------------------------------------------------------------------
+# The panel's FPC tail, for the 3D view only. GDEY0213B74 specification page 7: 12.50 mm wide,
+# 14.30 mm from the glass to its end, the last 6.00 mm stiffened (0.3 mm thick over all, the
+# flexible part about 0.1 mm). Its path, in the frame of the board-only footprint that carries it
+# (origin on the top surface above the glass edge, x to the right, z up; the back of the board is
+# at z = -1.6): from the glass edge along the back to the FPC slot, up through the slot near its
+# left wall, round the slot's edge in a bend of 0.4 mm radius on each side, back to the left on
+# the component side, and with its stiffened end 2.1 mm into J5 (Kinghelm drawing). What length is
+# left over between the bend and the stiffener is drawn as a loop standing up from the board, so
+# the picture shows the slack honestly. The numbers are returned for the documentation.
+# --------------------------------------------------------------------------
+TAIL = dict(length=14.30, stiff=6.00, width=12.50, flex_t=0.1, stiff_t=0.3, bend_r=0.4,
+            slot_x=0.8 + 0.05,   # centre line of the tail in the slot: 0.05 mm right of its left wall (x 71.8)
+            j5_front=-7.0,       # J5's front edge, 7.0 mm left of the glass edge (x 64.0; J5_FRONT_TO_SLOT in gen_pcb.py)
+            insert=2.1)
+
+
+def tail_path():
+    """Centre line of the tail as a list of (x, z) points, the stiffener's start index, and the
+    lengths: (points, stiff_from, needed, slack)."""
+    t = TAIL
+    r, zb, zt = t["bend_r"], -1.6 - t["flex_t"] / 2, t["flex_t"] / 2
+    xs = t["slot_x"]
+    pts = [(0.0, zb), (xs - r, zb)]
+    for i in range(1, 9):                                        # lower bend, up into the slot
+        a = math.pi / 2 * i / 8
+        pts.append((xs - r + r * math.sin(a), zb + r - r * math.cos(a)))
+    pts.append((xs, zt - r))
+    for i in range(1, 9):                                        # upper bend, over to the left
+        a = math.pi / 2 * i / 8
+        pts.append((xs - r + r * math.cos(a), zt - r + r * math.sin(a)))
+    run = sum(math.dist(a, b) for a, b in zip(pts, pts[1:]))
+    end = t["j5_front"] - t["insert"]
+    stiff_start = end + t["stiff"]
+    a, b = pts[-1], (stiff_start, zt)
+    flex_left = t["length"] - t["stiff"] - run
+    chord = math.dist(a, b)
+    needed = run + chord + t["stiff"]
+    slack = t["length"] - needed
+    if slack > 0.05:                                             # the spare length stands up as a loop
+        lo, hi = math.pi + 1e-6, 2 * math.pi - 1e-6              # central angle of an arc longer than a half circle
+        if flex_left / chord < math.pi / 2:
+            lo, hi = 1e-6, math.pi
+        for _ in range(60):
+            phi = (lo + hi) / 2
+            R = chord / (2 * math.sin(phi / 2))
+            lo, hi = (phi, hi) if R * phi < flex_left else (lo, phi)
+        d = R * math.cos(phi / 2)                                # centre's height above the chord (negative: below)
+        cx, cz = (a[0] + b[0]) / 2, zt + d
+        a0 = math.atan2(a[1] - cz, a[0] - cx)
+        for i in range(1, 25):
+            ang = a0 + phi * i / 24
+            pts.append((cx + R * math.cos(ang), cz + R * math.sin(ang)))
+        pts[-1] = b
+    else:
+        pts.append(b)
+    stiff_from = len(pts) - 1
+    zs = t["stiff_t"] / 2
+    pts[-1] = (stiff_start, zs)
+    pts += [(t["j5_front"] + 0.6, zs), (t["j5_front"], 0.8), (end, 0.8)]   # into J5's opening (0.5-1.1 mm up)
+    return pts, stiff_from, needed, slack
+
+
+def fpc_tail():
+    m = Model("GDEY0213B74_FPC_tail")
+    pts, stiff_from, _, _ = tail_path()
+    w = TAIL["width"] / 2
+    for i, (a, b) in enumerate(zip(pts, pts[1:])):
+        t = TAIL["stiff_t"] if i >= stiff_from else TAIL["flex_t"]
+        dx, dz = b[0] - a[0], b[1] - a[1]
+        n = math.hypot(dx, dz)
+        if n < 1e-9:
+            continue
+        nx, nz = -dz / n * t / 2, dx / n * t / 2
+        section = [(a[0] + nx, a[1] + nz), (b[0] + nx, b[1] + nz), (b[0] - nx, b[1] - nz), (a[0] - nx, a[1] - nz)]
+        m.lying("kapton", section, -w, w)
+    return m
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("*.wrl"):
         old.unlink()
-    models = [sht4x(), sgp41(), bmp580(), scd4x(), led_19_337(), ts_1187a(), usb_c_hro(), kinghelm_fpc_24(), gdey0213b74()]
+    models = [sht4x(), sgp41(), bmp580(), scd4x(), led_19_337(), ts_1187a(), usb_c_hro(), kinghelm_fpc_24(), gdey0213b74(), alps_skrt(), fpc_tail()]
     for m in models:
         m.write()
     print(f"{len(models)} models written to {OUT}: {', '.join(m.name for m in models)}")
+    _, _, needed, slack = tail_path()
+    print(f"FPC tail: {TAIL['length']:.2f} mm long, {needed:.2f} mm needed from the glass edge to full insertion "
+          f"with J5's front {-TAIL['j5_front'] + 0.8:.1f} mm from the slot: {slack:+.2f} mm spare")
 
 
 if __name__ == "__main__":

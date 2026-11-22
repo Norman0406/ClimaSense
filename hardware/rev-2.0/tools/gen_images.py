@@ -3,6 +3,7 @@
   board-angle.png     3D view from the front left
   board-top.png       3D view straight from above
   board-bottom.png    3D view of the back, with the display panel in place
+  board-fpc.png       close-up of the panel's FPC tail running into its connector
   copper-top.svg      top copper layer with the board outline
   copper-bottom.svg   bottom copper layer, seen from above through the board (not mirrored)
 
@@ -31,9 +32,10 @@ def cli(*args):
 
 
 def render(name, width, height, *view):
-    # Basic quality on purpose: the high setting adds a floor with shadows, which come out as
-    # a pale halo around the board once the background is transparent.
-    cli("pcb", "render", "--width", width, "--height", height, "--quality", "basic", "--background", "transparent",
+    # Basic quality on purpose: the high setting adds a floor with shadows.
+    # An opaque background: with a transparent one, holes and slots show whatever the page
+    # behind the picture has (white or dark), which looked like parts or copper.
+    cli("pcb", "render", "--width", width, "--height", height, "--quality", "basic", "--background", "opaque",
         *view, "-o", OUT / name, PCB)
 
 
@@ -59,6 +61,9 @@ def main():
     render("board-angle.png", 1600, 800, "--perspective", "--rotate", "-35,0,-20", "--zoom", "1.3", "--pan", "-0.3,0.3,0",
            "--light-side", "0", "--light-camera", "1")
     render("board-top.png", 1600, 760, "--side", "top", "--zoom", "1.8")
+    # close-up of the FPC tail entering J5, from the component side
+    render("board-fpc.png", 1600, 900, "--perspective", "--rotate", "-65,0,-30", "--zoom", "3.5",
+           "--pan", "-1.2,0.4,0", "--light-side", "0", "--light-camera", "1")
     # the back, with the display panel where it will be stuck (its model is only for this view)
     render("board-bottom.png", 1600, 760, "--side", "bottom", "--zoom", "1.8")
     copper("copper-top.svg", "F.Cu")

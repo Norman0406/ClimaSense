@@ -29,6 +29,7 @@ connection moved earlier; the best attempt is kept.
 from __future__ import annotations
 
 import math
+import random
 import time
 
 import pcbnew
@@ -55,7 +56,7 @@ def run(board, origin, geo, log=print):
     def mm(v):
         return pcbnew.ToMM(v)
 
-    R = Router(W, H)
+    R = Router(W, H, via_cost=geo.get("via_cost", 30.0), bottom_cost=geo.get("bottom_cost", 1.5))
     n = R.n
 
     # --- where copper may not go ------------------------------------------
@@ -108,7 +109,10 @@ def run(board, origin, geo, log=print):
             if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
                 if not ref.startswith("H"):
                     d = pad.GetDrillSize()
-                    R.block_disc(cx, cy, max(mm(d.x), mm(d.y)) / 2, grow=HOLE_CLEARANCE)
+                    r = max(mm(d.x), mm(d.y)) / 2
+                    R.block_disc(cx, cy, r, grow=HOLE_CLEARANCE)
+                    # and no via drill closer than the 0.5 mm hole-to-hole rule (a part's locating pegs)
+                    R.block_disc(cx, cy, r + 0.5 + VIA_DRILL / 2 + 0.02 - VIA_DIAMETER / 2, classes=("via",))
                 continue
             on = tuple(layer for layer, kicad in ((TOP, pcbnew.F_Cu), (BOT, pcbnew.B_Cu)) if pad.IsOnLayer(kicad))
             if not on:
@@ -303,6 +307,24 @@ def run(board, origin, geo, log=print):
             seed["pts"] = seed["pts"] + list(pts)
         keep_x.setdefault(index, []).append(x_a)
 
+    # --- free feeds: hand-drawn runs of a net that touch no pad --------------------------
+    # The router joins each end (or any point) of such a run to the net's pads, like a
+    # fixed track; what stays unused is pruned. (width, points[, "bottom"]) as in prerouted.
+    for feed in geo.get("free_feeds", ()):
+        net = nid(feed["net"])
+        nodes, pts_all = set(), []
+        for width, pts, *side in feed["tracks"]:
+            layer = BOT if side == ["bottom"] else TOP
+            R.add_track(net, pts, layer, width)
+            for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
+                steps = max(1, int(round(max(abs(xb - xa), abs(yb - ya)) / R.step)))
+                for k in range(steps + 1):
+                    node = R.node(xa + (xb - xa) * k / steps, ya + (yb - ya) * k / steps, layer)
+                    nodes.add(node)
+                    width_at[node] = max(width_at.get(node, 0.0), width)
+            pts_all += list(pts)
+        seeds.setdefault(net, []).append(dict(pad=None, pts=pts_all, nodes=nodes))
+
     # --- ESP32 ground pad: the twelve thermal vias of Espressif's land pattern ---
     # The pad is nine squares on a 1.25 mm pitch. A via sits in the middle of every gap
     # between two neighbouring squares; its copper ring overlaps both and joins them, and
@@ -420,6 +442,13 @@ def run(board, origin, geo, log=print):
             edges.append(dict(label=label, net=net, a=linked[i], b=rest[j], length=d))
             linked.append(rest.pop(j))
     edges.sort(key=lambda e: e["length"])
+    # A non-zero seed jitters the initial order (shortest first, each length scaled by up to 30 %).
+    # The retries only reorder failed connections; on a crowded board a different start can be
+    # what gets every connection in. Each seed is deterministic, so a good one can be kept.
+    if geo.get("seed"):
+        rng = random.Random(geo["seed"])
+        jitter = {id(e): 1 + 0.3 * rng.random() for e in edges}
+        edges.sort(key=lambda e: e["length"] * jitter[id(e)])
 
     def route_everything(order):
         failures = []
@@ -974,6 +1003,27 @@ def run(board, origin, geo, log=print):
     if squared:
         log(f"  squared up {squared} one-step diagonals into a track")
 
+    # --- T-junctions ----------------------------------------------------------------
+    # A track that ends on the middle of another track of its net is joined to it, but KiCad's
+    # check can still call that end unconnected (the point lies on the other track only to within
+    # rounding). Split the other track at that point, so both have an end there.
+    ends = {}
+    for t in tracks:
+        for pt in (t[0:2], t[2:4]):
+            ends.setdefault((t[4], t[6]), set()).add(pt)
+    cut = []
+    for t in tracks:
+        x0, x1 = min(t[0], t[2]) - 1e-3, max(t[0], t[2]) + 1e-3
+        y0, y1 = min(t[1], t[3]) - 1e-3, max(t[1], t[3]) + 1e-3
+        inner = sorted((pt for pt in ends.get((t[4], t[6]), ()) if x0 <= pt[0] <= x1 and y0 <= pt[1] <= y1
+                        and min(math.dist(pt, t[0:2]), math.dist(pt, t[2:4])) > 1e-3 and touches(pt, t[0:2], t[2:4])),
+                       key=lambda pt: math.dist(pt, t[0:2]))
+        chain = [t[0:2], *inner, t[2:4]]
+        cut += [(*a, *b, *t[4:]) for a, b in zip(chain, chain[1:])]
+    if len(cut) != len(tracks):
+        log(f"  split {len(cut) - len(tracks)} tracks at T-junctions")
+    tracks = cut
+
     # --- ground stitching vias ---------------------------------------------------
     # Added last, so they never take a route's place. Candidates: a grid over the pours, and the
     # denser places the caller asks for (geo["stitch_extra"]: x0, y0, x1, y1, pitch). A via is
@@ -995,7 +1045,9 @@ def run(board, origin, geo, log=print):
         for x0, y0, x1, y1, pitch in geo.get("stitch_extra", ()):
             nx_, ny_ = int((x1 - x0) / pitch + 1e-6), int((y1 - y0) / pitch + 1e-6)
             candidates += [(round(x0 + i * pitch, 2), round(y0 + j * pitch, 2)) for i in range(nx_ + 1) for j in range(ny_ + 1)]
-        need_track = 0.153 + VIA_DIAMETER / 2
+        # room for the pour all round the via: its 0.2 mm clearance plus a ring of at least
+        # 0.25 mm, or the via stands alone in a gap of the pour (KiCad then reports it dangling)
+        need_track = 0.45 + VIA_DIAMETER / 2
         spacing = max(R.via_spacing, VIA_DIAMETER + 0.153)
         for x, y in candidates:
             if not pour_x0 + 0.5 <= x <= pour_x1 - 0.5:

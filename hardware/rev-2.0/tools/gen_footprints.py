@@ -125,6 +125,17 @@ class Footprint:
                             S("drill", drill), S("layers", "*.Cu", "*.Mask"),
                             S("remove_unused_layers", Sym("no")), S("uuid", self._uid())))
 
+    def npth(self, x, y, drill):
+        """Unplated hole (no copper), e.g. for a part's locating pegs."""
+        self.items.append(S("pad", "", Sym("np_thru_hole"), Sym("circle"), S("at", x, y), S("size", drill, drill),
+                            S("drill", drill), S("layers", "*.Cu", "*.Mask"), S("uuid", self._uid())))
+
+    def round_pad(self, number, x, y, d):
+        """Round SMD pad on the top side (a test or probe pad)."""
+        self.pad_numbers.append(str(number))
+        self.items.append(S("pad", str(number), Sym("smd"), Sym("circle"), S("at", x, y), S("size", d, d),
+                            S("layers", "F.Cu", "F.Mask"), S("uuid", self._uid())))
+
     def paste(self, x, y, w, h):
         """Stencil aperture without copper (used under exposed pads)."""
         self.items.append(S("pad", "", Sym("smd"), Sym("rect"), S("at", x, y), S("size", w, h),
@@ -392,9 +403,68 @@ def kinghelm_fpc_24() -> Footprint:
 
 
 # --------------------------------------------------------------------------
+# Alps Alpine SKRTLAE010, side-push tact switch, 4.5 x 3.4 x 3.3 mm, with guide bosses
+# (LCSC C110293). Alps catalogue sheet "SKRT Series" (Update 2510), drawing No. 1: dimensions and
+# "Land Dimensions, viewed from switch mounting face". Measured from the drawing where it gives no
+# number; those values are marked "drawing".
+# Origin: the line through the two guide bosses, midway between them. Seen from the mounting
+# face, the three terminal pads lie behind that line (y < 0) and the two holding pads in front of
+# it (y > 0); the button pushes from the front (+y), between the holding pads.
+# Terminals 1 and 3 are joined inside the switch (circuit diagram), so both carry pad number 1.
+# --------------------------------------------------------------------------
+def alps_skrtlae010() -> Footprint:
+    BOSS_PITCH, HOLE = 4.25, 0.9          # land: 2 x 0.9 mm holes, 4.25 apart
+    TERM_SPAN, TERM_W, MID_W = 3.2, 0.75, 0.6   # land: terminal pads 3.2 over all, 0.75 and 0.6 wide
+    TERM_BACK, TERM_FRONT = -1.8, -0.07   # land: 1.8 behind the boss line; front end 0.07 (drawing)
+    HOLD_W, HOLD_FRONT = 1.3, 1.5        # land: holding pads 1.3 wide, 0.9 long, ending 1.5 in front
+    HOLD_BACK = 0.65                      # drawn from 0.6 (0.62 measured); 0.65 keeps 0.2 mm from the boss holes
+    HOLD_SPAN = 5.0                       # land: 5 over all (inner edges 2.4 apart)
+    KEEP_FRONT, KEEP_BACK, KEEP_W = 1.5, 0.3, 2.0   # land: "prohibited area of copper tracks"
+    BODY_W, BODY_FRONT, BODY_BACK = 4.5, 2.05 - 0.84, -(3.4 - 2.05)   # dimensions: 2.05 boss to button tip, 0.84 button
+    BUTTON_D, BUTTON_TIP = 2.0, 2.05
+    # JLCPCB keeps 0.2 mm between an unplated hole and copper. As drawn, the outer terminal pads
+    # come within about 0.08 mm of the boss holes and the holding pads within 0.15 mm: the outer
+    # terminal pads' outer edge is pulled in by 0.125 mm (0.625 instead of 0.75 wide; the terminal
+    # itself is 0.65 wide) and the holding pads start 0.05 mm further forward, so that all keep
+    # 0.2 mm. The board's own rule is 0.25 mm; gen_pcb.py writes an exception of 0.2 mm for the
+    # switches' own pads (climasense.kicad_dru).
+    outer_edge = BOSS_PITCH / 2 - HOLE / 2 - 0.2
+    term_inner = TERM_SPAN / 2 - TERM_W
+    outer_w = round(outer_edge - term_inner, 4)
+    outer_x = round((outer_edge + term_inner) / 2, 4)
+
+    fp = Footprint(
+        "Alps_SKRTLAE010_SidePush",
+        "Alps Alpine SKRTLAE010 side-push tact switch, 4.5x3.4x3.3 mm, guide bosses (LCSC C110293; Alps SKRT "
+        "catalogue drawing No. 1, land dimensions; outer terminal pads narrowed to keep 0.2 mm from the boss holes)",
+        "switch tact side push Alps SKRT",
+        ref_at=(0, -2.6), value_at=(0, 3.2))
+    ty, tl = round((TERM_BACK + TERM_FRONT) / 2, 4), round(TERM_FRONT - TERM_BACK, 4)
+    fp.pad(1, -outer_x, ty, outer_w, tl)
+    fp.pad(2, 0, ty, MID_W, tl)
+    fp.pad(1, outer_x, ty, outer_w, tl)
+    hx = (HOLD_SPAN - HOLD_W) / 2
+    hy, hl = round((HOLD_FRONT + HOLD_BACK) / 2, 4), round(HOLD_FRONT - HOLD_BACK, 4)
+    for sx in (-1, 1):
+        fp.items.append(S("pad", "", Sym("smd"), Sym("rect"), S("at", round(sx * hx, 4), hy), S("size", HOLD_W, hl),
+                          S("layers", "F.Cu", "F.Mask", "F.Paste"), S("uuid", fp._uid())))
+        fp.npth(round(sx * BOSS_PITCH / 2, 4), 0, HOLE)
+    k = KEEP_W / 2
+    fp.keepout("No tracks under the button", [(-k, KEEP_BACK), (k, KEEP_BACK), (k, KEEP_FRONT), (-k, KEEP_FRONT)])
+    x = BODY_W / 2
+    fp.polyline([(-x, BODY_BACK), (x, BODY_BACK), (x, BODY_FRONT), (-x, BODY_FRONT)], "F.Fab", FAB_W, closed=True)
+    b = BUTTON_D / 2
+    fp.polyline([(-b, BODY_FRONT), (-b, BUTTON_TIP), (b, BUTTON_TIP), (b, BODY_FRONT)], "F.Fab", FAB_W)
+    fp.text("${REFERENCE}", (0, -0.6), "F.Fab", size=0.8, thickness=0.12)
+    fp.courtyard(HOLD_SPAN / 2 + 0.25, max(-TERM_BACK, BUTTON_TIP) + 0.25)
+    fp.model(f"{MODELS}/Alps_SKRTLAE010.wrl")
+    return fp
+
+
+# --------------------------------------------------------------------------
 # Unpopulated pin headers: a straight row of holes for a 2.54 mm pin header
 # Hole and pad as in KiCad's PinHeader_1xNN_P2.54mm_Vertical: 1.0 mm hole, 1.7 mm pad.
-# Three holes for the fallback serial port (revision 2.0 has no sensor-side header).
+# (Revision 2.0 uses none: the serial port is on standard test pads, and the sensor-side header is gone.)
 # --------------------------------------------------------------------------
 def header(pins: int) -> Footprint:
     PITCH, HOLE, PAD = 2.54, 1.0, 1.7
@@ -415,11 +485,7 @@ def header(pins: int) -> Footprint:
     return fp
 
 
-def serial_header() -> Footprint:
-    return header(3)
-
-
-FOOTPRINTS = (esp32_c6_wroom_1, sgp41, bmp580, led_19_337, kinghelm_fpc_24, serial_header)
+FOOTPRINTS = (esp32_c6_wroom_1, sgp41, bmp580, led_19_337, kinghelm_fpc_24, alps_skrtlae010)
 
 
 def main():
