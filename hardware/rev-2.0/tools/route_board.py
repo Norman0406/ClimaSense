@@ -75,7 +75,10 @@ def _seg_rect(a, b, rect):
 # Everything in `geo` that is not hand-drawn copper of one net. If any of it changes (outline, slots,
 # keep-outs, holes, reserved areas, ...), the copper of the previous board is not reused.
 _PER_NET_KEYS = ("prerouted", "fixed_tracks", "fixed_feeds", "free_feeds")
-_RUN_KEYS = ("keep", "seed", "attempts", "debug", "via_cost", "hand_out", "timing")
+# Not part of the fingerprint: run options, where stitching vias may not go (they are made anew on
+# every run), and the reserved areas (checked against the kept copper instead).
+_RUN_KEYS = ("keep", "seed", "attempts", "debug", "via_cost", "hand_out", "timing", "stitch_avoid",
+             "reserve_top", "reserve_bottom")
 
 
 def _canonical(v):
@@ -89,11 +92,19 @@ def _canonical(v):
     return repr(v)
 
 
+def reserved_areas(geo):
+    """The reserved areas of a run, for the record --keep reads back."""
+    return [(name, list(rect), layer) for key, layer in (("reserve_top", TOP), ("reserve_bottom", BOT))
+            for name, rect in geo.get(key, ())]
+
+
 def hand_drawn_hashes(geo):
     """A fingerprint of each net's hand-drawn copper, and of the rest of the geometry ("*")."""
     per_net = {}
     for g in geo.get("prerouted", ()):
-        per_net.setdefault(g["net"], []).append(("pre", g["pads"], g["tracks"], tuple(g.get("vias", ()))))
+        # ground's hand-drawn pieces each get their own fingerprint: ground is kept per pad
+        key = "GND|" + ",".join(sorted(g["pads"])) if g["net"] == "GND" else g["net"]
+        per_net.setdefault(key, []).append(("pre", g["pads"], g["tracks"], tuple(g.get("vias", ()))))
     for ft in geo.get("fixed_tracks", ()):
         per_net.setdefault(ft[0], []).append(("fixed", ft))
     for key in ("fixed_feeds", "free_feeds"):
@@ -173,6 +184,9 @@ def keep_previous(geo, pads, npth, R, nid, log):
                 dirty.add(d[0])
     if old_hand is not None:
         dirty |= {net for net in set(hashes) | set(old_hand) if net != "*" and hashes.get(net) != old_hand.get(net)}
+    # pads of hand-drawn ground pieces that changed: their ground copper is made anew
+    gnd_redo = {tuple(name.split(".", 1)) for key in dirty if key.startswith("GND|") for name in key[4:].split(",") if name}
+    changed_gnd = {k for k in old_pads if (k[0], k[1]) in gnd_redo}
 
     island_x = geo["bridge_x"][1]
     # the twelve thermal vias of the ESP32's ground pad are always made anew
@@ -253,7 +267,7 @@ def keep_previous(geo, pads, npth, R, nid, log):
         if u[0] == "net":
             if u[1] not in dirty:
                 kept.add(u)
-        elif "GND" not in reroute and comp_pads.get(u[1]) and not (comp_pads[u[1]] & changed):
+        elif "GND" not in reroute and comp_pads.get(u[1]) and not (comp_pads[u[1]] & (changed | changed_gnd)):
             kept.add(u)                      # (a piece touching no pad, a stitching via, is made anew)
     island_pads = {(p["ref"], p["num"], p["k"]) for p in pads if p["name"] == "GND" and p["x"] > island_x}
 
@@ -300,32 +314,53 @@ def keep_previous(geo, pads, npth, R, nid, log):
         new_copper = hand_copper(kept_island, kept_gnd)
 
         def track_clashes(name, a, b, layer, w):
-            return (any(p["name"] != name and layer in p["layers"] and _seg_rect(a, b, p["rect"]) < clear + w / 2
-                        for p in moved_pads)
-                    or any(_point_seg((x, y), a, b) < r + 0.25 + w / 2 - 1e-3 for _, x, y, r in moved_holes)
-                    or any(c[0] != name and ((c[1] == "t" and c[4] == layer and _seg_seg(a, b, *c[2]) < clear + (w + c[3]) / 2)
-                                             or (c[1] == "v" and _point_seg(c[2], a, b) < clear + w / 2 + c[3]))
-                           for c in new_copper))
+            for p in moved_pads:
+                if p["name"] != name and layer in p["layers"] and _seg_rect(a, b, p["rect"]) < clear + w / 2:
+                    return f"pad {p['ref']}.{p['num']}"
+            for ref, x, y, r in moved_holes:
+                if _point_seg((x, y), a, b) < r + 0.25 + w / 2 - 1e-3:
+                    return f"hole of {ref}"
+            for c in new_copper:
+                if c[0] != name and ((c[1] == "t" and c[4] == layer and _seg_seg(a, b, *c[2]) < clear + (w + c[3]) / 2)
+                                     or (c[1] == "v" and _point_seg(c[2], a, b) < clear + w / 2 + c[3])):
+                    return f"hand-drawn {c[0]} at {c[2]}"
+            return None
 
         def via_clashes(name, v):
-            return (any(p["name"] != name and _seg_rect(v, v, p["rect"]) < clear + r_via for p in moved_pads)
-                    or any(math.hypot(v[0] - x, v[1] - y) < r + 0.5 + VIA_DRILL / 2 for _, x, y, r in moved_holes)
-                    or any(c[0] != name and ((c[1] == "t" and _point_seg(v, *c[2]) < clear + r_via + c[3] / 2)
-                                             or (c[1] == "v" and math.hypot(v[0] - c[2][0], v[1] - c[2][1]) < 0.8))
-                           for c in new_copper))
+            for p in moved_pads:
+                if p["name"] != name and _seg_rect(v, v, p["rect"]) < clear + r_via:
+                    return f"pad {p['ref']}.{p['num']}"
+            for ref, x, y, r in moved_holes:
+                if math.hypot(v[0] - x, v[1] - y) < r + 0.5 + VIA_DRILL / 2:
+                    return f"hole of {ref}"
+            for c in new_copper:
+                if c[0] != name and ((c[1] == "t" and _point_seg(v, *c[2]) < clear + r_via + c[3] / 2)
+                                     or (c[1] == "v" and math.hypot(v[0] - c[2][0], v[1] - c[2][1]) < 0.8)):
+                    return f"hand-drawn {c[0]} at {c[2]}"
+            return None
 
-        bad = set()
+        bad = {}
+        # reserved areas that are new since the last run (the old ones were respected by its routing)
+        before = {(name, tuple(rect), layer) for name, rect, layer in keep.get("reserved") or ()}
+        reserved = [(name, rect, layer) for key, layer in (("reserve_top", TOP), ("reserve_bottom", BOT))
+                    for name, rect in geo.get(key, ()) if (name, tuple(rect), layer) not in before]
+        if keep.get("reserved") is None:
+            reserved = []
         for u in kept:
             name = u[1] if u[0] == "net" else "GND"
-            if (any(track_clashes(name, old_tracks[i][0:2], old_tracks[i][2:4], old_tracks[i][4], old_tracks[i][5])
-                    for i in unit_tracks.get(u, ()))
-                    or any(via_clashes(name, old_vias[i][0:2]) for i in unit_vias.get(u, ()))):
-                bad.add(u)
+            why = next((f"area reserved for {owner} at {rect}" for owner, rect, layer in reserved
+                        for t in (old_tracks[i] for i in unit_tracks.get(u, ()))
+                        if owner != name and t[4] == layer and _seg_rect(t[0:2], t[2:4], rect) < 0.1 + t[5] / 2), None)
+            why = why or next((w for w in (track_clashes(name, old_tracks[i][0:2], old_tracks[i][2:4], old_tracks[i][4],
+                                                         old_tracks[i][5]) for i in unit_tracks.get(u, ())) if w), None)
+            why = why or next((w for w in (via_clashes(name, old_vias[i][0:2]) for i in unit_vias.get(u, ())) if w), None)
+            if why:
+                bad[u] = why
         if not bad:
             break
         for u in sorted(bad, key=str):
-            log(f"  --keep: the old copper of {u[1] if u[0] == 'net' else 'a ground stub'} clashes with what moved: routed anew")
-        kept -= bad
+            log(f"  --keep: the old copper of {u[1] if u[0] == 'net' else 'a ground stub'} clashes with {bad[u]}: routed anew")
+        kept -= set(bad)
 
     kept_nets = {u[1] for u in kept if u[0] == "net"}
     kept_tracks, kept_vias = [], []
@@ -475,6 +510,7 @@ def run(board, origin, geo, log=print):
     # may also list vias, which its tracks on the two layers have to end on.
     pad_by_name = {f"{p['ref']}.{p['num']}": p for p in pads if p["name"]}
     prejoins = []
+    gnd_pre_nodes = set()  # hand-drawn ground stubs with their own via: their pads need no other
     width_at = {}          # node on a track -> width of that track (the widest, where several meet)
     for group in geo.get("prerouted", ()):
         if group["net"] in kept_nets or (group["pads"] and all(gnd_kept_pad(pad_by_name[name]) for name in group["pads"])):
@@ -499,6 +535,8 @@ def run(board, origin, geo, log=print):
                 raise SystemExit(f"hand-drawn track on {group['net']} lists {q['ref']}.{q['num']}, which is on {q['name']}")
             q["pre"] = True
         prejoins.append(dict(net=net, pads=members, nodes=nodes))
+        if group["net"] == "GND" and group.get("vias"):
+            gnd_pre_nodes.update(nodes)                              # a hand-placed way into the pours
     prejoins += [dict(net=group[0]["net"], pads=group, nodes=set()) for group in internal]
 
     # --- escape stubs -------------------------------------------------------
@@ -778,7 +816,7 @@ def run(board, origin, geo, log=print):
 
         # 1. ground on the main part: every pad gets a short track to a via into the pours.
         #    First, while there is still room next to every pad.
-        gnd_points = set()
+        gnd_points = set(gnd_pre_nodes)
 
         def to_pour(node, cls):
             idx = node % n
@@ -1380,6 +1418,10 @@ def run(board, origin, geo, log=print):
         spacing = max(R.via_spacing, VIA_DIAMETER + 0.153)
         for x, y in candidates:
             if not pour_x0 + 0.5 <= x <= pour_x1 - 0.5:
+                continue
+            # not under a silk label, not right next to a test pad (geo["stitch_avoid"])
+            if any(ax0 - VIA_DIAMETER / 2 < x < ax1 + VIA_DIAMETER / 2 and ay0 - VIA_DIAMETER / 2 < y < ay1 + VIA_DIAMETER / 2
+                   for ax0, ay0, ax1, ay1 in geo.get("stitch_avoid", ())):
                 continue
             idx = R.cell(x, y)
             if R.hard["via"][TOP][idx] != FREE or R.hard["via"][BOT][idx] != FREE:
