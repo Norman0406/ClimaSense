@@ -568,17 +568,74 @@ PREROUTED = PREROUTED + (
          )),
 )
 
-# Probe pads (1.0 mm, copper only, no part placed on them), revision 2.0.
-# The display's SPI signals and BUSY in a row below the boost converter, left of the connector, 2 mm
-# apart for logic-analyser clips, in the order of their connector pins (BUSY at the top of J5
-# down to SDI at the bottom); each labelled below, upright to fit the pitch. The sensor bus's two lines next to their
-# pull-ups, where the regulator and its test pad were in 1.0.
-# DC and RST had pads too at first; with all six the display area did not route (3 connections
-# open), so only the four that a logic analyser needs to decode SPI and see BUSY remain.
-EPD_PROBES = ()     # (SCK, SDI, CS, BSY had pads here; dropped so that the board routes)
-EPD_PROBE_Y = 20.6
-for i, (ref, _) in enumerate(EPD_PROBES):
-    PLACEMENT[ref] = (round(48.0 + 2.0 * i, 2), EPD_PROBE_Y, 0)
+# The six display lines, drawn by hand from the module to J5 (revision 2.0). Their paths are the
+# ones the router found for the clean board of 2026-11-22 (commit e8b8ee3, ROUTE_SEED 5), with the
+# probe pads (1.0 mm, copper only) placed in line on top-layer sections, so that a pad adds no
+# branch. Left to the router, a row of probe pads forced every display line into a detour and the
+# board no longer routed. Left of J5 the three SPI lines dip in nested U shapes into the free area
+# below the bundle, each with its pad on the bottom of its U: CS innermost, SCK, then SDI (MOSI),
+# which comes in along y 20.4 from the left. BUSY has its pad above the bundle, on its run down past
+# C26; DC on its run down the right of J5's pad row. RST has no pad. The pull-up R20 on CS sits on
+# CS's run down from its via at x 40, its +3V3 pad towards the feedback divider (the router joins it).
+# Each pad's label is printed below it (DC's on its right); the U bottoms are 1.2 mm apart and the
+# pads 2.0 mm or more, so that their courtyards do not overlap.
+EPD_PADS = {"TP5": (50.6, 19.2), "TP6": (52.6, 20.4), "TP7": (49.0, 18.0), "TP8": (50.2, 13.3), "TP11": (59.9, 6.5)}
+EPD_PAD_LABELS = (("SCK", 50.6, 20.6), ("SDI", 52.6, 21.8), ("CS", 49.0, 19.4), ("BSY", 50.2, 14.7), ("DC", 61.6, 6.5))
+R20_AT = (39.49, 15.0)        # EPD_CS pull-up, horizontal: +3V3 pad at x 38.98, CS pad at x 40.0
+EPD_LINES = (
+    dict(net="EPD_SCK", pads=("U4.4", "TP5.1", "J5.12"), vias=((11.6, 26.9), (43.7, 17.1)), tracks=(
+        (0.2, ((11.6, 25.8), (11.6, 26.9))),
+        # under the module on the bottom layer, round the switches' boss holes, down to J5's row
+        (0.2, ((11.6, 26.9), (15.4, 23.1), (15.4, 14.7), (26.7, 3.4), (29.8, 3.4), (32.3, 0.9), (34.3, 0.9),
+               (34.8, 1.4), (34.8, 1.7), (34.9, 1.8), (37.1, 1.8), (37.2, 1.7), (37.2, 1.4), (37.7, 0.9),
+               (38.5, 0.9), (38.9, 1.3), (38.9, 1.5), (43.7, 6.3), (43.7, 17.1)), "bottom"),
+        (0.2, ((43.7, 17.1), (43.8, 17.0), (46.1, 17.0), (48.3, 19.2), (53.4, 19.2), (55.6, 17.0), (58.9, 17.0))),
+    )),
+    dict(net="EPD_MOSI", pads=("U4.5", "TP6.1", "J5.11"), vias=((22.4, 27.8), (33.8, 21.2)), tracks=(
+        (0.2, ((12.9, 25.8), (12.9, 27.8), (13.3, 28.2), (18.2, 28.2), (18.4, 28.0), (18.4, 27.8), (18.6, 27.6),
+               (19.8, 27.6), (19.9, 27.7), (19.9, 27.8), (20.3, 28.2), (22.0, 28.2), (22.4, 27.8))),
+        (0.2, ((22.4, 27.8), (30.5, 19.7), (32.3, 19.7), (33.8, 21.2)), "bottom"),
+        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (41.2, 20.4), (52.9, 20.4), (55.8, 17.5),
+               (58.9, 17.5))),
+    )),
+    dict(net="EPD_CS", pads=("U4.23", "R20.2", "TP7.1", "J5.13"),
+         vias=((16.1, 6.8), (22.4, 6.8), (40.0, 10.4), (40.0, 13.0)), tracks=(
+        (0.2, ((14.1, 8.2), (14.1, 7.4), (14.7, 6.8), (16.1, 6.8))),
+        (0.2, ((16.1, 6.8), (22.4, 6.8)), "bottom"),
+        (0.2, ((22.4, 6.8), (36.4, 6.8), (40.0, 10.4))),
+        (0.2, ((40.0, 10.4), (40.0, 13.0)), "bottom"),
+        (0.2, ((40.0, 13.0), (40.0, 16.0), (40.5, 16.5), (46.3, 16.5), (47.8, 18.0), (53.9, 18.0), (55.4, 16.5),
+               (58.9, 16.5))),
+    )),
+    dict(net="EPD_RST", pads=("U4.16", "J5.15"), vias=((40.6, 11.8), (40.9, 13.0)), tracks=(
+        (0.2, ((23.0, 8.2), (23.0, 7.4), (23.2, 7.2), (36.0, 7.2), (40.6, 11.8))),
+        (0.2, ((40.6, 11.8), (40.9, 12.1), (40.9, 13.0)), "bottom"),
+        (0.2, ((40.9, 13.0), (43.4, 15.5), (58.9, 15.5))),
+    )),
+    dict(net="EPD_BUSY", pads=("U4.26", "TP8.1", "J5.16"), tracks=(
+        (0.2, ((10.3, 8.2), (10.3, 6.9), (11.4, 5.8), (14.0, 5.8), (16.3, 3.5), (25.7, 3.5), (26.8, 4.6), (37.1, 4.6),
+               (38.4, 3.3), (44.7, 3.3), (45.6, 4.2), (45.6, 5.7), (48.5, 8.6), (48.8, 8.6), (50.2, 10.0), (50.2, 13.4),
+               (51.8, 15.0), (58.9, 15.0))),
+    )),
+    dict(net="EPD_DC", pads=("U4.9", "TP11.1", "J5.14"), vias=((16.7, 27.6), (26.2, 17.3), (32.0, 7.8), (38.8, 2.7)),
+         tracks=(
+        (0.2, ((18.0, 25.8), (18.0, 27.2), (17.6, 27.6), (16.7, 27.6))),
+        (0.2, ((16.7, 27.6), (16.7, 26.8), (26.2, 17.3)), "bottom"),
+        (0.2, ((26.2, 17.3), (32.0, 11.5), (32.0, 7.8))),
+        (0.2, ((32.0, 7.8), (32.0, 5.4), (34.8, 2.6), (37.1, 2.6), (37.2, 2.7), (38.8, 2.7)), "bottom"),
+        # along the top edge over the boost converter, then down the right of J5's pad row into pin 14
+        (0.2, ((38.8, 2.7), (47.1, 2.7), (47.2, 2.6), (47.2, 2.5), (47.9, 1.8), (56.8, 1.8), (59.9, 4.9), (59.9, 15.9),
+               (59.8, 16.0), (58.9, 16.0))),
+    )),
+)
+# The pocket closed in by RST above and CS below (its run down at x 40, its horizontal and its U) is
+# kept ground on the top layer. Otherwise the router threads +3V3 through it between two vias,
+# sandwiched between the two display lines.
+EPD_POCKETS = ((40.25, 13.4, 41.0, 16.3), (41.0, 14.2, 41.8, 16.3), (41.8, 15.0, 42.6, 16.3), (42.6, 15.7, 58.0, 16.3),
+               (47.0, 16.3, 54.0, 17.8))
+PREROUTED = PREROUTED + EPD_LINES
+PLACEMENT.update({ref: (x, y, 0) for ref, (x, y) in EPD_PADS.items()})
+PLACEMENT["R20"] = (*R20_AT, 0)
 # The I2C pull-ups move to where the hand-drawn bus starts at the bottom edge (in 1.0 they sat
 # on the bus's straight run to the bridge, which revision 2.0 no longer passes): each signal pad
 # drops straight onto its bus run's free end, the supply pads join the supply run to the right.
@@ -598,10 +655,9 @@ PLACEMENT.update({
 })
 # the "Up" arrow and its text make room for them, further right on the same line
 UP_ARROW = (47.6, UP_ARROW[1], UP_ARROW[2], UP_ARROW[3])
-SILK_LABELS = SILK_LABELS + tuple((name, round(48.0 + 2.0 * i, 2), EPD_PROBE_Y + 1.9, 0.8, 90)
-                                  for i, (_, name) in enumerate(EPD_PROBES)) + (
+SILK_LABELS = SILK_LABELS + tuple((name, x, y, 0.8) for name, x, y in EPD_PAD_LABELS) + (
     ("SDA", 39.9, 31.8, 0.8), ("SCL", 44.7, 31.8, 0.8), ("INT", 41.4, 27.6, 0.8),
-("GND", 60.0, 4.1, 0.8))
+    ("GND", 60.0, 4.1, 0.8))
 # The display's driving voltages are measured on their capacitors' pads: a name above each,
 # turned upright so that it fits the 1.6 mm pitch.
 SILK_LABELS = SILK_LABELS + tuple((name, round(50.4 + 1.6 * i, 2), 26.62, 0.8, 90) for i, name in enumerate(
@@ -620,7 +676,7 @@ SENS_EN_FEED = (dict(net="/SENS_EN", tracks=((0.2, ((38.6, 32.6), (64.6, 32.6)),
 STITCH_PITCH = 5.0
 # Start order of the router (route_board.py, `seed`): 0 = shortest connection first. Found by
 # trying several with --seed=N; the one kept routes this board completely.
-ROUTE_SEED = 5
+ROUTE_SEED = 4
 STITCH_EXTRA = (
     (75.35, 0.8, 75.35, 33.2, 1.5),     # the strip between the FPC slot and the sensor slot
     (66.5, 9.2, 75.5, 9.2, 1.5),        # across the top end of the FPC slot
@@ -939,6 +995,7 @@ def main():
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1", "J5", "Q1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
+            reserve_top=[("GND", area) for area in EPD_POCKETS],
             trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS,
                                                                                *DISPLAY_GROUND_AREAS)],
             internally_joined=INTERNALLY_JOINED,

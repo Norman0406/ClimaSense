@@ -417,13 +417,20 @@ def build(lib: Library) -> Schematic:
         sch.power(tp, "1", net)
     # Revision 2.0: small probe pads (1.0 mm, copper only) for a logic analyser on the display's
     # SPI lines and BUSY, and on the sensors' I2C bus, which 1.0 brought out on the sensor header J4.
+    # The display's pads sit in line on the hand-drawn display tracks (gen_pcb.py, EPD_LINES).
+    for i, (ref, net) in enumerate((("TP5", "EPD_SCK"), ("TP6", "EPD_MOSI"), ("TP7", "EPD_CS"), ("TP8", "EPD_BUSY"))):
+        tp = sch.add("Connector:TestPoint", ref, net, 157.48 + i * 7.62, 119.38,
+                     footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
+        sch.label(tp, "1", net)
+    tp = sch.add("Connector:TestPoint", "TP11", "EPD_DC", 157.48 + 6 * 7.62, 119.38,
+                 footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
+    sch.label(tp, "1", "EPD_DC")
     for i, (ref, net) in enumerate((("TP9", "I2C_SDA"), ("TP10", "I2C_SCL"))):
         tp = sch.add("Connector:TestPoint", ref, net, 157.48 + (i + 4) * 7.62, 119.38,
                      footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
         sch.label(tp, "1", net)
     # the BMP580's interrupt, and a second ground pad for a scope's ground clip by the display
-    # parts. (A pad for the display's D/C line by the module was tried and dropped: it sat in the
-    # crowded corridor below the module and the board no longer routed.)
+    # parts.
     for i, (net, size) in enumerate((("BMP_INT", "1.0"),)):
         tp = sch.add("Connector:TestPoint", f"TP{i + 12}", net, 157.48 + (i + 7) * 7.62, 119.38,
                      footprint=f"TestPoint:TestPoint_Pad_D{size}mm", in_bom=False)
@@ -665,6 +672,9 @@ def build(lib: Library) -> Schematic:
     r_sense = res("2.2R", 469.9, 96.52)
     sch.label_at(*r_sense.pos(1), "EPD_RESE", 90)
     sch.power_at(*r_sense.pos(2), "GND", (0, 1))
+    # Panel chip select held high (inactive) while the ESP32 is in reset or IO15 is not yet
+    # configured (revision 2.0, R20).
+    pullup("100k", 482.6, 96.52, "+3V3", "EPD_CS")
 
     diodes = []
     for i, (anode, cathode) in enumerate((("EPD_SW", "EPD_VGH"),      # boost to PREVGH

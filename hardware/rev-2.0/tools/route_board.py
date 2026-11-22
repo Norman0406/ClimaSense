@@ -154,6 +154,9 @@ def run(board, origin, geo, log=print):
     # --- areas whose bottom layer stays ground (under the buck converter) -----
     for name, (x0, y0, x1, y1) in geo.get("reserve_bottom", ()):
         R.reserve_rect(nid(name), x0, y0, x1, y1, layers=(BOT,))
+    # and areas whose top layer belongs to one net (pockets between hand-drawn tracks)
+    for name, (x0, y0, x1, y1) in geo.get("reserve_top", ()):
+        R.reserve_rect(nid(name), x0, y0, x1, y1, layers=(TOP,))
 
     # --- hand-drawn tracks ----------------------------------------------------
     # Each group joins the listed pads of one net. The tracks follow the grid, so the
