@@ -28,6 +28,7 @@ connection moved earlier; the best attempt is kept.
 
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 import time
@@ -46,6 +47,306 @@ WIDE_NETS = {"GND", "VBUS", "+5V", "+3V3", "+3V3_SENS", "+3V3_QWIIC", "Net-(U2-S
 ISLAND_GND = "GND (island)"
 MAX_ATTEMPTS = 16
 SEARCH_LIMIT = 300000
+
+
+def _point_seg(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    d2 = dx * dx + dy * dy
+    u = 0.0 if d2 == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / d2))
+    return math.hypot(p[0] - a[0] - u * dx, p[1] - a[1] - u * dy)
+
+
+def _seg_seg(a, b, c, d):
+    def side(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    if side(a, b, c) * side(a, b, d) < 0 and side(c, d, a) * side(c, d, b) < 0:
+        return 0.0
+    return min(_point_seg(a, c, d), _point_seg(b, c, d), _point_seg(c, a, b), _point_seg(d, a, b))
+
+
+def _seg_rect(a, b, rect):
+    x0, y0, x1, y1 = rect
+    if x0 <= a[0] <= x1 and y0 <= a[1] <= y1:
+        return 0.0
+    corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+    return min(_seg_seg(a, b, corners[k], corners[(k + 1) % 4]) for k in range(4))
+
+
+# Everything in `geo` that is not hand-drawn copper of one net. If any of it changes (outline, slots,
+# keep-outs, holes, reserved areas, ...), the copper of the previous board is not reused.
+_PER_NET_KEYS = ("prerouted", "fixed_tracks", "fixed_feeds", "free_feeds")
+_RUN_KEYS = ("keep", "seed", "attempts", "debug", "via_cost", "hand_out", "timing")
+
+
+def _canonical(v):
+    """repr() that does not depend on the order of sets (which changes from run to run)."""
+    if isinstance(v, dict):
+        return "{" + ", ".join(f"{_canonical(k)}: {_canonical(x)}" for k, x in sorted(v.items(), key=lambda kv: repr(kv[0]))) + "}"
+    if isinstance(v, (set, frozenset)):
+        return "{" + ", ".join(sorted(_canonical(x) for x in v)) + "}"
+    if isinstance(v, (list, tuple)):
+        return "[" + ", ".join(_canonical(x) for x in v) + "]"
+    return repr(v)
+
+
+def hand_drawn_hashes(geo):
+    """A fingerprint of each net's hand-drawn copper, and of the rest of the geometry ("*")."""
+    per_net = {}
+    for g in geo.get("prerouted", ()):
+        per_net.setdefault(g["net"], []).append(("pre", g["pads"], g["tracks"], tuple(g.get("vias", ()))))
+    for ft in geo.get("fixed_tracks", ()):
+        per_net.setdefault(ft[0], []).append(("fixed", ft))
+    for key in ("fixed_feeds", "free_feeds"):
+        for f in geo.get(key, ()):
+            per_net.setdefault(f["net"], []).append((key, f["tracks"]))
+    out = {net: hashlib.sha1(_canonical(items).encode()).hexdigest() for net, items in per_net.items()}
+    rest = {k: v for k, v in geo.items() if k not in _PER_NET_KEYS + _RUN_KEYS}
+    out["*"] = hashlib.sha1(_canonical(rest).encode()).hexdigest()
+    return out
+
+
+def _pad_key(p):
+    return (p["name"], round(p["x"], 3), round(p["y"], 3), *(round(v, 3) for v in p["rect"]), tuple(p["layers"]))
+
+
+def read_previous(path, origin):
+    """The copper and the pads of an existing board, for gen_pcb.py --keep: positions in mm from
+    the board's corner, rounded like the router's, plus KiCad's own integers to write back."""
+    board = pcbnew.LoadBoard(str(path))
+    ox, oy = origin
+    mm = pcbnew.ToMM
+    tracks, vias, pads = [], [], {}
+    for t in board.GetTracks():
+        if t.GetClass() == "PCB_VIA":
+            p = t.GetPosition()
+            vias.append((round(mm(p.x) - ox, 4), round(mm(p.y) - oy, 4), t.GetNetname(), (p.x, p.y)))
+        elif t.GetClass() == "PCB_TRACK":
+            a, b = t.GetStart(), t.GetEnd()
+            layer = TOP if t.GetLayer() == pcbnew.F_Cu else BOT
+            tracks.append((round(mm(a.x) - ox, 4), round(mm(a.y) - oy, 4), round(mm(b.x) - ox, 4), round(mm(b.y) - oy, 4),
+                           layer, round(mm(t.GetWidth()), 4), t.GetNetname(), (a.x, a.y, b.x, b.y, t.GetWidth())))
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        for pad in fp.Pads():
+            if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                continue
+            on = tuple(layer for layer, kicad in ((TOP, pcbnew.F_Cu), (BOT, pcbnew.B_Cu)) if pad.IsOnLayer(kicad))
+            if not on:
+                continue
+            bb = pad.GetBoundingBox()
+            pos = pad.GetPosition()
+            k = sum(1 for key in pads if key[0] == ref and key[1] == pad.GetNumber())
+            pads[(ref, pad.GetNumber(), k)] = _pad_key(dict(
+                name=pad.GetNetname(), x=mm(pos.x) - ox, y=mm(pos.y) - oy, layers=on,
+                rect=(mm(bb.GetLeft()) - ox, mm(bb.GetTop()) - oy, mm(bb.GetRight()) - ox, mm(bb.GetBottom()) - oy)))
+    return dict(tracks=tracks, vias=vias, pads=pads)
+
+
+def keep_previous(geo, pads, npth, R, nid, log):
+    """Decide which copper of the previous board stays, and mark it in the grid.
+
+    A net other than ground keeps all its tracks and vias when none of its pads moved, changed
+    or was added or removed, its hand-drawn copper is unchanged, it is not named in --reroute,
+    and its copper keeps the clearance to everything that is new (moved pads and holes, the
+    hand-drawn copper of the nets that are routed). Ground is judged per piece of copper: a
+    pad's stub and via, or the island's tree with the bridge track, stays when all the pads it
+    touches stayed. Returns (kept net names, kept ground pads, island kept, tracks, vias)."""
+    keep = geo.get("keep")
+    if not keep:
+        return set(), set(), False, [], []
+    hashes = hand_drawn_hashes(geo)
+    old_hand = keep.get("hand")
+    if old_hand is None:
+        log("  --keep: no record of the previous run's hand-drawn copper; assuming it is unchanged")
+    elif old_hand.get("*") != hashes["*"]:
+        log("  --keep: the board geometry (outline, slots, keep-outs, reserved areas, ...) changed: routing everything")
+        return set(), set(), False, [], []
+    reroute = set(keep.get("reroute", ()))
+    new_pads = {(p["ref"], p["num"], p["k"]): _pad_key(p) for p in pads}
+    old_pads = keep["pads"]
+    changed = {k for k in set(new_pads) | set(old_pads) if new_pads.get(k) != old_pads.get(k)}
+    changed_refs = {k[0] for k in changed}
+    dirty = set(reroute)
+    for k in changed:
+        for d in (new_pads.get(k), old_pads.get(k)):
+            if d and d[0]:
+                dirty.add(d[0])
+    if old_hand is not None:
+        dirty |= {net for net in set(hashes) | set(old_hand) if net != "*" and hashes.get(net) != old_hand.get(net)}
+
+    island_x = geo["bridge_x"][1]
+    # the twelve thermal vias of the ESP32's ground pad are always made anew
+    epads = [p for p in pads if p["ref"] == geo["module_ref"] and p["num"] == geo["module_epad"]]
+    ex, ey = sum(p["x"] for p in epads) / len(epads), sum(p["y"] for p in epads) / len(epads)
+    epad_vias = [(ex + a, ey + b) for a in (-1.25, 0.0, 1.25) for b in (-0.625, 0.625)] + \
+                [(ex + b, ey + a) for a in (-1.25, 0.0, 1.25) for b in (-0.625, 0.625)]
+    old_tracks = keep["tracks"]
+    old_vias = [v for v in keep["vias"]
+                if not (v[2] == "GND" and any(math.hypot(v[0] - x, v[1] - y) < 0.01 for x, y in epad_vias))]
+
+    # units of copper that stay or go together: ("net", name) or ("gnd", piece number)
+    unit_tracks, unit_vias = {}, {}
+    for i, t in enumerate(old_tracks):
+        if t[6] != "GND":
+            unit_tracks.setdefault(("net", t[6]), []).append(i)
+    for i, v in enumerate(old_vias):
+        if v[2] != "GND":
+            unit_vias.setdefault(("net", v[2]), []).append(i)
+    # ground: pieces of copper joined through tracks, vias and pads
+    g_tr = [i for i, t in enumerate(old_tracks) if t[6] == "GND"]
+    g_vi = [i for i, v in enumerate(old_vias) if v[2] == "GND"]
+    g_pads = [k for k, d in old_pads.items() if d[0] == "GND"]
+    items = [("t", i) for i in g_tr] + [("v", i) for i in g_vi] + [("p", k) for k in g_pads]
+    parent = list(range(len(items)))
+
+    def root(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def join(a, b):
+        parent[root(a)] = root(b)
+
+    tix = {i: n for n, (kind, i) in enumerate(items) if kind == "t"}
+    vix = {i: n for n, (kind, i) in enumerate(items) if kind == "v"}
+    pix = {k: n for n, (kind, k) in enumerate(items) if kind == "p"}
+    box = {i: (min(old_tracks[i][0], old_tracks[i][2]) - 0.01, min(old_tracks[i][1], old_tracks[i][3]) - 0.01,
+               max(old_tracks[i][0], old_tracks[i][2]) + 0.01, max(old_tracks[i][1], old_tracks[i][3]) + 0.01) for i in g_tr}
+    for i in g_tr:
+        a = old_tracks[i]
+        for j in g_tr:
+            if j <= i:
+                continue
+            b = old_tracks[j]
+            if box[i][0] > box[j][2] or box[j][0] > box[i][2] or box[i][1] > box[j][3] or box[j][1] > box[i][3]:
+                continue
+            if a[4] == b[4] and (_point_seg(a[0:2], b[0:2], b[2:4]) < 1e-3 or _point_seg(a[2:4], b[0:2], b[2:4]) < 1e-3
+                                 or _point_seg(b[0:2], a[0:2], a[2:4]) < 1e-3 or _point_seg(b[2:4], a[0:2], a[2:4]) < 1e-3):
+                join(tix[i], tix[j])
+        for j in g_vi:
+            if _point_seg(old_vias[j][0:2], a[0:2], a[2:4]) < 1e-3:
+                join(tix[i], vix[j])
+        for k in g_pads:
+            d = old_pads[k]
+            if (a[4] in d[7] and not (box[i][0] > d[5] or d[3] > box[i][2] or box[i][1] > d[6] or d[4] > box[i][3])
+                    and _seg_rect(a[0:2], a[2:4], d[3:7]) < 1e-3):
+                join(tix[i], pix[k])
+    for j in g_vi:
+        x, y = old_vias[j][0:2]
+        for k in g_pads:
+            x0, y0, x1, y1 = old_pads[k][3:7]
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                join(vix[j], pix[k])
+    comp_pads = {}
+    for n, (kind, i) in enumerate(items):
+        r = root(n)
+        if kind == "t":
+            unit_tracks.setdefault(("gnd", r), []).append(i)
+        elif kind == "v":
+            unit_vias.setdefault(("gnd", r), []).append(i)
+        else:
+            comp_pads.setdefault(r, set()).add(i)
+
+    kept = set()
+    for u in set(unit_tracks) | set(unit_vias):
+        if u[0] == "net":
+            if u[1] not in dirty:
+                kept.add(u)
+        elif "GND" not in reroute and comp_pads.get(u[1]) and not (comp_pads[u[1]] & changed):
+            kept.add(u)                      # (a piece touching no pad, a stitching via, is made anew)
+    island_pads = {(p["ref"], p["num"], p["k"]) for p in pads if p["name"] == "GND" and p["x"] > island_x}
+
+    def hand_copper(kept_island, kept_gnd):
+        """Hand-drawn copper of what is routed anew: (net, kind, geometry, width or radius, layer)."""
+        out = []
+        for g in geo.get("prerouted", ()):
+            name = g["net"]
+            if name == "GND":
+                if all(any(key[0] == ref and key[1] == num and key in kept_gnd for key in new_pads)
+                       for ref, num in (x.split(".", 1) for x in g["pads"])):
+                    continue
+            elif ("net", name) in kept:
+                continue
+            for width, pts, *side in g["tracks"]:
+                layer = BOT if side == ["bottom"] else TOP
+                out += [(name, "t", (a, b), width, layer) for a, b in zip(pts, pts[1:])]
+            out += [(name, "v", (x, y), VIA_DIAMETER / 2, None) for x, y in g.get("vias", ())]
+        for name, x_a, x_b, y in geo.get("fixed_tracks", ()):
+            if kept_island if name == "GND" else ("net", name) in kept:
+                continue
+            out.append((name, "t", ((x_a, y), (x_b, y)), W_SIG, TOP))
+        for key in ("fixed_feeds", "free_feeds"):
+            for f in geo.get(key, ()):
+                if kept_island if f["net"] == "GND" else ("net", f["net"]) in kept:
+                    continue
+                for width, pts, *side in f["tracks"]:
+                    layer = BOT if side == ["bottom"] else TOP
+                    out += [(f["net"], "t", (a, b), width, layer) for a, b in zip(pts, pts[1:])]
+        return out
+
+    moved_pads = [p for p in pads if (p["ref"], p["num"], p["k"]) in changed]
+    moved_holes = [h for h in npth if h[0] in changed_refs]
+    clear = 0.15 - 1e-3
+    r_via = VIA_DIAMETER / 2
+    while True:
+        kept_gnd = set().union(*(comp_pads.get(u[1], set()) for u in kept if u[0] == "gnd"))
+        kept_island = bool(island_pads) and island_pads <= kept_gnd
+        if not kept_island:
+            drop = {u for u in kept if u[0] == "gnd" and comp_pads.get(u[1], set()) & island_pads}
+            if drop:
+                kept -= drop
+                continue
+        new_copper = hand_copper(kept_island, kept_gnd)
+
+        def track_clashes(name, a, b, layer, w):
+            return (any(p["name"] != name and layer in p["layers"] and _seg_rect(a, b, p["rect"]) < clear + w / 2
+                        for p in moved_pads)
+                    or any(_point_seg((x, y), a, b) < r + 0.25 + w / 2 - 1e-3 for _, x, y, r in moved_holes)
+                    or any(c[0] != name and ((c[1] == "t" and c[4] == layer and _seg_seg(a, b, *c[2]) < clear + (w + c[3]) / 2)
+                                             or (c[1] == "v" and _point_seg(c[2], a, b) < clear + w / 2 + c[3]))
+                           for c in new_copper))
+
+        def via_clashes(name, v):
+            return (any(p["name"] != name and _seg_rect(v, v, p["rect"]) < clear + r_via for p in moved_pads)
+                    or any(math.hypot(v[0] - x, v[1] - y) < r + 0.5 + VIA_DRILL / 2 for _, x, y, r in moved_holes)
+                    or any(c[0] != name and ((c[1] == "t" and _point_seg(v, *c[2]) < clear + r_via + c[3] / 2)
+                                             or (c[1] == "v" and math.hypot(v[0] - c[2][0], v[1] - c[2][1]) < 0.8))
+                           for c in new_copper))
+
+        bad = set()
+        for u in kept:
+            name = u[1] if u[0] == "net" else "GND"
+            if (any(track_clashes(name, old_tracks[i][0:2], old_tracks[i][2:4], old_tracks[i][4], old_tracks[i][5])
+                    for i in unit_tracks.get(u, ()))
+                    or any(via_clashes(name, old_vias[i][0:2]) for i in unit_vias.get(u, ()))):
+                bad.add(u)
+        if not bad:
+            break
+        for u in sorted(bad, key=str):
+            log(f"  --keep: the old copper of {u[1] if u[0] == 'net' else 'a ground stub'} clashes with what moved: routed anew")
+        kept -= bad
+
+    kept_nets = {u[1] for u in kept if u[0] == "net"}
+    kept_tracks, kept_vias = [], []
+    for u in sorted(kept, key=str):
+        for i in unit_tracks.get(u, ()):
+            t = old_tracks[i]
+            net = nid(t[6])
+            kept_tracks.append((*t[0:6], net, t[7]))
+            R.occupy_track(net, t[0:2], t[2:4], t[4], t[5])
+        for i in unit_vias.get(u, ()):
+            v = old_vias[i]
+            net = nid(v[2])
+            kept_vias.append((v[0], v[1], net, v[3]))
+            R.occupy_via(net, v[0], v[1])
+    routed = sorted({p["name"] for p in pads if p["name"] and not p["name"].startswith("unconnected-")
+                     and p["name"] != "GND"} - kept_nets)
+    n_gnd = sum(1 for p in pads if p["name"] == "GND")
+    log(f"  --keep: {len(kept_nets)} nets kept, {len(routed)} routed: {', '.join(routed) or '-'}")
+    log(f"  --keep: ground: {len(kept_gnd & set(new_pads))} of {n_gnd} pads keep their copper, island "
+        f"{'kept' if kept_island else 'routed'}; {len(kept_tracks)} track segments and {len(kept_vias)} vias kept")
+    return kept_nets, kept_gnd, kept_island, kept_tracks, kept_vias
 
 
 def run(board, origin, geo, log=print):
@@ -98,6 +399,7 @@ def run(board, origin, geo, log=print):
         return net_id[name]
 
     pads = []
+    npth = []
     centre = {}
     anonymous = 100000
     for fp in board.GetFootprints():
@@ -110,6 +412,7 @@ def run(board, origin, geo, log=print):
                 if not ref.startswith("H"):
                     d = pad.GetDrillSize()
                     r = max(mm(d.x), mm(d.y)) / 2
+                    npth.append((ref, cx, cy, r))
                     R.block_disc(cx, cy, r, grow=HOLE_CLEARANCE)
                     # and no via drill closer than the 0.5 mm hole-to-hole rule (a part's locating pegs)
                     R.block_disc(cx, cy, r + 0.5 + VIA_DRILL / 2 + 0.02 - VIA_DIAMETER / 2, classes=("via",))
@@ -127,7 +430,8 @@ def run(board, origin, geo, log=print):
                 anonymous += 1
                 net = anonymous
             R.copper_rect(net, x0, y0, x1, y1, on)
-            pads.append(dict(ref=ref, num=pad.GetNumber(), net=net, name=name, x=cx, y=cy,
+            k = sum(1 for q in pads if q["ref"] == ref and q["num"] == pad.GetNumber())
+            pads.append(dict(ref=ref, num=pad.GetNumber(), k=k, net=net, name=name, x=cx, y=cy,
                              rect=(x0, y0, x1, y1), layers=on, smd=len(on) == 1,
                              narrow=min(x1 - x0, y1 - y0) < 0.5))
     for p in pads:
@@ -137,6 +441,12 @@ def run(board, origin, geo, log=print):
     # between it and the copper: no via and no track under it. That holds for the bottom
     # layer too (decided 2026-11-20): the ground under the connector stays whole.
     R.block_rect(*geo["usb_body"], classes=("via", "sig", "pwr", "wide"))
+
+    # --- copper of the previous board that stays (gen_pcb.py --keep) ------------------
+    kept_nets, kept_gnd_pads, kept_island, kept_tracks, kept_vias = keep_previous(geo, pads, npth, R, nid, log)
+    gnd_kept_pad = lambda p: p["name"] == "GND" and (p["ref"], p["num"], p["k"]) in kept_gnd_pads
+    skip_pad = lambda p: p["name"] in kept_nets or gnd_kept_pad(p)
+    t_setup = time.time()
 
     used = set()     # every node a committed path passes through
 
@@ -167,6 +477,8 @@ def run(board, origin, geo, log=print):
     prejoins = []
     width_at = {}          # node on a track -> width of that track (the widest, where several meet)
     for group in geo.get("prerouted", ()):
+        if group["net"] in kept_nets or (group["pads"] and all(gnd_kept_pad(pad_by_name[name]) for name in group["pads"])):
+            continue                                                 # its copper is kept from the last board
         net = nid(group["net"])
         nodes = set()
         for width, pts, *side in group["tracks"]:
@@ -210,7 +522,7 @@ def run(board, origin, geo, log=print):
     for (ref, horizontal, s), row in rows.items():
         for index, key in enumerate(sorted(row)):
             for p in row[key]:
-                if not p["name"] or p["name"].startswith("unconnected-") or p.get("pre"):
+                if not p["name"] or p["name"].startswith("unconnected-") or p.get("pre") or skip_pad(p):
                     continue
                 x0, y0, x1, y1 = p["rect"]
                 # a supply pin gets a stub of power width if its pad is wide enough for one
@@ -251,7 +563,7 @@ def run(board, origin, geo, log=print):
         if not ep["smd"] or ep["ref"] not in geo["fanout"] or min(ex1 - ex0, ey1 - ey0) <= 1.0:
             continue
         for q in pads:
-            if q is ep or q["ref"] != ep["ref"] or q["net"] != ep["net"] or not q["smd"]:
+            if q is ep or q["ref"] != ep["ref"] or q["net"] != ep["net"] or not q["smd"] or (skip_pad(q) and skip_pad(ep)):
                 continue
             inside_x = min(max(q["x"], ex0 + 0.2), ex1 - 0.2)
             inside_y = min(max(q["y"], ey0 + 0.2), ey1 - 0.2)
@@ -282,7 +594,9 @@ def run(board, origin, geo, log=print):
     # two narrow places all fit.
     fixed_tracks = []
     seeds = {}
-    for name, x_a, x_b, y in geo["fixed_tracks"]:
+    is_kept = lambda name: kept_island if name == "GND" else name in kept_nets
+    fixed_geo = [ft for ft in geo["fixed_tracks"] if not is_kept(ft[0])]
+    for name, x_a, x_b, y in fixed_geo:
         net = nid(name)
         fixed_tracks.append((len(R.tracks), x_a, x_b, y))
         R.add_track(net, [(x_a, y), (x_b, y)], TOP, W_SIG)
@@ -296,8 +610,10 @@ def run(board, origin, geo, log=print):
     # along them; what stays unused at their far end is pruned like any other spur.
     keep_x = {}            # index of a fixed track -> x on it that must survive the trimming
     for feed in geo.get("fixed_feeds", ()):
+        if is_kept(feed["net"]):
+            continue
         net = nid(feed["net"])
-        index, x_a, x_b, y = next(f for f, (name, *_) in zip(fixed_tracks, geo["fixed_tracks"]) if nid(name) == net)
+        index, x_a, x_b, y = next(f for f, (name, *_) in zip(fixed_tracks, fixed_geo) if nid(name) == net)
         seed = next(s for s in seeds[net] if (x_a, y) in s["pts"])
         for width, pts in feed["tracks"]:
             R.add_track(net, pts, TOP, width)
@@ -314,6 +630,8 @@ def run(board, origin, geo, log=print):
     # The router joins each end (or any point) of such a run to the net's pads, like a
     # fixed track; what stays unused is pruned. (width, points[, "bottom"]) as in prerouted.
     for feed in geo.get("free_feeds", ()):
+        if is_kept(feed["net"]):
+            continue
         net = nid(feed["net"])
         nodes, pts_all = set(), []
         for width, pts, *side in feed["tracks"]:
@@ -425,9 +743,11 @@ def run(board, origin, geo, log=print):
             by_net.setdefault(p["name"], []).append(p)
     island_x = bx1
     gnd_pads = by_net.pop("GND", [])
-    main_gnd = [p for p in gnd_pads if p["x"] <= island_x and p["smd"] and not any(p is q for q in epads)]
-    groups = dict(by_net)
-    groups[ISLAND_GND] = [p for p in gnd_pads if p["x"] > island_x]
+    main_gnd = [p for p in gnd_pads if p["x"] <= island_x and p["smd"] and not any(p is q for q in epads)
+                and not gnd_kept_pad(p)]
+    groups = {name: plist for name, plist in by_net.items() if name not in kept_nets}
+    if not kept_island:
+        groups[ISLAND_GND] = [p for p in gnd_pads if p["x"] > island_x]
 
     def gap(a, b):
         return min(math.hypot(ax - bx, ay - by) for ax, ay in a["pts"] for bx, by in b["pts"])
@@ -471,7 +791,7 @@ def run(board, origin, geo, log=print):
         y_gnd = geo["bridge_y"]["GND"]
         stub_end = dict(ref="bridge", num="GND", net=gnd, name="GND", x=bx0 - 1.8, y=y_gnd,
                         rect=(bx0 - 1.8, y_gnd, bx0 - 1.8, y_gnd), layers=(TOP,), smd=True, narrow=True)
-        for p in [stub_end] + sorted(main_gnd, key=lambda p: (p["x"], p["y"])):
+        for p in ([] if kept_island else [stub_end]) + sorted(main_gnd, key=lambda p: (p["x"], p["y"])):
             path = connect(p, goal=to_pour, allow_via=False, limit=60000)
             if path:
                 if path[-1] not in gnd_points:
@@ -517,6 +837,8 @@ def run(board, origin, geo, log=print):
 
         # supply trunks: before any signal, as wide as they fit
         for name_a, name_b in geo.get("trunks", ()):
+            if id(pad_by_name[name_a]) not in item_of or id(pad_by_name[name_b]) not in item_of:
+                continue                                             # a kept net
             a, b = item_of[id(pad_by_name[name_a])], item_of[id(pad_by_name[name_b])]
             if comp[id(a)] == comp[id(b)]:
                 continue
@@ -625,7 +947,7 @@ def run(board, origin, geo, log=print):
                                 lab[j] = comp
                                 stack.append(j)
         holders = []
-        for x, y, net in R.vias:
+        for x, y, net in list(R.vias) + [v[0:3] for v in kept_vias]:
             if net == gnd and pour_x0 <= x <= pour_x1:
                 a, b = label[TOP][R.cell(x, y)], label[BOT][R.cell(x, y)]
                 if a and b:
@@ -669,6 +991,7 @@ def run(board, origin, geo, log=print):
         order = sorted(order, key=lambda e: rank[id(e)])
 
     tracks, vias, used_nodes = best["tracks"], best["vias"], best["used"]
+    t_routed = time.time()
 
     # --- tidy up ---------------------------------------------------------------
     # escape stubs nobody used, and the unused ends of the fixed tracks
@@ -809,8 +1132,9 @@ def run(board, origin, geo, log=print):
                for k in range(steps + 1)):
             return False                                      # board edge, slot or keep-out
         need = 0.153 + width / 2                               # the board's 0.15 mm rule and a hair
-        return (all(seg_seg(a, b, t[0:2], t[2:4]) >= need + t[5] / 2 for t in tracks if t[4] == layer and t[6] != net)
-                and all(point_seg(v[0:2], a, b) >= need + VIA_DIAMETER / 2 for v in vias if v[2] != net)
+        return (all(seg_seg(a, b, t[0:2], t[2:4]) >= need + t[5] / 2 for t in tracks + kept_tracks
+                    if t[4] == layer and t[6] != net)
+                and all(point_seg(v[0:2], a, b) >= need + VIA_DIAMETER / 2 for v in list(vias) + kept_vias if v[2] != net)
                 and all(seg_rect(a, b, q["rect"]) >= need for q in pads if q["net"] != net and layer in q["layers"]))
 
     # Staircases. Squeezed along another net's diagonal track, the search cannot step
@@ -1027,6 +1351,8 @@ def run(board, origin, geo, log=print):
         log(f"  split {len(cut) - len(tracks)} tracks at T-junctions")
     tracks = cut
 
+    t_tidy = time.time()
+
     # --- ground stitching vias ---------------------------------------------------
     # Added last, so they never take a route's place. Candidates: a grid over the pours, and the
     # denser places the caller asks for (geo["stitch_extra"]: x0, y0, x1, y1, pitch). A via is
@@ -1058,9 +1384,9 @@ def run(board, origin, geo, log=print):
             idx = R.cell(x, y)
             if R.hard["via"][TOP][idx] != FREE or R.hard["via"][BOT][idx] != FREE:
                 continue
-            if any(point_seg((x, y), t[0:2], t[2:4]) < need_track + t[5] / 2 for t in tracks if t[6] != gnd):
+            if any(point_seg((x, y), t[0:2], t[2:4]) < need_track + t[5] / 2 for t in tracks + kept_tracks if t[6] != gnd):
                 continue
-            if any(math.hypot(x - v[0], y - v[1]) < spacing for v in list(vias) + stitch):
+            if any(math.hypot(x - v[0], y - v[1]) < spacing for v in list(vias) + stitch + kept_vias):
                 continue
             if any(max(q["rect"][0] - x, 0, x - q["rect"][2]) ** 2 + max(q["rect"][1] - y, 0, y - q["rect"][3]) ** 2
                    < (VIA_DIAMETER / 2 + 0.5) ** 2 for q in pads):
@@ -1074,6 +1400,26 @@ def run(board, origin, geo, log=print):
         return VECTOR2I(FromMM(ox + x), FromMM(oy + y))
 
     kicad_net = {name: board.FindNet(name) for name in net_id}
+    for x1, y1, x2, y2, layer, width, net, (sx, sy, ex_, ey_, w) in kept_tracks:     # exactly as they were
+        t = pcbnew.PCB_TRACK(board)
+        t.SetStart(VECTOR2I(sx, sy))
+        t.SetEnd(VECTOR2I(ex_, ey_))
+        t.SetWidth(w)
+        t.SetLayer(pcbnew.F_Cu if layer == TOP else pcbnew.B_Cu)
+        t.SetNet(kicad_net[net_name[net]])
+        board.Add(t)
+    for x, y, net, (px, py) in kept_vias:
+        v = pcbnew.PCB_VIA(board)
+        v.SetViaType(pcbnew.VIATYPE_THROUGH)
+        v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        v.SetPosition(VECTOR2I(px, py))
+        v.SetDrill(FromMM(VIA_DRILL))
+        try:
+            v.SetWidth(pcbnew.F_Cu, FromMM(VIA_DIAMETER))
+        except TypeError:
+            v.SetWidth(FromMM(VIA_DIAMETER))
+        v.SetNet(kicad_net[net_name[net]])
+        board.Add(v)
     for x1, y1, x2, y2, layer, width, net in tracks:
         t = pcbnew.PCB_TRACK(board)
         t.SetStart(P(x1, y1))
@@ -1137,7 +1483,12 @@ def run(board, origin, geo, log=print):
     # The pours are filled afterwards by kicad-cli (see gen_pcb.py): its fill respects the
     # board edge and unplated holes, which the fill available to scripts here does not.
 
-    log(f"  {len(tracks)} track segments, {len(vias)} vias, {time.time() - t0:.0f} s in total")
+    t_end = time.time()
+    geo.setdefault("timing", {}).update(route_setup=t_setup - t0, routing=t_routed - t_setup, tidy_up=t_tidy - t_routed,
+                                        stitching_and_output=t_end - t_tidy)
+    log(f"  {len(tracks) + len(kept_tracks)} track segments, {len(vias) + len(kept_vias)} vias, {t_end - t0:.0f} s in total "
+        f"(set-up {t_setup - t0:.1f} s, routing {t_routed - t_setup:.1f} s, tidy-up {t_tidy - t_routed:.1f} s, "
+        f"stitching and output {t_end - t_tidy:.1f} s)")
     for e in best["failures"]:
         log(f"  NOT ROUTED  {describe(e)}")
     return best["failures"]

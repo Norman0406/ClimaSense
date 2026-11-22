@@ -214,6 +214,30 @@ It also checks tidiness and **fails** if a net crosses itself or has a loop in i
 
 Needs KiCad's own Python and a current `build/netlist.net` (run `check_schematic.py` first). It places the parts, routes the board and fills the pours, and it **overwrites** the board file, so it must not be run once the board has been edited by hand in KiCad. `--no-route` stops after placement.
 
+### Revision 2.0: small changes without a full re-route (2026-11-22)
+
+A full run spends almost all its time routing. Measured on the 2.0 board (2026-11-22, seed 4):
+
+| Stage | Full run | `--keep`, nothing changed | `--keep`, J5 moved 0.5 mm |
+| --- | --- | --- | --- |
+| Reading the previous board | – | 0.2 s | 0.2 s |
+| Placement | 4.5 s | 4.3 s | 4.5 s |
+| Router set-up (grid, kept copper) | 1.1 s | 8.6 s | 7.2 s |
+| Routing | 408 s | 1.0 s | 18.8 s |
+| Tidy-up | 7.8 s | 0.0 s | 1.0 s |
+| Stitching vias, output, save | 0.4 s | 0.3 s | 0.4 s |
+| Pour fill (kicad-cli) | 3.5 s | 3.5 s | 3.6 s |
+| **Total** | **425 s** | **18 s** | **36 s** |
+
+`gen_pcb.py` options for revision 2.0 (`hardware/rev-2.0/tools/`):
+
+- `--keep[=board]` reuses the copper of the previous board (by default the one about to be overwritten). A net keeps all its tracks and vias when none of its pads moved, changed or was added or removed, its hand-drawn copper (`PREROUTED`, the fixed bridge tracks and feeds) is unchanged, and its old copper keeps the clearance to what is new: moved pads and holes, and the hand-drawn copper of the nets that are routed. Only the other nets are routed; the kept copper is written back exactly as it was and is not touched by the tidy-up. Ground is judged per piece of copper: a pad's stub and via stays when its pad stayed, the island's ground tree (with the bridge track) when all island ground pads stayed. Stitching vias are made anew by the same rule as before, so on unchanged copper they come out the same. If anything outside the hand-drawn copper changes (outline, slots, keep-outs, reserved areas, ...), `--keep` routes everything. The fingerprints of the hand-drawn copper are kept in `build/climasense.route.json`; without that file `--keep` assumes they did not change. The log names the kept and the routed nets.
+- `--reroute=NET,NET` routes those nets anew all the same.
+- `--seeds=A-B` routes with each seed in its own process, in parallel, and keeps the best clean result: no open connection, then no +3V3 on the top layer in the display bundle, then fewest vias, then shortest track. Combines with `--keep`. If the best seed is not `ROUTE_SEED`, it says so; set `ROUTE_SEED` to make a single run reproduce it.
+- `gen_images.py --fast` writes only a top view, to `build/preview-top.png`, in about 2 s, for looking at an intermediate board without touching `docs/images/`.
+
+Checked: `--keep` on the unchanged board gives identical tracks and vias; with J5 moved by 0.5 mm only the 16 nets on J5's pins (and the ground stubs of its pads) were routed and the board passed `check_pcb.py --require-routed` and `audit_pcb.py`; a full run without `--keep` still gives the committed copper. A kept net can only be as good as the board it came from, and the router places the routed nets around it rather than the other way round: **before anything is ordered, a full run from scratch must pass the checks too.**
+
 ## Lessons from the rule check
 
 - The first run of the design rule check found a real error in the SGP41 footprint: its side pads touched the centre pad. A dimension in the datasheet drawing (2.3 mm) is the distance between pad centres, and had been read as the outer width. The visual comparison of the rendered footprint against the datasheet did not catch it; the rule check did.

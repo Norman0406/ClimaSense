@@ -8,6 +8,8 @@
   copper-bottom.svg   bottom copper layer, seen from above through the board (not mirrored)
 
 Run it with the normal Python:  python hardware/rev-2.0/tools/gen_images.py
+With --fast it writes only a top view, to hardware/rev-2.0/build/preview-top.png, without
+rebuilding the 3D models: a quick look at an intermediate board that leaves docs/ alone.
 Run it by hand after the board or a 3D model has changed; it is not part of the board check,
 so that the repository does not collect a new set of pictures with every run.
 
@@ -31,12 +33,12 @@ def cli(*args):
         raise SystemExit(f"kicad-cli {' '.join(map(str, args[:3]))} failed:\n{r.stdout}\n{r.stderr}")
 
 
-def render(name, width, height, *view):
+def render(name, width, height, *view, out=None):
     # Basic quality on purpose: the high setting adds a floor with shadows.
     # An opaque background: with a transparent one, holes and slots show whatever the page
     # behind the picture has (white or dark), which looked like parts or copper.
     cli("pcb", "render", "--width", width, "--height", height, "--quality", "basic", "--background", "opaque",
-        *view, "-o", OUT / name, PCB)
+        *view, "-o", out or OUT / name, PCB)
 
 
 def copper(name, layer):
@@ -51,6 +53,12 @@ def copper(name, layer):
 
 
 def main():
+    if "--fast" in sys.argv[1:]:
+        out = HW / "build" / "preview-top.png"
+        out.parent.mkdir(exist_ok=True)
+        render("", 1600, 760, "--side", "top", "--zoom", "1.8", out=out)
+        print(f"{out.relative_to(HW.parent.parent)}  {out.stat().st_size / 1024:.0f} kB")
+        return
     r = subprocess.run([sys.executable, str(HW / "tools" / "gen_models.py")])
     if r.returncode != 0:
         raise SystemExit("gen_models.py failed - no pictures written.")

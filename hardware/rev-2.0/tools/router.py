@@ -162,6 +162,22 @@ class Router:
             self._mark_disc(self.grid["via"][layer], idx, self.via_spacing, BLOCK)
         self.vias.append((x, y, net))
 
+    def occupy_via(self, net, x, y):
+        """Mark a via's copper in the grid without adding it to the result (kept copper)."""
+        idx = self.cell(x, y)
+        for layer in (TOP, BOT):
+            self._copper_node(net, idx, layer, self.via_radius)
+            self._mark_disc(self.grid["via"][layer], idx, self.via_spacing, BLOCK)
+
+    def occupy_track(self, net, a, b, layer, width):
+        """Mark a straight track's copper in the grid without adding it to the result (kept
+        copper; it may lie off the grid)."""
+        (xa, ya), (xb, yb) = a, b
+        steps = max(1, int(math.ceil(math.hypot(xb - xa, yb - ya) / self.step)))
+        for k in range(steps + 1):
+            t = k / steps
+            self._copper_node(net, self.cell(xa + (xb - xa) * t, ya + (yb - ya) * t), layer, width / 2)
+
     def add_track(self, net, pts, layer, width):
         """Commit a polyline that already follows the grid (or stays inside own copper)."""
         for (xa, ya), (xb, yb) in zip(pts, pts[1:]):

@@ -15,6 +15,18 @@ footprint, assigns the nets to the pads, places the parts and routes the board
 hardware/rev-2.0/climasense.kicad_pcb, so do not re-run it once the board has been
 edited by hand in KiCad.
 
+Options:
+  --keep[=board]     reuse the copper of the previous board (default: the one about to be
+                     overwritten) for every net whose pads did not move and whose hand-drawn
+                     copper did not change; only the rest is routed. Ground is judged per pad.
+  --reroute=A,B      with --keep: route these nets anew all the same.
+  --seed=N           start order of the router (default ROUTE_SEED).
+  --seeds=A-B        route with each of these seeds in parallel processes and keep the best
+                     clean result (no open connection, then no +3V3 track in the display
+                     bundle, then fewest vias, then shortest tracks).
+  --attempts=N       routing retries per seed.   --no-route: stop after placement.
+  --out=file, --summary=file, --no-fill: used by --seeds for its worker processes.
+
 Board coordinates below are millimetres from the top-left board corner,
 x to the right, y down, seen from the component side, with the board in
 landscape (antenna on the left, sensors on the right).
@@ -22,8 +34,12 @@ landscape (antenna on the left, sensors on the right).
 
 from __future__ import annotations
 
+import json
+import os
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 try:  # keep KiCad's debug alerts from popping up as dialogs
@@ -741,7 +757,107 @@ def add_fpc_tail(board):
     board.Add(tail)
 
 
+def option(name):
+    """Value of --name=value, "" for a bare --name, None if absent."""
+    for x in sys.argv[1:]:
+        if x == name:
+            return ""
+        if x.startswith(name + "="):
+            return x.split("=", 1)[1]
+    return None
+
+
+def state_file(board_file):
+    """Where the fingerprints of a board's hand-drawn copper are kept (for --keep)."""
+    return HW / "build" / (Path(board_file).stem + ".route.json")
+
+
+def bundle_supply_length(board):
+    """Length (mm) of +3V3 track on the top layer inside the display bundle: the strip that the
+    hand-drawn SPI and reset lines span on the top layer between x 41 and J5's pad row."""
+    x0, x1 = 41.0, J5_X - 2.5
+    pts = [pt for g in EPD_LINES if g["net"] in ("EPD_SCK", "EPD_MOSI", "EPD_CS", "EPD_RST")
+           for width, line, *side in g["tracks"] if not side for pt in line if x0 <= pt[0] <= x1]
+    y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
+    total = 0.0
+    for t in board.GetTracks():
+        if (t.GetClass() != "PCB_TRACK" or t.GetLayer() != pcbnew.F_Cu
+                or t.GetNetname() != "+3V3"):
+            continue
+        a = (pcbnew.ToMM(t.GetStart().x) - ORIGIN[0], pcbnew.ToMM(t.GetStart().y) - ORIGIN[1])
+        b = (pcbnew.ToMM(t.GetEnd().x) - ORIGIN[0], pcbnew.ToMM(t.GetEnd().y) - ORIGIN[1])
+        length = ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
+        steps = max(1, int(length / 0.05))
+        inside = sum(1 for k in range(steps) if x0 <= a[0] + (b[0] - a[0]) * (k + 0.5) / steps <= x1
+                     and y0 <= a[1] + (b[1] - a[1]) * (k + 0.5) / steps <= y1)
+        total += length * inside / steps
+    return round(total, 2)
+
+
+def seed_batch(spec):
+    """--seeds=A-B: one worker process per seed, then keep the best clean board."""
+    a, b = (int(v) for v in spec.split("-")) if "-" in spec else (int(spec), int(spec))
+    seeds = list(range(a, b + 1))
+    skip = ("--seeds", "--seed=", "--out=", "--summary=", "--keep", "--no-fill")
+    passed = [x for x in sys.argv[1:] if not x.startswith(skip)]
+    (HW / "build").mkdir(exist_ok=True)
+    keep = option("--keep")
+    if keep is not None:
+        keep_file = Path(keep).resolve() if keep else BOARD_FILE
+        if keep_file.exists():
+            snapshot = HW / "build" / "previous.kicad_pcb"           # the workers all read this one
+            shutil.copy(keep_file, snapshot)
+            if state_file(keep_file).exists():
+                shutil.copy(state_file(keep_file), state_file(snapshot))
+            passed.append(f"--keep={snapshot}")
+    t0 = time.time()
+    width = max(1, min(len(seeds), (os.cpu_count() or 2) - 1))
+    print(f"routing seeds {a}-{b} in {width} parallel processes ...", flush=True)
+    running, results = [], []
+    queue = list(seeds)
+    while queue or running:
+        while queue and len(running) < width:
+            n = queue.pop(0)
+            out, summary, log = (HW / "build" / f"seed_{n}{ext}" for ext in (".kicad_pcb", ".json", ".log"))
+            summary.unlink(missing_ok=True)
+            proc = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *passed, f"--seed={n}",
+                                     f"--out={out}", f"--summary={summary}", "--no-fill"],
+                                    stdout=log.open("w"), stderr=subprocess.STDOUT)
+            running.append((n, proc, out, summary))
+        time.sleep(1)
+        for item in list(running):
+            n, proc, out, summary = item
+            if proc.poll() is None:
+                continue
+            running.remove(item)
+            if proc.returncode == 0 and summary.exists():
+                r = json.loads(summary.read_text())
+                results.append(r)
+                print(f"  seed {n}: {r['open']} open, {r['bundle_supply_mm']} mm of +3V3 in the display bundle, "
+                      f"{r['vias']} vias, {r['track_mm']} mm of track, {r['seconds']} s", flush=True)
+            else:
+                print(f"  seed {n}: failed (see build/seed_{n}.log)", flush=True)
+    if not results:
+        raise SystemExit("no seed produced a board")
+    best = min(results, key=lambda r: (r["open"], r["bundle_supply_mm"] > 0.05, r["vias"], r["track_mm"]))
+    shutil.copy(best["out"], BOARD_FILE)
+    shutil.copy(state_file(best["out"]), state_file(BOARD_FILE))
+    for r in results:
+        for ext in (".kicad_pcb", ".kicad_pro", ".kicad_prl"):
+            Path(r["out"]).with_suffix(ext).unlink(missing_ok=True)
+    t_fill = time.time()
+    subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--format", "json",
+                    "-o", str(HW / "build" / "drc.json"), str(BOARD_FILE)], check=True, capture_output=True)
+    print(f"kept seed {best['seed']} ({best['open']} open, {best['vias']} vias, {best['track_mm']} mm) -> "
+          f"{BOARD_FILE.name}; pours filled in {time.time() - t_fill:.0f} s; {time.time() - t0:.0f} s in total"
+          + ("" if best["seed"] == ROUTE_SEED else f"; set ROUTE_SEED = {best['seed']} to get it from a single run"))
+    if best["open"]:
+        raise SystemExit(f"no seed routed the board completely (best: {best['open']} open)")
+
+
 def main():
+    if option("--seeds"):
+        return seed_batch(option("--seeds"))
     if "--add-tail-only" in sys.argv[1:]:
         board = pcbnew.LoadBoard(str(BOARD_FILE))
         if not any(fp.GetReference() == "PNL2" for fp in board.GetFootprints()):
@@ -752,10 +868,28 @@ def main():
     if not NETLIST.exists():
         raise SystemExit("build/netlist.net missing - run check_schematic.py first")
     net = parse(NETLIST.read_text(encoding="utf-8"))
+    t0 = time.time()
+    timing = {}
+    out_file = Path(option("--out")) if option("--out") else BOARD_FILE
 
-    if BOARD_FILE.exists():
-        BOARD_FILE.unlink()
-    board = pcbnew.NewBoard(str(BOARD_FILE))
+    # --keep: read the copper of the previous board before it is overwritten
+    keep = None
+    if option("--keep") is not None and "--no-route" not in sys.argv[1:]:
+        import route_board
+        keep_file = Path(option("--keep")) if option("--keep") else BOARD_FILE
+        if keep_file.exists():
+            keep = route_board.read_previous(keep_file, ORIGIN)
+            state = state_file(keep_file)
+            keep["hand"] = json.loads(state.read_text())["hand"] if state.exists() else None
+            names = [x for x in (option("--reroute") or "").split(",") if x]
+            keep["reroute"] = set(names) | {"/" + x for x in names if not x.startswith("/")}
+        else:
+            print(f"--keep: {keep_file.name} does not exist, routing everything")
+        timing["read previous board"] = time.time() - t0
+
+    if out_file.exists():
+        out_file.unlink()
+    board = pcbnew.NewBoard(str(out_file))
     board.SetCopperLayerCount(2)
 
     # --- design rules: JLCPCB standard 2-layer capabilities with margin -----
@@ -981,7 +1115,8 @@ def main():
         # Revision 2.0: the bus reaches the bridge from below, up the strip between the FPC
         # slot and the sensor slot, so each fixed track starts where its feed comes up.
         start_x = {name: x for name, _, x, _ in SENSOR_BUS}
-        failures = route_board.run(board, ORIGIN, dict(
+        timing["placement"] = time.time() - t0 - timing.get("read previous board", 0.0)
+        geo = dict(
             W=W, H=H,
             cutouts=[(SLOT_X[0], y1, SLOT_X[1], y2) for y1, y2 in SLOTS_Y] + list(TONGUE_CUTOUTS) + [FPC_SLOT],
             antenna_x=6.9,
@@ -1014,9 +1149,17 @@ def main():
             debug="--debug" in sys.argv[1:],
             attempts=next((int(x.split("=")[1]) for x in sys.argv[1:] if x.startswith("--attempts=")), 12),
             seed=next((int(x.split("=")[1]) for x in sys.argv[1:] if x.startswith("--seed=")), ROUTE_SEED),
-        ))
+            keep=keep,
+        )
+        failures = route_board.run(board, ORIGIN, geo)
+        timing.update(geo.get("timing", {}))
+        (HW / "build").mkdir(exist_ok=True)
+        state_file(out_file).write_text(json.dumps(dict(hand=route_board.hand_drawn_hashes(geo), seed=geo["seed"]),
+                                                   indent=1))
 
-    pcbnew.SaveBoard(str(BOARD_FILE), board)
+    t_save = time.time()
+    pcbnew.SaveBoard(str(out_file), board)
+    timing["save"] = time.time() - t_save
     # One exception to the board's 0.25 mm hole clearance: the side switches' guide-boss holes keep
     # 0.2 mm (JLCPCB's limit for an unplated hole to copper) from the switch's own pads.
     (HW / "climasense.kicad_dru").write_text(
@@ -1024,11 +1167,22 @@ def main():
         '(rule "Side switch: boss holes to its own pads"\n'
         '\t(condition "A.memberOfFootprint(\'SW*\') && B.memberOfFootprint(\'SW*\')")\n'
         '\t(constraint hole_clearance (min 0.2mm)))\n', encoding="utf-8", newline="\n")
-    if "--no-route" not in sys.argv[1:]:
+    if "--no-route" not in sys.argv[1:] and "--no-fill" not in sys.argv[1:]:
         # fill the ground pours with KiCad's own filler and store the result in the board
+        t_fill = time.time()
         subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--format", "json",
-                        "-o", str(HW / "build" / "drc.json"), str(BOARD_FILE)], check=True, capture_output=True)
-    print(f"{placed} parts placed, {len(nets)} nets, board {W} x {H} mm -> {BOARD_FILE.name}")
+                        "-o", str(HW / "build" / "drc.json"), str(out_file)], check=True, capture_output=True)
+        timing["pour fill"] = time.time() - t_fill
+    timing["total"] = time.time() - t0
+    print(f"{placed} parts placed, {len(nets)} nets, board {W} x {H} mm -> {out_file.name}")
+    print("time: " + ", ".join(f"{k} {v:.1f} s" for k, v in timing.items()))
+    if option("--summary"):
+        tracks = [t for t in board.GetTracks() if t.GetClass() == "PCB_TRACK"]
+        Path(option("--summary")).write_text(json.dumps(dict(
+            seed=geo["seed"], out=str(out_file), open=len(failures), seconds=round(timing["total"]),
+            vias=sum(1 for t in board.GetTracks() if t.GetClass() == "PCB_VIA"),
+            track_mm=round(sum(pcbnew.ToMM(t.GetLength()) for t in tracks), 1),
+            bundle_supply_mm=bundle_supply_length(board))))
 
 
 if __name__ == "__main__":
