@@ -1,0 +1,242 @@
+(footprint "LED_RGB_Everlight_19-337_1.6x1.6mm"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Everlight 19-337 RGB LED, 1.6x1.6 mm, 6 pads; cathodes 1 (blue), 2 (red), 3 (green), anodes 4, 5, 6 (https://en.everlight.com/wp-content/plugins/ItemRelationship/product_files/pdf/19-337-R6GHBHC-A01-2T.pdf)")
+	(tags "LED RGB Everlight 19-337")
+	(property "Reference" "REF**"
+		(at 0 -2 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "769f040a-8246-5658-9366-261833801765")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "LED_RGB_Everlight_19-337_1.6x1.6mm"
+		(at 0 2 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "b107fbf3-0783-5c3b-bb1d-84c98c4546dc")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "5a4a1f71-6f79-5396-8720-ced0f430a850")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "91b59640-0cb4-5bc8-946b-785a84ae40a1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -0.8 -1.185)
+		(end 0.8 -1.185)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "576db1b8-4efb-56fb-a5b3-25f81130ec65")
+	)
+	(fp_line
+		(start -0.8 1.185)
+		(end 0.8 1.185)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "9c59bb18-9a3f-5e80-bc06-737338d52da5")
+	)
+	(fp_poly
+		(pts
+			(xy -1.4 -0.725) (xy -1.8 -1.025) (xy -1.8 -0.425)
+		)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(fill yes)
+		(layer "F.SilkS")
+		(uuid "dcac5089-d394-5e92-8f13-51a6c85894fe")
+	)
+	(fp_line
+		(start -1.35 -1.385)
+		(end 1.35 -1.385)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "b87399a1-4b13-5de9-8f53-ca527ce0bbac")
+	)
+	(fp_line
+		(start -1.35 1.385)
+		(end -1.35 -1.385)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "f3dfeb9f-6aac-5d10-874e-5170c0413e03")
+	)
+	(fp_line
+		(start 1.35 -1.385)
+		(end 1.35 1.385)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "8119dc0f-b3f5-5631-8535-908a151e950b")
+	)
+	(fp_line
+		(start 1.35 1.385)
+		(end -1.35 1.385)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "3ba312e4-9c35-5293-bc5d-50fa5a7167eb")
+	)
+	(fp_line
+		(start -0.8 -0.5)
+		(end -0.5 -0.8)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "0c2bd0a1-c66e-5851-bff7-ecfd0c9798b4")
+	)
+	(fp_line
+		(start -0.8 0.8)
+		(end -0.8 -0.5)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "8e0d8b35-3320-503e-8d5b-05681140129e")
+	)
+	(fp_line
+		(start -0.5 -0.8)
+		(end 0.8 -0.8)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "8ac215cc-d2d1-5041-ba37-1833922d6996")
+	)
+	(fp_line
+		(start 0.8 -0.8)
+		(end 0.8 0.8)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "cc4aecda-f6df-5ff3-84a9-1e905e6fc615")
+	)
+	(fp_line
+		(start 0.8 0.8)
+		(end -0.8 0.8)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "ea656064-18b8-5abf-ba83-5a4a03ddb089")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "1a18f4e9-8cd1-5b54-9b72-bf8779cc9c45")
+		(effects
+			(font
+				(size 0.4 0.4)
+				(thickness 0.06)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at -0.675 -0.725)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "11b21c60-f161-512c-b30f-a2b4437a87aa")
+	)
+	(pad "2" smd rect
+		(at -0.75 0)
+		(size 0.7 0.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "f400d0bf-ef86-58d2-be2b-91d660e1982c")
+	)
+	(pad "3" smd rect
+		(at -0.675 0.725)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "82d3bf50-4351-5af3-a1e0-5188e0f558fe")
+	)
+	(pad "4" smd rect
+		(at 0.675 -0.725)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "ea5379b5-ac79-5dfc-8215-c34de8c2e364")
+	)
+	(pad "5" smd rect
+		(at 0.75 0)
+		(size 0.7 0.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "e02fb278-a55b-569b-b319-e204a62d33e3")
+	)
+	(pad "6" smd rect
+		(at 0.675 0.725)
+		(size 0.55 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "b2cb5860-61c9-5358-b42d-24cbf7bc0f06")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/lib/climasense.3dshapes/LED_RGB_Everlight_19-337.wrl"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)

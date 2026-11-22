@@ -34,5 +34,5 @@ __pycache__/
 Thumbs.db
 
 # --- Generated hardware outputs ---
-hardware/build/
-hardware/fab/*.zip
+hardware/*/build/
+hardware/*/fab/*.zip

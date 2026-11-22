@@ -1,6 +1,6 @@
 # Project footprints
 
-Four parts have no footprint in KiCad's standard library. They live in [`hardware/lib/climasense.pretty`](../../hardware/lib/climasense.pretty) and are produced by [`hardware/tools/gen_footprints.py`](../../hardware/tools/gen_footprints.py), where every dimension sits next to the name of the datasheet drawing it came from.
+Four parts have no footprint in KiCad's standard library. They live in [`hardware/rev-1.0/lib/climasense.pretty`](../../hardware/rev-1.0/lib/climasense.pretty) and are produced by [`hardware/rev-1.0/tools/gen_footprints.py`](../../hardware/rev-1.0/tools/gen_footprints.py), where every dimension sits next to the name of the datasheet drawing it came from.
 
 Status: **drawn from the manufacturers' land-pattern drawings and checked against the schematic, but not yet proven on a real board.**
 
@@ -69,7 +69,7 @@ Pad numbers agree everywhere; JLCPCB numbers the ESP32's nine ground squares 29â
 
 ## 3D models
 
-KiCad ships no 3D model for seven of the part types on the board: the four sensors, the RGB LED, the push buttons and the USB-C socket. [`hardware/tools/gen_models.py`](../../hardware/tools/gen_models.py) writes simple ones into [`hardware/lib/climasense.3dshapes`](../../hardware/lib/climasense.3dshapes), so that KiCad's 3D view and the pictures in the README show every part.
+KiCad ships no 3D model for seven of the part types on the board: the four sensors, the RGB LED, the push buttons and the USB-C socket. [`hardware/rev-1.0/tools/gen_models.py`](../../hardware/rev-1.0/tools/gen_models.py) writes simple ones into [`hardware/rev-1.0/lib/climasense.3dshapes`](../../hardware/rev-1.0/lib/climasense.3dshapes), so that KiCad's 3D view and the pictures in the README show every part.
 
 | Model | Part | Drawn from |
 | --- | --- | --- |
@@ -86,13 +86,13 @@ Outline and height are the datasheet's; the detail is simplified. **They are for
 The three project footprints name their model themselves. The buttons, the USB-C socket, the SCD41 and the SHT45 use KiCad's library footprints, which name a model file KiCad does not ship; `gen_pcb.py` replaces that name with the project's model when it places the part (`PROJECT_MODELS`). The ESP32-C6 module uses KiCad's model of the ESP32-S3-WROOM-1, which has the same outline.
 
 ```bash
-python hardware/tools/gen_models.py
+python hardware/rev-1.0/tools/gen_models.py
 ```
 
 ## Regenerating
 
 ```bash
-python hardware/tools/gen_footprints.py
+python hardware/rev-1.0/tools/gen_footprints.py
 ```
 
 Rewrites the four files. Once the PCB layout uses them, change dimensions here and re-run rather than editing the files by hand, so the datasheet references stay next to the numbers.

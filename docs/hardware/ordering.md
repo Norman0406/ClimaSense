@@ -3,10 +3,10 @@
 The three files JLCPCB asks for are written by one script:
 
 ```
-python hardware/tools/gen_fab.py
+python hardware/rev-1.0/tools/gen_fab.py
 ```
 
-It runs the board check first and writes nothing if the board does not pass. Output, in `hardware/fab/`:
+It runs the board check first and writes nothing if the board does not pass. Output, in `hardware/rev-1.0/fab/`:
 
 | File | What it is | Where it goes on the order page |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ It runs the board check first and writes nothing if the board does not pass. Out
 | `climasense-1.0-bom.csv` | Parts list: one line per part type with JLCPCB's part number | PCB Assembly → "Add BOM File" |
 | `climasense-1.0-cpl.csv` | Placement: position and rotation of every part | PCB Assembly → "Add CPL File" |
 
-`hardware/fab/gerbers/` holds the same files as the zip, unpacked. They are kept in the repository as the record of what was ordered; KiCad writes them in a different order on every run, so a diff of them says little.
+`hardware/rev-1.0/fab/gerbers/` holds the same files as the zip, unpacked. They are kept in the repository as the record of what was ordered; KiCad writes them in a different order on every run, so a diff of them says little.
 
 Stock changes daily. Check the parts list on the order page: every one of the 28 lines must be ticked and have a quantity. On 2026-11-20 the SHT45 line came up unticked with quantity 0; ticking it by hand was enough, and it was then priced like the others. If JLCPCB reports a part as short, do not let it pick a substitute for a sensor, a regulator or the module; ask first.
 

@@ -2,7 +2,7 @@
 
 Status: **placed and fully routed by script; not yet reviewed by a person.** A measurement of the routing found four weaknesses, which have been fixed (see [Review of the routing](#review-of-the-routing-2026-11-19)); a check of the whole design against the datasheets before ordering found two more, also fixed (see [Check before ordering](#check-before-ordering-2026-11-20)). KiCad's design rule check reports no violations, no difference between board and schematic, and no open connections. That shows the board is consistent with the schematic and with the manufacturing rules below; it does not replace a look by someone who has laid out boards before.
 
-File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), created by [`hardware/tools/gen_pcb.py`](../../hardware/tools/gen_pcb.py).
+File: [`hardware/rev-1.0/climasense.kicad_pcb`](../../hardware/rev-1.0/climasense.kicad_pcb), created by [`hardware/rev-1.0/tools/gen_pcb.py`](../../hardware/rev-1.0/tools/gen_pcb.py).
 
 ## Board
 
@@ -19,7 +19,7 @@ File: [`hardware/climasense.kicad_pcb`](../../hardware/climasense.kicad_pcb), cr
 | --- | --- |
 | ![Top copper layer](../images/copper-top.svg) | ![Bottom copper layer, seen through the board](../images/copper-bottom.svg) |
 
-The bottom layer is drawn as seen through the board, not mirrored, so both pictures line up. The ground pours cover the main part only; the sensor island and the tongue carry tracks alone. 3D views of the board are in the [README](../../README.md); all four pictures are written by `python hardware/tools/gen_images.py`.
+The bottom layer is drawn as seen through the board, not mirrored, so both pictures line up. The ground pours cover the main part only; the sensor island and the tongue carry tracks alone. 3D views of the board are in the [README](../../README.md); all four pictures are written by `python hardware/rev-1.0/tools/gen_images.py`.
 
 ## Arrangement
 
@@ -67,7 +67,7 @@ Set for JLCPCB's standard 2-layer process, with margin.
 - **No tracks on the bottom layer under the buck converter**, so its ground stays unbroken.
 - **Silkscreen:** BOOT, RESET and QWIIC labels, the name of each sensor next to it (SCD41, SGP41, BMP580, SHT45), the board name with its revision ("ClimaSense Rev 1.0", in the strip below the module, since the sensor header took its place on the sensor side), the pin names of the two headers and of the test pads, the rule for the sensor header's supply pin ("3V3: cut off first"), and an arrow marked "Up" to the right of the USB connector that points to the top edge, the way the board hangs (added 2026-11-20). Reference designators are not printed; with parts this small they would overlap. They remain on the fabrication drawing.
 
-The routing is done by a small grid router written for this board ([`router.py`](../../hardware/tools/router.py), [`route_board.py`](../../hardware/tools/route_board.py)). It breaks every net into single connections, routes them shortest first, and re-routes the whole board with failed connections moved earlier until everything fits (five attempts for the current placement, about three minutes). The result is the same every time it is run.
+The routing is done by a small grid router written for this board ([`router.py`](../../hardware/rev-1.0/tools/router.py), [`route_board.py`](../../hardware/rev-1.0/tools/route_board.py)). It breaks every net into single connections, routes them shortest first, and re-routes the whole board with failed connections moved earlier until everything fits (five attempts for the current placement, about three minutes). The result is the same every time it is run.
 
 What keeps the tracks tidy:
 
@@ -92,7 +92,7 @@ Three right-angle corners remain, each with a short leg. Right angles at T-junct
 
 ## Review of the routing (2026-11-19)
 
-Every track was measured with [`audit_pcb.py`](../../hardware/tools/audit_pcb.py). The rule check cannot see any of the following: all of it was legal, some of it was not good. Four weaknesses were found and **fixed the same day**; the figures below are before and after.
+Every track was measured with [`audit_pcb.py`](../../hardware/rev-1.0/tools/audit_pcb.py). The rule check cannot see any of the following: all of it was legal, some of it was not good. Four weaknesses were found and **fixed the same day**; the figures below are before and after.
 
 ### Found and fixed
 
@@ -193,23 +193,23 @@ Signal tracks elsewhere are 0.2 mm. Making them thinner would gain nothing.
 ## Checking the board
 
 ```bash
-python hardware/tools/check_pcb.py --require-routed
+python hardware/rev-1.0/tools/check_pcb.py --require-routed
 ```
 
-Runs KiCad's design rule check including the board-versus-schematic comparison, fails on any violation or open connection, and renders `hardware/build/pcb_3d_top.png`.
+Runs KiCad's design rule check including the board-versus-schematic comparison, fails on any violation or open connection, and renders `hardware/rev-1.0/build/pcb_3d_top.png`.
 
 ```bash
-"C:\Program Files\KiCad\10.0\bin\python.exe" hardware/tools/audit_pcb.py
+"C:\Program Files\KiCad\10.0\bin\python.exe" hardware/rev-1.0/tools/audit_pcb.py
 ```
 
-Measures what the rule check does not: each net's length against the shortest possible connection, the length at each track width, the resistance of the supply paths, and which nets run side by side. Writes `hardware/build/audit.txt`. The numbers in the review above come from it.
+Measures what the rule check does not: each net's length against the shortest possible connection, the length at each track width, the resistance of the supply paths, and which nets run side by side. Writes `hardware/rev-1.0/build/audit.txt`. The numbers in the review above come from it.
 
 It also checks tidiness and **fails** if a net crosses itself or has a loop in it. It lists tracks that meet a pad away from the pad's centre lines and right-angle corners. Each of these was a real defect of the router at some point; none is visible to the rule check. Run it after every re-route, together with `check_pcb.py`.
 
 ## Regenerating
 
 ```bash
-"C:\Program Files\KiCad\10.0\bin\python.exe" hardware/tools/gen_pcb.py
+"C:\Program Files\KiCad\10.0\bin\python.exe" hardware/rev-1.0/tools/gen_pcb.py
 ```
 
 Needs KiCad's own Python and a current `build/netlist.net` (run `check_schematic.py` first). It places the parts, routes the board and fills the pours, and it **overwrites** the board file, so it must not be run once the board has been edited by hand in KiCad. `--no-route` stops after placement.
