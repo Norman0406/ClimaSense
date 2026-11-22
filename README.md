@@ -1,10 +1,12 @@
 # ClimaSense
 
-![The ClimaSense board, revision 1.0, seen from the front left](docs/images/board-angle.png)
+![The ClimaSense board, revision 2.0, seen from the front left](docs/images/rev-2.0/board-angle.png)
 
 An ESP32-based indoor environment sensor. It periodically measures temperature, humidity, CO2, VOC/NOx and air pressure and publishes the readings via MQTT. Wi-Fi is configured through a captive portal.
 
-## The board, revision 1.0
+The picture shows the latest revision, 2.0, which is still in design. All pictures here are renders of the KiCad design (`python hardware/rev-<N>/tools/gen_images.py`), not photographs.
+
+## Revision 1.0
 
 The first board, ordered at JLCPCB on 2026-11-20.
 
@@ -17,21 +19,19 @@ The first board, ordered at JLCPCB on 2026-11-20.
 - **A milled slot**, which keeps the heat of everything on the left away from the sensors.
 - **The sensors**: SCD41 (CO2) and SGP41 (VOC/NOx) at the top, because they are the two that warm up and heat rises; the SHT45 (temperature and humidity) below them at the right edge, on a tongue of its own that is cut free on three sides, with nothing underneath it; and the BMP580 (pressure) at the lower left, which gives off practically no heat.
 
-The pictures are renders of the KiCad design (`python hardware/rev-1.0/tools/gen_images.py`), not photographs: no board has been manufactured yet. How the board is laid out and why: [`docs/hardware/layout.md`](docs/hardware/layout.md).
+How the board is laid out and why: [`docs/hardware/layout.md`](docs/hardware/layout.md).
 
-## Revision 2.0: with an e-paper display (in design)
+## Revision 2.0 (in design)
 
-Revision 2.0 adds a 2.13" black-and-white e-paper panel on the back, the side that faces the room, and is 103 × 34 mm. **It is still being designed and has not been built or ordered.** Its notes: [`docs/hardware/rev-2.0.md`](docs/hardware/rev-2.0.md).
+Revision 2.0 adds a 2.13" black-and-white e-paper panel and is 103 × 34 mm. **It is still being designed and has not been built or ordered.** Its notes: [`docs/hardware/rev-2.0.md`](docs/hardware/rev-2.0.md).
+
+All parts sit on the side that faces the wall. The buttons and the status LED move to the top edge, and the sensors keep their arrangement behind the slot:
 
 ![Revision 2.0 from above (component side, facing the wall)](docs/images/rev-2.0/board-top.png)
 
+The panel sits on the back, the side that faces the room. Its flexible tail runs through a slot in the board into a connector on the component side:
+
 ![Revision 2.0 from the back, with the display panel in place](docs/images/rev-2.0/board-bottom.png)
-
-The panel's flexible tail runs through a slot in the board and loops back into its connector on the component side:
-
-![The display's flexible tail running through the slot into its connector](docs/images/rev-2.0/board-fpc.png)
-
-These are renders too (`python hardware/rev-2.0/tools/gen_images.py`).
 
 ## Contents
 
