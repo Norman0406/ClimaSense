@@ -340,6 +340,14 @@
       {
         "netclass": "Power",
         "pattern": "+3V3_QWIIC"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/EPD_SW"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/EPD_RESE"
       }
     ]
   },
