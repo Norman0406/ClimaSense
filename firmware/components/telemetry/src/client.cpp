@@ -49,6 +49,12 @@ portMUX_TYPE g_backoff_lock = portMUX_INITIALIZER_UNLOCKED;
 net::ReconnectBackoff g_backoff;  // under g_backoff_lock
 std::atomic<bool> g_outage_logged{false};
 
+// The broker's acknowledgement of the last state message. The ack can in principle arrive before
+// publish_state() has stored the message ID, so an ack for an unknown ID is kept as well.
+std::atomic<int> g_state_msg_id{-1};
+std::atomic<bool> g_state_acked{false};
+std::atomic<int> g_other_ack_id{-1};
+
 void reconnect(void *)
 {
     // Refused unless the client is waiting to reconnect, e.g. when an attempt is already running.
@@ -121,6 +127,10 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
         if (event->msg_id >= 0 && event->msg_id == g_boot_msg_id) {
             g_boot_delivered = true;
             ESP_LOGI(kTag, "boot report delivered");
+        } else if (event->msg_id > 0 && event->msg_id == g_state_msg_id) {
+            g_state_acked = true;
+        } else {
+            g_other_ack_id = event->msg_id;
         }
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -296,8 +306,19 @@ bool publish_state(const std::string &json)
     if (!g_connected || g_client == nullptr) {
         return false;
     }
-    return esp_mqtt_client_enqueue(g_client, g_state_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
-                                   true) >= 0;
+    g_state_acked = false;
+    g_state_msg_id = -1;
+    // QoS 1: the broker's ack tells the status LED that the values arrived (decided 2026-11-22).
+    const int id = esp_mqtt_client_enqueue(g_client, g_state_topic.c_str(), json.data(),
+                                           static_cast<int>(json.size()), 1, 0, true);
+    g_state_msg_id = id;
+    return id >= 0;
+}
+
+bool state_delivered()
+{
+    const int id = g_state_msg_id;
+    return id > 0 && (g_state_acked || g_other_ack_id == id);
 }
 
 }  // namespace telemetry

@@ -51,6 +51,8 @@ constexpr uint8_t kBrightness = 128;
 constexpr int64_t kLogCheckPeriodUs = 1'000'000;
 // How long a short press shows the status (green when all is well).
 constexpr int64_t kShowStatusUs = 5'000'000;
+// How often the LED looks for the broker's ack while a message is on its way.
+constexpr uint32_t kSendPollMs = 20;
 
 void log_banner()
 {
@@ -187,9 +189,9 @@ void led_self_test()
 // start whenever the status changes. Only the app task drives the LED.
 class StatusLed {
 public:
-    // Updates the LED; returns when it next needs a look (esp_timer time, us). Until
-    // `flash_until`, a green flash for a sent message covers the pattern.
-    int64_t update(board::Status status, bool show_ok, int64_t flash_until, int64_t now)
+    // Updates the LED; returns when it next needs a look (esp_timer time, us). While `sending`,
+    // green for a message on its way to the broker covers the pattern.
+    int64_t update(board::Status status, bool show_ok, bool sending, int64_t now)
     {
         if (status != status_ || show_ok != show_ok_) {
             if (status != status_) {
@@ -201,8 +203,8 @@ public:
         }
         const auto elapsed_ms = static_cast<uint32_t>((now - since_) / 1000);
         board::LedStep step = board::status_led(status_, elapsed_ms, show_ok_);
-        if (now < flash_until) {
-            step = {board::colour::kGreen, static_cast<uint32_t>((flash_until - now + 999) / 1000)};
+        if (sending) {
+            step = {board::colour::kGreen, kSendPollMs};  // look for the broker's ack again soon
         }
         if (!shown_ || step.colour.r != shown_colour_.r || step.colour.g != shown_colour_.g ||
             step.colour.b != shown_colour_.b) {
@@ -299,7 +301,8 @@ extern "C" void app_main()
     int64_t next_publish = esp_timer_get_time() + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
     int64_t next_log_check = 0;
     int64_t show_status_until = 0;
-    int64_t flash_until = 0;
+    int64_t send_started = 0;
+    bool send_flash = false;
     board::Status shown = board::Status::Ok;
     StatusLed status_led;
     net::OfflineGuard offline_guard;
@@ -366,7 +369,8 @@ extern "C" void app_main()
 
         if (now >= next_publish) {
             if (publish(display_name) && board::shows_send_flash(shown, device.value.status_led)) {
-                flash_until = now + static_cast<int64_t>(board::kSendFlashMs) * 1000;
+                send_started = now;
+                send_flash = true;
             }
             next_publish += static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
         }
@@ -380,7 +384,11 @@ extern "C" void app_main()
         status.sensors_working = sensors::working();
         const bool asked = now < show_status_until;
         shown = board::shown_status(status, device.value.status_led, asked);
-        const int64_t next_led = status_led.update(shown, asked, flash_until, now);
+        if (send_flash) {
+            send_flash = board::send_flash_on(static_cast<uint32_t>((now - send_started) / 1000),
+                                              telemetry::state_delivered());
+        }
+        const int64_t next_led = status_led.update(shown, asked, send_flash, now);
 
         int64_t until = std::min({next_heartbeat, next_publish, next_log_check, next_led});
         if (show_status_until > now) {

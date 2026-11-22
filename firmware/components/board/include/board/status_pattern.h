@@ -9,7 +9,8 @@
 //   SensorFault    red, one short flash every 3 s (a sensor keeps failing)
 //   Ok             off; green while a short button press asks for the status
 //
-// On top of Ok and SensorFault, every state message sent over MQTT shows as a short green flash.
+// On top of Ok and SensorFault, every state message sent over MQTT shows green until the broker
+// has acknowledged it (at least 80 ms, at most 5 s).
 // With the LED switched off in the settings (e.g. in a bedroom), only the setup portal and a
 // button press light it.
 #pragma once
@@ -47,9 +48,16 @@ Status pick_status(const StatusInputs &in);
 // everything does while asked.
 Status shown_status(const StatusInputs &in, bool led_enabled, bool asked);
 
-// A sent message: a green flash this long, over the statuses whose pattern it cannot be
+// A sent message: green from when it is queued until the broker acknowledges it, at least
+// kSendFlashMinMs (a LAN round trip alone would be invisible) and at most kSendFlashMaxMs (an
+// ack that never comes does not keep it lit). Shown over the statuses whose pattern it cannot be
 // mistaken for, and only with the LED on.
-inline constexpr uint32_t kSendFlashMs = 80;
+inline constexpr uint32_t kSendFlashMinMs = 80;
+inline constexpr uint32_t kSendFlashMaxMs = 5000;
+constexpr bool send_flash_on(uint32_t elapsed_ms, bool acked)
+{
+    return elapsed_ms < kSendFlashMaxMs && (!acked || elapsed_ms < kSendFlashMinMs);
+}
 constexpr bool shows_send_flash(Status status, bool led_enabled)
 {
     return led_enabled && (status == Status::Ok || status == Status::SensorFault);

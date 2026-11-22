@@ -6,7 +6,7 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Steps 1-9 of the plan below: all four sensors are read and published over MQTT every 60 s together with a boot report and log lines, the device joins Wi-Fi and gets network time, every setting can be changed in the setup portal, and step 9 added the watchdog, reconnects, sensor recovery, LED status patterns and the saved VOC baseline. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 236 passed with g++ 13 on Linux at step 9, 2026-11-22); they have not been run on this PC (no PC compiler installed here, see below).
+Steps 1-9 of the plan below: all four sensors are read and published over MQTT every 60 s together with a boot report and log lines, the device joins Wi-Fi and gets network time, every setting can be changed in the setup portal, and step 9 added the watchdog, reconnects, sensor recovery, LED status patterns and the saved VOC baseline. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 237 passed with g++ 13 on Linux at step 9, 2026-11-22); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
@@ -167,7 +167,7 @@ After the colour check at start, the LED shows the most important of these:
 | red, one short flash every 3 s | a sensor keeps failing (recovery runs, see the log) |
 | off | all well; a short press on BOOT shows green for 5 s to confirm |
 
-On top of "all well" (and the sensor-fault flash), every state message sent over MQTT shows as a short green flash, once a minute.
+On top of "all well" (and the sensor-fault flash), every state message sent over MQTT, once a minute, lights the LED green until the broker has acknowledged it: usually a blink of 80 ms; longer means a slow network or broker; 5 s at most, if no acknowledgement comes.
 
 **Switching the LED off** (e.g. in a bedroom): untick "Status LED" under the device name in the setup portal. The LED then stays dark, also during the colour check at start and the message flashes; it lights only while the setup portal is open (blue) and for 5 s after a short press on BOOT, which shows the status as in the table.
 

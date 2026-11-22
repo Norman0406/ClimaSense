@@ -208,3 +208,18 @@ TEST(StatusShown, SendFlashOnlyWithTheLedOnAndOverQuietPatterns)
         EXPECT_FALSE(shows_send_flash(s, true)) << board::to_string(s);
     }
 }
+
+TEST(StatusShown, SendFlashLastsUntilTheAckWithinItsLimits)
+{
+    using board::kSendFlashMaxMs;
+    using board::kSendFlashMinMs;
+    using board::send_flash_on;
+    EXPECT_TRUE(send_flash_on(0, false));
+    EXPECT_TRUE(send_flash_on(0, true));  // acked at once: still visible
+    EXPECT_TRUE(send_flash_on(kSendFlashMinMs - 1, true));
+    EXPECT_FALSE(send_flash_on(kSendFlashMinMs, true));
+    EXPECT_TRUE(send_flash_on(1000, false));  // slow broker: stays on
+    EXPECT_FALSE(send_flash_on(1001, true));  // off once the ack is in
+    EXPECT_TRUE(send_flash_on(kSendFlashMaxMs - 1, false));
+    EXPECT_FALSE(send_flash_on(kSendFlashMaxMs, false));  // no ack: off after 5 s
+}

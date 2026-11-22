@@ -32,9 +32,12 @@ esp_err_t start(const MqttSettings &settings, const Identity &identity);
 
 bool connected();
 
-// Queues a state message (QoS 0, not retained) and returns at once. False if not connected: the
+// Queues a state message (QoS 1, not retained) and returns at once. False if not connected: the
 // message is dropped, the next one follows an interval later.
 bool publish_state(const std::string &json);
+
+// True once the broker has acknowledged the last state message queued (for the status LED).
+bool state_delivered();
 
 // The boot report (telemetry::boot_json). Call before start(): it is published (QoS 1, retained)
 // on the first connection, and again on later ones until the broker has acknowledged it.
