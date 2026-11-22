@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the ClimaSense revision 1.0 schematic.
+"""Generate the ClimaSense revision 2.0 schematic.
 
 Writes, relative to hardware/:
     lib/climasense.kicad_sym   project symbols (ESP32-C6-WROOM-1, SGP41, BMP580, ...)
@@ -49,13 +49,22 @@ RES = {  # value -> (LCSC, MPN)
     "15k": ("C25756", "0402WGF1502TCE"),
     "68k": ("C36871", "0402WGF6802TCE"),
     "100k": ("C25741", "0402WGF1003TCE"),
+    # revision 2.0, display boost circuit. TODO: LCSC numbers not yet confirmed.
+    "2.2R": ("C25092", "0402WGF220LTCE"),
+    "1M": ("C26083", "0402WGF1004TCE"),
 }
+C0603 = "Capacitor_SMD:C_0603_1608Metric"
 CAP = {  # value -> (footprint, LCSC, MPN)
     "100nF": (C0402, "C1525", "CL05B104KO5NNNC"),
     "1uF": (C0402, "C52923", "CL05A105KA5NQNC"),
     "2.2uF": (C0402, "C12530", "CL05A225MQ5NSNC"),
     "10uF": (C0805, "C15850", "CL21A106KAYNNNE"),
     "22uF": (C0805, "C45783", "CL21A226MAQNNNE"),
+    # Display supply (revision 2.0). The panel's driving voltages reach about +/-20 V, and
+    # Good Display asks for 0603/0805, X5R/X7R, >= 25 V: a 0402 part keeps too little of its
+    # capacitance at that voltage. TODO: LCSC numbers not yet confirmed.
+    "1uF/25V": (C0603, "C15849", "CL10A105KA8NNNC"),
+    "4.7uF/25V": (C0805, "C1779", "CL21A475KAQNNNE"),
 }
 
 
@@ -152,7 +161,7 @@ def project_symbols(lib: Library) -> list[list]:
 # Schematic
 # --------------------------------------------------------------------------
 def build(lib: Library) -> Schematic:
-    sch = Schematic(lib, PROJECT, "ClimaSense", "1.0", "2026-11-19", paper="A3")
+    sch = Schematic(lib, PROJECT, "ClimaSense", "2.0", "2026-11-22", paper="A2")
     sch.power_libs["+3V3_SENS"] = "climasense:+3V3_SENS"
     sch.power_libs["+3V3_QWIIC"] = "climasense:+3V3_QWIIC"
     sch.power_libs["+5V"] = "power:+5V"
@@ -326,7 +335,15 @@ def build(lib: Library) -> Schematic:
     mcu_nets = {
         "3": "EN", "15": "BOOT", "10": "IO8", "13": "USB_DN", "14": "USB_DP",
         "6": "I2C_SDA", "7": "I2C_SCL",
-        "11": "BMP_INT", "19": "LED_G", "20": "LED_R", "21": "LED_B",
+        # BMP580 interrupt on IO0 (revision 2.0; IO10 on 1.0): IO0 to IO7 can wake the chip from
+        # deep sleep and be read by the low-power core. IO0/IO1 were kept free for a 32 kHz
+        # crystal on 1.0; that option was dropped on 2026-11-22 (no battery variant planned).
+        "8": "BMP_INT", "19": "LED_G", "20": "LED_R", "21": "LED_B",
+        # e-paper display (revision 2.0). BUSY is driven by the panel, so it sits on IO3, not
+        # on a start-up configuration pin (IO4, IO5, IO15 are); the ESP32 drives the others only
+        # after start.
+        "26": "EPD_BUSY", "27": "EPD_RST", "4": "EPD_SCK", "5": "EPD_MOSI", "23": "EPD_CS",
+        "9": "EPD_DC",
         # IO18 to IO23 have a weak pull-up while the chip is in reset (chip datasheet table 2-1),
         # IO10 and IO11 have none. An enable that must stay low in reset (QWIIC_EN, held by
         # a 100 k pull-down) therefore sits on IO11; SENS_EN, which is pulled high anyway,
@@ -338,8 +355,7 @@ def build(lib: Library) -> Schematic:
     }
     for pin, net in mcu_nets.items():
         sch.label(u_mcu, pin, net)
-    for pin in ("23", "4", "5", "8", "9", "27", "26"):
-        sch.nc(u_mcu, pin)
+    sch.nc(u_mcu, "11")  # IO10, spare
     sch.power(u_mcu, "2", "+3V3")
     g = [sch.stub(u_mcu, p)[0] for p in ("1", "28", "29")]
     sch.wire(g[0], g[1])
@@ -418,7 +434,8 @@ def build(lib: Library) -> Schematic:
     sch.text(20.32, 226.06,
              "Boot: IO9 low at reset enters download mode (IO8 must be high).\\n"
              "USB D+/D- go straight to the ESP32-C6 USB Serial/JTAG controller.\\n"
-             "IO6/IO7 are the LP I2C pins, usable from the low-power core.", size=1.27)
+             "IO6/IO7 are the LP I2C pins, usable from the low-power core.\\n"
+             "IO10 is unused (spare).", size=1.27)
 
     # ======================================================================
     # Sensors (I2C, powered from +3V3_SENS)
@@ -551,6 +568,102 @@ def build(lib: Library) -> Schematic:
              "QWIIC_EN is pulled low: the Qwiic supply is off by default. It is on IO11,\\n"
              "which has no pull-up while the ESP32 is in reset.\\n"
              "The regulator limits the current, so a short on the connector cannot pull down the board.", size=1.27)
+
+    # ======================================================================
+    # E-paper display (revision 2.0): Good Display GDEY0213B74, SSD1680, 24-pin FPC
+    # ======================================================================
+    # Reference circuit from the panel's specification (page 29). The panel makes its driving
+    # voltages itself, switching Q1 through GDR and sensing its current on RESE; L2/Q1/D2
+    # boost +3V3 to PREVGH, and C/D3/D4 pump PREVGL negative. VPP (test pin), the
+    # temperature-sensor pins and NC stay open. BS1 low selects 4-wire SPI.
+    title(431.8, 22.86, "E-PAPER DISPLAY - GDEY0213B74 (SSD1680), 4-WIRE SPI")
+
+    def cap_net(value, x, y, net):
+        c = cap(value, x, y)
+        top = c.pos(1)
+        sch.wire(top, (top[0], top[1] - 2.54))
+        sch.label_at(top[0], top[1] - 2.54, net, 90)
+        sch.power_at(*c.pos(2), "GND", (0, 1))
+        return c
+
+    j5 = sch.add("Connector_Generic_MountingPin:Conn_01x24_MountingPin", "J5", "GDEY0213B74", 556.26, 101.6,
+                 footprint="Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
+                 fields={"LCSC": "C3249999", "MPN": "KH-FPC0.5-H2.0SMT-24P-QCHF"},
+                 ref_at=(0, -33.02, None), value_at=(0, 35.56, None))
+    fpc = {
+        "2": "EPD_GDR", "3": "EPD_RESE", "5": "EPD_VSH2", "9": "EPD_BUSY", "10": "EPD_RST",
+        "11": "EPD_DC", "12": "EPD_CS", "13": "EPD_SCK", "14": "EPD_MOSI", "18": "EPD_VDD",
+        "20": "EPD_VSH1", "21": "EPD_VGH", "22": "EPD_VSL", "23": "EPD_VGL", "24": "EPD_VCOM",
+    }
+    for pin, net in fpc.items():
+        sch.label(j5, pin, net, 5.08)
+    for pin in ("15", "16"):  # VDDIO, VCI
+        sch.power(j5, pin, "+3V3", 5.08)
+    for pin in ("8", "17"):   # BS1 (4-wire SPI), VSS
+        sch.power(j5, pin, "GND", 5.08)
+    sch.power(j5, "MP", "GND")
+    for pin in ("1", "4", "6", "7", "19"):
+        sch.nc(j5, pin)
+
+    # supply and driving-voltage capacitors, 25 V
+    for i, net in enumerate(("+3V3", "EPD_VDD", "EPD_VSH1", "EPD_VSH2", "EPD_VSL",
+                             "EPD_VGH", "EPD_VGL", "EPD_VCOM")):
+        x = 439.42 + i * 10.16
+        if net == "+3V3":
+            cap_between("1uF/25V", x, 160.02, "+3V3")
+        else:
+            cap_net("1uF/25V", x, 160.02, net)
+
+    # boost converter
+    l2 = sch.add("Device:L", "L2", "47uH", 457.2, 53.34, 90,
+                 footprint="Inductor_SMD:L_Taiyo-Yuden_NR-30xx",
+                 fields={"LCSC": "TBD", "MPN": "NR3015T470M"},
+                 ref_at=(-1.27, -2.54, "right"), value_at=(1.27, -2.54, "left"))
+    lin = l2.pos(1)
+    sch.wire(lin, (lin[0] - 7.62, lin[1]))
+    sch.power_at(lin[0] - 7.62, lin[1], "+3V3", (0, -1))
+    c_bin = cap("4.7uF/25V", lin[0] - 7.62, lin[1] + 3.81)
+    sch.power_at(*c_bin.pos(2), "GND", (0, 1))
+    lsw = l2.pos(2)
+    sch.wire(lsw, (lsw[0] + 2.54, lsw[1]))
+    sch.label_at(lsw[0] + 2.54, lsw[1], "EPD_SW", 0)
+
+    q1 = sch.add("Transistor_FET:Si1308EDL", "Q1", "Si1308EDL", 457.2, 81.28,
+                 fields={"LCSC": "TBD", "MPN": "SI1308EDL-T1-GE3"})
+    sch.label(q1, "3", "EPD_SW")
+    sch.label(q1, "1", "EPD_GDR")
+    sch.label(q1, "2", "EPD_RESE")
+    r_gate = res("1M", 444.5, 96.52)
+    sch.label_at(*r_gate.pos(1), "EPD_GDR", 90)
+    sch.power_at(*r_gate.pos(2), "GND", (0, 1))
+    r_sense = res("2.2R", 469.9, 96.52)
+    sch.label_at(*r_sense.pos(1), "EPD_RESE", 90)
+    sch.power_at(*r_sense.pos(2), "GND", (0, 1))
+
+    diodes = []
+    for i, (anode, cathode) in enumerate((("EPD_SW", "EPD_VGH"),      # boost to PREVGH
+                                          ("EPD_PUMP", "GND"),         # charge pump, ground side
+                                          ("EPD_VGL", "EPD_PUMP"))):   # charge pump to PREVGL
+        d = sch.add("Diode:MBR0530", f"D{i + 2}", "MBR0530", 495.3, 53.34 + i * 15.24, 0,
+                    fields={"LCSC": "TBD", "MPN": "MBR0530T1G"})
+        sch.label(d, "2", anode)
+        if cathode == "GND":
+            sch.power(d, "1", "GND")
+        else:
+            sch.label(d, "1", cathode)
+        diodes.append(d)
+    c_pump = cap("4.7uF/25V", 515.62, 99.06)
+    top = c_pump.pos(1)
+    sch.wire(top, (top[0], top[1] - 2.54))
+    sch.label_at(top[0], top[1] - 2.54, "EPD_SW", 90)
+    bot = c_pump.pos(2)
+    sch.wire(bot, (bot[0], bot[1] + 2.54))
+    sch.label_at(bot[0], bot[1] + 2.54, "EPD_PUMP", 270)
+
+    sch.text(431.8, 182.88,
+             "Values from the GDEY0213B74 specification, reference circuit (page 29).\\n"
+             "Capacitors 0603/0805, X5R/X7R, 25 V. PREVGH/PREVGL reach about +/-20 V.\\n"
+             "The panel sits on the back of the board; its FPC passes through a slot.", size=1.27)
     return sch
 
 

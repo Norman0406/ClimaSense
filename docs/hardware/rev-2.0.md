@@ -1,6 +1,6 @@
 # Revision 2.0 — e-paper display (draft)
 
-Status: **first draft of the concept, nothing drawn yet.** Started 2026-11-22. Every point marked **Assumption** or **Open** still needs a decision or a check against a datasheet. Revision 1.0 stays as ordered on 2026-11-20 (commit `8c89155` is the design that was sent to JLCPCB); its documents ([`schematic.md`](schematic.md), [`layout.md`](layout.md)) describe 1.0 until the 2.0 board is drawn.
+Status: **concept drafted; schematic generator updated, not yet checked with KiCad; board not started.** Started 2026-11-22. Every point marked **Assumption** or **Open** still needs a decision or a check against a datasheet. Revision 1.0 stays as ordered on 2026-11-20 (commit `8c89155` is the design that was sent to JLCPCB); its documents ([`schematic.md`](schematic.md), [`layout.md`](layout.md)) describe 1.0 until the 2.0 board is drawn.
 
 Background: section 6 of [`next-revision.md`](next-revision.md).
 
@@ -122,7 +122,7 @@ The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 were free. **Decided 2026
 | IO5 | `EPD_MOSI` | as IO4 |
 | IO15 | `EPD_CS` | as IO4 |
 | IO1 | `EPD_DC` | |
-| IO0 | spare, or `BMP_INT` | **Proposed**: move the BMP580 interrupt here from IO10. IO0 is one of the pins that can wake the chip from deep sleep and be read by the low-power core, which IO10 cannot (see the BMP580 item in [`next-revision.md`](next-revision.md)); it is not a start-up configuration pin. Costs nothing, since 2.0 changes the pin map anyway. IO10 would then be the spare. |
+| IO0 | `BMP_INT` | **Decided 2026-11-22 (Norman)**: the BMP580 interrupt moves here from IO10. IO0 is one of the pins that can wake the chip from deep sleep and be read by the low-power core, which IO10 cannot (see the BMP580 item in [`next-revision.md`](next-revision.md)); it is not a start-up configuration pin. Costs nothing, since 2.0 changes the pin map anyway. IO10 is now the spare. |
 
 - SPI goes through the GPIO matrix to these pins; fine at the panel's clock (a few MHz to 20 MHz).
 - No pull-ups: while the ESP32 is in reset the panel is in deep sleep and ignores the bus until it is reset. **Assumption**; a 100 kΩ pull-up on `EPD_CS` would cost one resistor of a type already on the board.
@@ -158,8 +158,8 @@ Supply (USB-C, fuse, buck converter, sensor and Qwiic regulators), sensors and t
 
 ## Next steps
 
-1. Norman: confirm moving the BMP580 interrupt to IO0, the board length (about 101 mm) and FPC route A with the dual-contact connector.
-2. Schematic: add the panel block and the new pins in `gen_schematic.py`, run `check_schematic.py`.
+1. Norman: confirm the board length (about 101 mm) and FPC route A with the dual-contact connector (taken as agreed for now).
+2. Schematic: done in `gen_schematic.py` (2026-11-22): new pins, display block J5, L2, Q1, D2–D4, R18–R19, C17–C26, sheet size A2. Its own netlist was checked by reading it; KiCad's rule check (`check_schematic.py`) has not run yet. The FPC connector uses KiCad's Hirose FH12 footprint as a stand-in until the Kinghelm part's land pattern is checked; the LCSC numbers of the new parts are not confirmed.
 3. Footprints: FPC connector and side button in `gen_footprints.py` if KiCad's library has none that fit.
 4. Board: new outline, FPC slot and placement in `gen_pcb.py`, route, `check_pcb.py`, `audit_pcb.py`. These need KiCad on Norman's computer.
 5. Order bare boards and a stencil only after Norman's go-ahead.
