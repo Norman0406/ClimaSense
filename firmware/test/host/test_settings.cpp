@@ -137,7 +137,7 @@ TEST(SettingsStore, AFailingWriteIsReported)
 TEST(SettingsStore, KeysFitNvs)
 {
     for (const char *k : {key::kWifiSsid, key::kWifiPassword, key::kWifiCountry, key::kSntpServer,
-                          key::kTimezone, key::kDeviceName}) {
+                          key::kTimezone, key::kDeviceName, key::kStatusLed}) {
         EXPECT_LE(std::string_view(k).size(), 15u) << k;  // NVS: 15 characters plus NUL
     }
 }
@@ -154,6 +154,31 @@ TEST(DeviceSettings, NameRoundTripsAndDefaultsToTheId)
     const auto loaded = settings::load_device(store, DeviceSettings{});
     EXPECT_EQ(loaded.value.name.view(), "Küche");
     EXPECT_EQ(settings::display_name(loaded.value, "climasense-a1b2c3"), "Küche");
+}
+
+TEST(DeviceSettings, StatusLedIsOnByDefaultAndRoundTrips)
+{
+    FakeStore store;
+    EXPECT_TRUE(settings::load_device(store, DeviceSettings{}).value.status_led);
+    DeviceSettings d;
+    d.status_led = false;
+    EXPECT_FALSE(settings::save_device(store, d));
+    EXPECT_EQ(store.committed["status_led"], "0");
+    EXPECT_FALSE(settings::load_device(store, DeviceSettings{}).value.status_led);
+    d.status_led = true;
+    EXPECT_FALSE(settings::save_device(store, d));
+    EXPECT_TRUE(settings::load_device(store, DeviceSettings{}).value.status_led);
+}
+
+TEST(DeviceSettings, StatusLedOtherThanZeroOrOneRejectsTheRecord)
+{
+    FakeStore store;
+    store.committed["device_name"] = "Bedroom";
+    store.committed["status_led"] = "off";
+    const auto loaded = settings::load_device(store, DeviceSettings{});
+    EXPECT_TRUE(loaded.rejected);
+    EXPECT_TRUE(loaded.value.status_led);
+    EXPECT_TRUE(loaded.value.name.empty());
 }
 
 TEST(DeviceSettings, NameMustBeUtf8)

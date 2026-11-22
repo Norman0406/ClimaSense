@@ -5,6 +5,7 @@ idf_component_register(
         "src/button_logic.cpp"
         "src/led.cpp"
         "src/led_logic.cpp"
+        "src/status_pattern.cpp"
     INCLUDE_DIRS "include"
     REQUIRES esp_driver_gpio
     PRIV_REQUIRES esp_driver_ledc esp_timer

@@ -2,15 +2,17 @@
 // Report the previous run (its last log lines, a crash dump), bring up the rails, LED and button,
 // start the sensor task (sensors/sensor_task.h), Wi-Fi with network time (net/wifi.h) and, when
 // needed, the setup portal (portal/portal.h), and publish the sensor values over MQTT every
-// 60 s, with a boot report and WARNING-and-above log lines (telemetry/client.h). At start the LED shows red, green, blue and white
-// in turn (a check of the LED and its colour balance); a long press opens the setup portal, a
-// short press closes it, or otherwise cycles through the LED colours.
+// 60 s, with a boot report and WARNING-and-above log lines (telemetry/client.h). At start the LED
+// shows red, green, blue and white in turn (a check of the LED and its colour balance), then the
+// device's status (board/status_pattern.h). A long press opens the setup portal; a short press
+// closes it, or otherwise shows the status for a few seconds (green: all well). The app task is
+// watched by the task watchdog, and the device restarts after an hour offline (net/offline_guard.h).
 
 #include <algorithm>
-#include <array>
 #include <cinttypes>
 #include <cstddef>
 #include <ctime>
+#include <initializer_list>
 #include <string>
 
 #include "esp_app_desc.h"
@@ -19,6 +21,7 @@
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
@@ -27,7 +30,9 @@
 #include "board/board.h"
 #include "board/button.h"
 #include "board/led.h"
+#include "board/status_pattern.h"
 #include "diagnostics/diagnostics.h"
+#include "net/offline_guard.h"
 #include "net/wifi.h"
 #include "ota/ota.h"
 #include "portal/portal.h"
@@ -43,21 +48,11 @@ namespace {
 constexpr const char *kTag = "climasense";
 constexpr int64_t kHeartbeatPeriodUs = 5'000'000;
 constexpr uint8_t kBrightness = 128;
-constexpr int64_t kBlinkHalfPeriodUs = 250'000;
 constexpr int64_t kLogCheckPeriodUs = 1'000'000;
-
-struct NamedColour {
-    const char *name;
-    board::Rgb rgb;
-};
-
-constexpr std::array kColours{
-    NamedColour{"off", board::colour::kOff},
-    NamedColour{"red", board::colour::kRed},
-    NamedColour{"green", board::colour::kGreen},
-    NamedColour{"blue", board::colour::kBlue},
-    NamedColour{"white", board::colour::kWhite},
-};
+// How long a short press shows the status (green when all is well).
+constexpr int64_t kShowStatusUs = 5'000'000;
+// How often the LED looks for the broker's ack while a message is on its way.
+constexpr uint32_t kSendPollMs = 20;
 
 void log_banner()
 {
@@ -118,20 +113,23 @@ std::string local_time()
     return telemetry::rfc3339_offset(text);
 }
 
-// Takes the sensor snapshot (which starts the next averaging window) and publishes it.
-void publish(const std::string &display_name)
+// Takes the sensor snapshot (which starts the next averaging window) and publishes it. True if
+// the message was queued.
+bool publish(const std::string &display_name)
 {
     const sensors::SensorSnapshot snapshot = sensors::take_snapshot();
     if (!telemetry::connected()) {
-        return;  // the window still restarts: every message averages one interval
+        return false;  // the window still restarts: every message averages one interval
     }
     const std::string time = local_time();
     const telemetry::StateMeta meta{net::device_id(), display_name, time, net::rssi(),
                                     static_cast<uint32_t>(esp_timer_get_time() / 1'000'000)};
     const std::string json = telemetry::state_json(snapshot, meta);
-    if (telemetry::publish_state(json)) {
-        ESP_LOGD(kTag, "published: %s", json.c_str());
+    if (!telemetry::publish_state(json)) {
+        return false;
     }
+    ESP_LOGD(kTag, "published: %s", json.c_str());
+    return true;
 }
 
 // The boot report: what the last run left behind (reset reason, its last log lines, a crash).
@@ -180,12 +178,50 @@ void forward_log_lines()
 
 void led_self_test()
 {
-    for (std::size_t i = 1; i < kColours.size(); ++i) {
-        board::led::set(kColours[i].rgb, kBrightness);
+    for (const board::Rgb rgb : {board::colour::kRed, board::colour::kGreen, board::colour::kBlue, board::colour::kWhite}) {
+        board::led::set(rgb, kBrightness);
         vTaskDelay(pdMS_TO_TICKS(400));
     }
     board::led::off();
 }
+
+// The status LED (board/status_pattern.h): plays the pattern of the current status, from its
+// start whenever the status changes. Only the app task drives the LED.
+class StatusLed {
+public:
+    // Updates the LED; returns when it next needs a look (esp_timer time, us). While `sending`,
+    // green for a message on its way to the broker covers the pattern.
+    int64_t update(board::Status status, bool show_ok, bool sending, int64_t now)
+    {
+        if (status != status_ || show_ok != show_ok_) {
+            if (status != status_) {
+                ESP_LOGI(kTag, "status: %s", board::to_string(status));
+            }
+            status_ = status;
+            show_ok_ = show_ok;
+            since_ = now;
+        }
+        const auto elapsed_ms = static_cast<uint32_t>((now - since_) / 1000);
+        board::LedStep step = board::status_led(status_, elapsed_ms, show_ok_);
+        if (sending) {
+            step = {board::colour::kGreen, kSendPollMs};  // look for the broker's ack again soon
+        }
+        if (!shown_ || step.colour.r != shown_colour_.r || step.colour.g != shown_colour_.g ||
+            step.colour.b != shown_colour_.b) {
+            board::led::set(step.colour, kBrightness);
+            shown_colour_ = step.colour;
+            shown_ = true;
+        }
+        return now + static_cast<int64_t>(step.hold_ms) * 1000;
+    }
+
+private:
+    board::Status status_ = board::Status::Ok;
+    bool show_ok_ = false;
+    int64_t since_ = 0;
+    board::Rgb shown_colour_{};
+    bool shown_ = false;
+};
 
 }  // namespace
 
@@ -237,7 +273,9 @@ extern "C" void app_main()
             ESP_LOGE(kTag, "MQTT not started: %s", esp_err_to_name(err));
         }
     }
-    led_self_test();
+    if (device.value.status_led) {
+        led_self_test();  // not with the LED switched off: a restart at night stays dark
+    }
 
     // Setup mode (captive portal): on first boot, i.e. with no network configured, and on a long
     // press of the BOOT button; a short press closes it.
@@ -258,16 +296,23 @@ extern "C" void app_main()
         open_portal();
     }
 
-    std::size_t colour_index = 0;
     int64_t next_heartbeat = esp_timer_get_time();
     // The first message after one full interval, so it averages a full minute of readings.
     int64_t next_publish = esp_timer_get_time() + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
-    int64_t next_blink = 0;
     int64_t next_log_check = 0;
-    bool blink_on = false;
-    bool portal_was_open = false;
+    int64_t show_status_until = 0;
+    int64_t send_started = 0;
+    bool send_flash = false;
+    board::Status shown = board::Status::Ok;
+    StatusLed status_led;
+    net::OfflineGuard offline_guard;
+
+    // From here on, the task watchdog restarts the device (with a core dump) if this loop hangs
+    // for longer than CONFIG_ESP_TASK_WDT_TIMEOUT_S.
+    ESP_ERROR_CHECK(esp_task_wdt_add(nullptr));
 
     for (;;) {
+        esp_task_wdt_reset();
         const int64_t now = esp_timer_get_time();
         if (now >= next_heartbeat) {
             ESP_LOGI(kTag, "alive, uptime %" PRId64 " s, free heap %" PRIu32 " bytes",
@@ -298,11 +343,15 @@ extern "C" void app_main()
                         "refused", std::nullopt, "expected \"<http(s) URL>\" or \"<URL> force\""));
                 }
             }
+            const auto uptime_s = static_cast<uint32_t>(now / 1'000'000);
+            const bool healthy = ota::trial_healthy(telemetry::mqtt_configured(mqtt.value), telemetry::connected(),
+                                                    net::wifi_configured(network.value), net::connected());
+            if (offline_guard.restart_due(uptime_s, healthy, portal::is_open() || ota::busy())) {
+                ESP_LOGE(kTag, "offline for %u minutes; restarting",
+                         static_cast<unsigned>(net::OfflineGuard::kRestartAfterS / 60));
+                esp_restart();
+            }
             if (on_trial) {
-                const auto uptime_s = static_cast<uint32_t>(now / 1'000'000);
-                const bool healthy =
-                    ota::trial_healthy(telemetry::mqtt_configured(mqtt.value), telemetry::connected(),
-                                       net::wifi_configured(network.value), net::connected());
                 switch (ota::TrialGuard{}.check(uptime_s, healthy)) {
                 case ota::TrialGuard::Verdict::Accept:
                     ota::accept();
@@ -319,24 +368,31 @@ extern "C" void app_main()
         }
 
         if (now >= next_publish) {
-            publish(display_name);
+            if (publish(display_name) && board::shows_send_flash(shown, device.value.status_led)) {
+                send_started = now;
+                send_flash = true;
+            }
             next_publish += static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
         }
 
-        // While setup mode is open, the LED blinks blue (twice a second).
-        const bool portal_open = portal::is_open();
-        if (portal_open && now >= next_blink) {
-            blink_on = !blink_on;
-            board::led::set(blink_on ? board::colour::kBlue : board::colour::kOff, kBrightness);
-            next_blink = now + kBlinkHalfPeriodUs;
-        } else if (!portal_open && portal_was_open) {
-            board::led::off();  // closed by its timeout, the button or a restart
+        board::StatusInputs status;
+        status.updating = ota::busy();
+        status.setup_open = portal::is_open();
+        status.wifi_connected = net::connected();
+        status.broker_configured = telemetry::mqtt_configured(mqtt.value);
+        status.broker_connected = telemetry::connected();
+        status.sensors_working = sensors::working();
+        const bool asked = now < show_status_until;
+        shown = board::shown_status(status, device.value.status_led, asked);
+        if (send_flash) {
+            send_flash = board::send_flash_on(static_cast<uint32_t>((now - send_started) / 1000),
+                                              telemetry::state_delivered());
         }
-        portal_was_open = portal_open;
+        const int64_t next_led = status_led.update(shown, asked, send_flash, now);
 
-        int64_t until = std::min({next_heartbeat, next_publish, next_log_check});
-        if (portal_open) {
-            until = std::min(until, next_blink);
+        int64_t until = std::min({next_heartbeat, next_publish, next_log_check, next_led});
+        if (show_status_until > now) {
+            until = std::min(until, show_status_until);
         }
         const TickType_t wait = pdMS_TO_TICKS(std::max<int64_t>(until - now, 0) / 1000) + 1;
         const auto event = board::button::wait(wait);
@@ -350,10 +406,8 @@ extern "C" void app_main()
                 portal::close();
                 break;
             }
-            // LED colour check (step 2): cycles through the colours.
-            colour_index = (colour_index + 1) % kColours.size();
-            ESP_LOGI(kTag, "short press: LED %s", kColours[colour_index].name);
-            board::led::set(kColours[colour_index].rgb, kBrightness);
+            ESP_LOGI(kTag, "short press: showing the status");
+            show_status_until = esp_timer_get_time() + kShowStatusUs;
             break;
         case board::ButtonEvent::LongPress:
             ESP_LOGI(kTag, "long press: opening the setup portal");

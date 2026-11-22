@@ -37,6 +37,15 @@ portMUX_TYPE g_update_lock = portMUX_INITIALIZER_UNLOCKED;
 std::string g_update_request;  // under g_update_lock
 bool g_update_requested = false;
 
+// The client reconnects on its own, every 10 s; its error is logged once per outage.
+std::atomic<bool> g_outage_logged{false};
+
+// The broker's acknowledgement of the last state message. The ack can in principle arrive before
+// publish_state() has stored the message ID, so an ack for an unknown ID is kept as well.
+std::atomic<int> g_state_msg_id{-1};
+std::atomic<bool> g_state_acked{false};
+std::atomic<int> g_other_ack_id{-1};
+
 void publish_discovery()
 {
     const auto messages = discovery_messages({g_settings.ha_prefix.view(), g_settings.base_topic.view(),
@@ -54,6 +63,7 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
     switch (static_cast<esp_mqtt_event_id_t>(id)) {
     case MQTT_EVENT_CONNECTED:
         g_connected = true;
+        g_outage_logged = false;
         ESP_LOGI(kTag, "connected to %s:%u", g_settings.host.c_str(), g_settings.port);
         esp_mqtt_client_enqueue(g_client, g_status_topic.c_str(), kOnline.data(), static_cast<int>(kOnline.size()), 1,
                                 1, true);
@@ -72,6 +82,10 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
         if (event->msg_id >= 0 && event->msg_id == g_boot_msg_id) {
             g_boot_delivered = true;
             ESP_LOGI(kTag, "boot report delivered");
+        } else if (event->msg_id > 0 && event->msg_id == g_state_msg_id) {
+            g_state_acked = true;
+        } else {
+            g_other_ack_id = event->msg_id;
         }
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -103,7 +117,11 @@ void on_event(void *, esp_event_base_t, int32_t id, void *data)
         break;
     }
     case MQTT_EVENT_ERROR:
-        ESP_LOGW(kTag, "connection error (broker %s:%u)", g_settings.host.c_str(), g_settings.port);
+        // Once per outage, not for every attempt after it.
+        if (!g_outage_logged.exchange(true)) {
+            ESP_LOGW(kTag, "connection error (broker %s:%u); retrying in the background", g_settings.host.c_str(),
+                     g_settings.port);
+        }
         break;
     default:
         break;
@@ -233,8 +251,19 @@ bool publish_state(const std::string &json)
     if (!g_connected || g_client == nullptr) {
         return false;
     }
-    return esp_mqtt_client_enqueue(g_client, g_state_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
-                                   true) >= 0;
+    g_state_acked = false;
+    g_state_msg_id = -1;
+    // QoS 1: the broker's ack tells the status LED that the values arrived (decided 2026-11-22).
+    const int id = esp_mqtt_client_enqueue(g_client, g_state_topic.c_str(), json.data(),
+                                           static_cast<int>(json.size()), 1, 0, true);
+    g_state_msg_id = id;
+    return id >= 0;
+}
+
+bool state_delivered()
+{
+    const int id = g_state_msg_id;
+    return id > 0 && (g_state_acked || g_other_ack_id == id);
 }
 
 }  // namespace telemetry

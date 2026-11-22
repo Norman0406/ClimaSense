@@ -153,6 +153,10 @@ std::string render_settings_page(const PageModel &m)
     out += "<label for=\"name\">Device name <span class=\"hint\">(e.g. Living room; empty: the ID above)</span></label>";
     text_input(out, "name", name, " maxlength=\"32\"");
     field_error(out, m.errors, field::kName);
+    out += "<input type=\"hidden\" name=\"device_form\" value=\"1\">";
+    out += "<label class=\"hint\"><input type=\"checkbox\" name=\"led\" value=\"1\"";
+    out += (m.device == nullptr || m.device->status_led) ? " checked" : "";
+    out += "> Status LED (off: dark, except in setup and when the button asks)</label>";
 
     // Advanced
     const bool advanced_error = error_for(m.errors, field::kCountry) != nullptr ||

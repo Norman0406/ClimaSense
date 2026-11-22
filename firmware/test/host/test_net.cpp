@@ -7,6 +7,7 @@
 
 #include "net/backoff.h"
 #include "net/hostname.h"
+#include "net/offline_guard.h"
 #include "net/settings.h"
 
 using net::NetSettings;
@@ -159,4 +160,41 @@ TEST(Hostname, IsAValidHostLabel)
     for (const char c : name) {
         EXPECT_TRUE((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') << c;
     }
+}
+
+TEST(OfflineGuard, RestartsAfterAnHourOffline)
+{
+    net::OfflineGuard guard;
+    EXPECT_FALSE(guard.restart_due(10, true, false));
+    EXPECT_FALSE(guard.restart_due(11, false, false));
+    EXPECT_FALSE(guard.restart_due(10 + net::OfflineGuard::kRestartAfterS - 1, false, false));
+    EXPECT_TRUE(guard.restart_due(10 + net::OfflineGuard::kRestartAfterS, false, false));
+}
+
+TEST(OfflineGuard, OfflineFromTheStartCounts)
+{
+    net::OfflineGuard guard;
+    EXPECT_FALSE(guard.restart_due(net::OfflineGuard::kRestartAfterS - 1, false, false));
+    EXPECT_TRUE(guard.restart_due(net::OfflineGuard::kRestartAfterS, false, false));
+}
+
+TEST(OfflineGuard, BeingOnlineAgainStartsTheHourAgain)
+{
+    net::OfflineGuard guard;
+    EXPECT_FALSE(guard.restart_due(3000, false, false));
+    EXPECT_FALSE(guard.restart_due(3500, true, false));
+    EXPECT_FALSE(guard.restart_due(3500 + net::OfflineGuard::kRestartAfterS - 1, false, false));
+    EXPECT_TRUE(guard.restart_due(3500 + net::OfflineGuard::kRestartAfterS, false, false));
+}
+
+TEST(OfflineGuard, NoRestartWhileSetupIsOpenOrAnUpdateRuns)
+{
+    net::OfflineGuard guard;
+    for (uint32_t t = 0; t < 3 * net::OfflineGuard::kRestartAfterS; t += 60) {
+        EXPECT_FALSE(guard.restart_due(t, false, true));
+    }
+    // Closing setup starts the hour from then.
+    const uint32_t closed = 3 * net::OfflineGuard::kRestartAfterS;
+    EXPECT_FALSE(guard.restart_due(closed + 60, false, false));
+    EXPECT_TRUE(guard.restart_due(closed - 60 + net::OfflineGuard::kRestartAfterS, false, false));
 }

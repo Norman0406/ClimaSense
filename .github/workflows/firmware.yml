@@ -2,7 +2,10 @@
 name: Firmware
 
 on:
+  # Pushes to main only; other branches are checked through their pull request, so a commit is
+  # not built twice.
   push:
+    branches: [main]
     paths:
       - "firmware/**"
       - ".github/workflows/firmware.yml"

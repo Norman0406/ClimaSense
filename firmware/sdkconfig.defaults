@@ -23,7 +23,11 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_APP_RETRIEVE_LEN_ELF_SHA=16
 
 # A task watchdog timeout panics (core dump, then reboot) instead of only printing a warning.
+# Watched: the idle task (ESP-IDF's default), the app task and the sensor task (step 9). 20 s
+# instead of the default 5 s: the app task legitimately blocks for up to about 8 s (a Wi-Fi scan
+# for the setup portal, retried once), the sensor task for about 3 s (a sensor rail cycle).
 CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=20
 
 # Sockets: the setup portal's web server (up to 7 plus 3 internal), its DNS responder, SNTP,
 # and later MQTT and OTA. Phones open several connections at once while probing for a portal.

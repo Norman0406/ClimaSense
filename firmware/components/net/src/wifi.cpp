@@ -43,6 +43,7 @@ bool g_wifi_started = false;
 esp_netif_t *g_ap_netif = nullptr;
 std::atomic<bool> g_reconnect_paused{false};
 std::atomic<bool> g_reconnect_pending{false};
+std::atomic<bool> g_leaving{false};  // left the network on purpose, after losing the IP address
 char g_portal_uri[24] = {};  // DHCP option 114; lwIP keeps the pointer
 
 void on_time_sync(struct timeval *tv)
@@ -72,7 +73,27 @@ void start_sntp()
     }
 }
 
-void reconnect(void *) { esp_wifi_connect(); }
+void schedule_reconnect();
+
+// Starts a connection attempt. If the driver refuses to start one (for example while it is
+// scanning for the setup portal), no disconnect event will follow to schedule the next attempt,
+// so it is scheduled here.
+void connect_now()
+{
+    if (const esp_err_t err = esp_wifi_connect(); err != ESP_OK) {
+        ESP_LOGW(kTag, "connection attempt not started: %s", esp_err_to_name(err));
+        schedule_reconnect();
+    }
+}
+
+void reconnect(void *)
+{
+    if (g_reconnect_paused) {
+        g_reconnect_pending = true;  // the access point started meanwhile; resumed when it stops
+        return;
+    }
+    connect_now();
+}
 
 void schedule_reconnect()
 {
@@ -92,7 +113,7 @@ void on_wifi_event(void *, esp_event_base_t, int32_t id, void *data)
     case WIFI_EVENT_STA_START:
         if (wifi_configured(g_settings)) {
             ESP_LOGI(kTag, "connecting to \"%s\"", g_settings.ssid.c_str());
-            esp_wifi_connect();
+            connect_now();
         }
         break;
     case WIFI_EVENT_AP_STACONNECTED:
@@ -100,7 +121,9 @@ void on_wifi_event(void *, esp_event_base_t, int32_t id, void *data)
         break;
     case WIFI_EVENT_STA_DISCONNECTED: {
         const auto *event = static_cast<const wifi_event_sta_disconnected_t *>(data);
-        if (g_connected.exchange(false)) {
+        if (g_leaving.exchange(false)) {
+            ESP_LOGI(kTag, "left the network for a new address");
+        } else if (g_connected.exchange(false)) {
             ESP_LOGW(kTag, "disconnected (reason %u)", event->reason);
         } else {
             ESP_LOGW(kTag, "connection failed (reason %u)", event->reason);
@@ -115,6 +138,20 @@ void on_wifi_event(void *, esp_event_base_t, int32_t id, void *data)
 
 void on_ip_event(void *, esp_event_base_t, int32_t id, void *data)
 {
+    if (id == IP_EVENT_STA_LOST_IP) {
+        // Still associated, but the address is gone (DHCP lease not renewed). Nothing gets
+        // through like this, and the driver does not reconnect by itself: leave the network, so
+        // that the disconnect event starts a fresh connection with a new lease.
+        if (g_connected.exchange(false)) {
+            ESP_LOGW(kTag, "IP address lost; reconnecting");
+            g_leaving = true;
+            if (esp_wifi_disconnect() != ESP_OK) {
+                g_leaving = false;
+                schedule_reconnect();
+            }
+        }
+        return;
+    }
     if (id != IP_EVENT_STA_GOT_IP) {
         return;
     }
@@ -167,6 +204,8 @@ esp_err_t start(const NetSettings &settings)
     ESP_RETURN_ON_ERROR(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi_event, nullptr), kTag,
                         "wifi events");
     ESP_RETURN_ON_ERROR(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_ip_event, nullptr), kTag,
+                        "ip events");
+    ESP_RETURN_ON_ERROR(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, on_ip_event, nullptr), kTag,
                         "ip events");
 
     esp_timer_create_args_t timer{};
@@ -231,6 +270,9 @@ esp_err_t start_access_point(const char *ssid, std::array<uint8_t, 4> &ip)
         ESP_RETURN_ON_FALSE(g_ap_netif != nullptr, ESP_FAIL, kTag, "create access point interface");
     }
     g_reconnect_paused = true;
+    if (esp_timer_is_active(g_reconnect_timer)) {
+        g_reconnect_pending = true;  // the attempt it would have made follows when setup closes
+    }
     esp_timer_stop(g_reconnect_timer);
 
     wifi_config_t config{};
@@ -269,7 +311,7 @@ void stop_access_point()
     esp_wifi_set_mode(WIFI_MODE_STA);
     g_reconnect_paused = false;
     if (wifi_configured(g_settings) && !g_connected && g_reconnect_pending.exchange(false)) {
-        esp_wifi_connect();
+        connect_now();
     }
     ESP_LOGI(kTag, "setup network closed");
 }
