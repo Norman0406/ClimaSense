@@ -99,7 +99,7 @@ The LCSC numbers in this table were written from memory, not looked up: **all to
 
 ### Pins
 
-The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 are free. **Proposed (Norman to confirm)**: the sixth is IO10, which gives up the BMP580's interrupt. The firmware only configures that pin and never reads it, and the interrupt cannot wake the chip from deep sleep anyway, so the BMP580 is polled. The alternatives are the serial fallback (IO16/IO17, which loses J3) and the 32 kHz crystal pins (IO0/IO1).
+The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 were free. **Decided 2026-11-22 (Norman): the 32 kHz crystal option is dropped**, because the device is not battery powered; that frees IO0 and IO1, which revision 1.0 kept unconnected for it. The sixth display pin is IO1, and the BMP580 interrupt stays.
 
 | GPIO | Net | Why this pin |
 | --- | --- | --- |
@@ -108,12 +108,12 @@ The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 are free. **Proposed (Nor
 | IO4 | `EPD_SCK` | Start-up configuration pin; fine as an output that the ESP32 drives only after start |
 | IO5 | `EPD_MOSI` | as IO4 |
 | IO15 | `EPD_CS` | as IO4 |
-| IO10 | `EPD_DC` | floats while the ESP32 is in reset; harmless for D/C |
+| IO1 | `EPD_DC` | |
+| IO0 | spare, or `BMP_INT` | **Proposed**: move the BMP580 interrupt here from IO10. IO0 is one of the pins that can wake the chip from deep sleep and be read by the low-power core, which IO10 cannot (see the BMP580 item in [`next-revision.md`](next-revision.md)); it is not a start-up configuration pin. Costs nothing, since 2.0 changes the pin map anyway. IO10 would then be the spare. |
 
 - SPI goes through the GPIO matrix to these pins; fine at the panel's clock (a few MHz to 20 MHz).
 - No pull-ups: while the ESP32 is in reset the panel is in deep sleep and ignores the bus until it is reset. **Assumption**; a 100 kΩ pull-up on `EPD_CS` would cost one resistor of a type already on the board.
 - The final order on the module pins is chosen during layout, so that the six tracks reach the connector without crossing.
-- The BMP580's `INT` pin stays unconnected; J4 keeps its five holes with `INT` marked unused, or drops to four. **Open**, minor.
 - `pins.h` and [`schematic.md`](schematic.md) change together; the firmware gets a board revision check (see [Firmware](#firmware)).
 
 ## Buttons and LED
@@ -144,7 +144,7 @@ Supply (USB-C, fuse, buck converter, sensor and Qwiic regulators), sensors and t
 
 ## Next steps
 
-1. Norman: confirm the pin choice and the board length, and get the specification PDF into the project.
+1. Norman: confirm moving the BMP580 interrupt to IO0, and the board length, and get the specification PDF into the project.
 2. Schematic: add the panel block and the new pins in `gen_schematic.py`, run `check_schematic.py`.
 3. Footprints: FPC connector and side button in `gen_footprints.py` if KiCad's library has none that fit.
 4. Board: new outline, FPC slot and placement in `gen_pcb.py`, route, `check_pcb.py`, `audit_pcb.py`. These need KiCad on Norman's computer.
