@@ -11,3 +11,6 @@ fp-lib-table text eol=lf
 
 # Vendored third-party code stays byte for byte as released (its README records SHA-256 hashes)
 firmware/**/vendor/** -text
+
+# Datasheets are stored as released
+*.pdf binary

@@ -189,7 +189,7 @@ State of 2026-11-22: `gen_pcb.py` gives a fully routed board, 103 × 34 mm; KiCa
 
 ## Not checked yet
 
-- The GDEY0213B74 specification was read on 2026-11-22 (37 pages, revision 1.0 of 2021-03-17): pin table, drawing, reference circuit. Not yet read: its DC characteristics (an image in the PDF) for current in deep sleep and the SPI clock limit.
+- The GDEY0213B74 specification ([`docs/datasheets/`](../datasheets/README.md)) was read on 2026-11-22 (37 pages, revision 1.0 of 2021-03-17): pin table, drawing, reference circuit. Not yet read: its DC characteristics (an image in the PDF) for current in deep sleep and the SPI clock limit.
 - On a real panel and a 1:1 paper print: where pin 1 is after the U-turn (`FPC_REVERSED`), and whether 6.8 mm from the slot (panel at x 70.0) leaves the tail the right slack (the face of the tail does not matter with the dual-contact connector).
 - The J5 and switch footprints on a real board (JLCPCB's placement preview, then the first assembly); the switch's narrowed pads.
 - How the case presses the buttons (they reach only about 0.2 mm past the edge).
