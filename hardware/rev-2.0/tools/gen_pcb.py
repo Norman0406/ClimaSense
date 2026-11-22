@@ -1202,10 +1202,15 @@ def main():
     cx, cy = (ax0 + ax1) / 2, (ay0 + ay1) / 2
     left = cx - (arrow_w + gap_up + widths[0] + gap_name + widths[1]) / 2
     x = left + arrow_w / 2
-    tip, tail = cy - arrow_h / 2, cy + arrow_h / 2
+    # the arrow starts at the foot of the letters and rises above them (2026-11-22, Norman); arrow and
+    # text together are centred on cy
+    text_h = max(b[3] - b[1] for b in boxes)
+    tail = cy + arrow_h / 2
+    tip = tail - arrow_h
+    text_cy = tail - text_h / 2
     starts = (left + arrow_w + gap_up, left + arrow_w + gap_up + widths[0] + gap_name)
     for t, b, start in zip(texts, boxes, starts):
-        t.SetPosition(P(start - b[0], cy - (b[1] + b[3]) / 2))   # the letters' left edge at `start`, centred on cy
+        t.SetPosition(P(start - b[0], text_cy - (b[1] + b[3]) / 2))   # the letters' left edge at `start`
         LABEL_BOXES.append(text_box(t))
     shaft = pcbnew.PCB_SHAPE(board)
     shaft.SetShape(pcbnew.SHAPE_T_SEGMENT)
