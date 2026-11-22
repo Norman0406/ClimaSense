@@ -706,6 +706,10 @@ UP_ARROW = (47.6, UP_ARROW[1], UP_ARROW[2], UP_ARROW[3])
 # (x 96.0), and from the lowest copper of the BMP580 group (y 28.1, +0.3) to the bottom edge (-0.3).
 # Nothing else is there since 1.0's header J4 went.
 NAME_AREA = (78.0, 28.4, 96.0, 33.7)
+# Across, the whole line (from the arrow's left edge to the name's last letter) is centred between the
+# island slot's right edge and the edge of the lower mounting hole itself (2026-11-22, Norman), so the
+# visible gaps either side are equal.
+NAME_X_SPAN = (SLOT_X[1], MOUNTING_HOLES[3][0] - 1.6)
 SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] != "ClimaSense Rev 2.0")
 # Every test pad's label, and on which side of the pad it stands. Its position is worked out when the
 # board is drawn (pad_label_position): the gap between the outer edge of the pad's silkscreen circle
@@ -1195,11 +1199,11 @@ def main():
         board.Add(t)
         texts.append(t)
     head = UP_ARROW[2]
-    arrow_w, gap_up, gap_name, arrow_h = 1.2 * 0.6 * head + 0.25, 0.5, 1.5, 2.4
+    arrow_w, gap_up, gap_name, arrow_h = 2 * 0.6 * head + 0.1, 0.5, 1.5, 2.4   # head width with its outline
     boxes = [text_box(t) for t in texts]
     widths = [b[2] - b[0] for b in boxes]
     ax0, ay0, ax1, ay1 = NAME_AREA
-    cx, cy = (ax0 + ax1) / 2, (ay0 + ay1) / 2
+    cx, cy = sum(NAME_X_SPAN) / 2, (ay0 + ay1) / 2
     left = cx - (arrow_w + gap_up + widths[0] + gap_name + widths[1]) / 2
     x = left + arrow_w / 2
     # the arrow starts at the foot of the letters and rises above them (2026-11-22, Norman); arrow and
