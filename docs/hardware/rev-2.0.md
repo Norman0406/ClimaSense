@@ -142,7 +142,7 @@ The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 were free. **Decided 2026
 The component side faces the wall, so a normal push button and a top-facing LED cannot be seen or pressed from the room.
 
 - **BOOT/USER**: a **side-press button on the top edge** of the board, so a finger or a plunger in the case reaches it from above. Proposed: Kinghelm KH-3635-CAJ, LCSC C530670, 6 × 3 mm, 3.5 mm high, right-angle, about 0.03 USD, 63,000 in stock. Its footprint still has to be drawn from its datasheet.
-- **RESET** stays a top-actuated button: it is only for bring-up.
+- **RESET**: **decided 2026-11-22 (Norman)**: buttons and LED line up along the top edge so that a case can have them pressed from the top. RESET becomes the same side-press part next to BOOT, about 8–10 mm apart. The case should recess it against accidental presses.
 - **Status LED**: keep the 1.0 LED at the top edge (it already sits there), and let the case carry the light to the room with a light pipe or a thin wall. **Assumption**; the alternative is a side-view LED. With a display, the LED matters less: it is mainly for the moments when the display cannot show anything (start, firmware update, crash).
 
 ## What stays as in 1.0
