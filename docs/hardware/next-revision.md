@@ -136,6 +136,52 @@ Pull-ups sit on the controller board only. Buying a Qwiic breakout and plugging 
 
 **What the 1.0 boards will tell:** if the SHT45 still reads too warm despite the slots (measurement 1 below), a separate sensor board is justified on accuracy alone, whatever the number of devices.
 
+## 6. A display
+
+Researched on 2026-11-22. **Not decided.** **Short answer: a 2.13" black-and-white e-paper panel with the SSD1680 controller (for example Good Display GDEY0213B74). It is the only kind that can show values without warming the SHT45. The runner-up is a Sharp memory LCD.** Either one needs board space that revision 1.0 does not have, and a new pin map, so the board that has it is revision 2.0 by the numbering rule in [`../decisions.md`](../decisions.md).
+
+The deciding factor is heat. Section 2 aims to bring the sensor side down to about 12 mW, so a display that draws tens of milliwatts would cancel that work.
+
+| Type | Heat | Readability | Verdict |
+| --- | --- | --- | --- |
+| Small TFT (for example ST7789) | Backlight alone roughly 50–150 mW (estimate) | Good, also in the dark | **No.** Several times the whole sensor budget, and its light is near the SGP41, which must not sit in bright light. |
+| OLED (SSD1306, 0.91", 128 × 32) | Roughly 30–50 mW while lit (estimate, not from a datasheet) | Very good, but glows in a dark room | Only with a screen-off timeout. It burns in when it shows the same values for years. |
+| Sharp memory LCD | 12 µW typical when static, 50 µW at one update a second (LS013B7DH03 datasheet) | Reflective, lower contrast, no light | Fine for heat, but small and hard to source. |
+| **E-paper, 2.13"** | 10.5 mW for about 3 s per refresh: about 0.1 mW averaged with one refresh every 5 minutes. 3 µW in standby (Good Display) | Best in daylight, keeps the image without power, unlit at night | **Recommended.** |
+
+### E-paper: GDEY0213B74 or similar
+
+- 250 × 122 pixels, outline 59.2 × 29.2 × 1.0 mm, active area 48.6 × 23.7 mm. It fits the 34 mm board height.
+- 3.3 V, SPI, 24-pin FPC with 0.5 mm pitch, SSD1680Z controller, rated for 0 to 50 °C.
+- Full refresh 3 s, fast 1.5 s, partial 0.3 s (at 25 °C). CO2 and temperature change slowly, so an update every 1 to 5 minutes is enough. A full refresh about once an hour clears the ghosting that partial refreshes leave.
+- The bare panel needs a boost circuit on the board for its driving voltages: an inductor, a MOSFET, three Schottky diodes, a sense resistor and about eight capacitors, some rated for 25 V. That list comes from Good Display's usual reference design and has not been checked against this panel's datasheet.
+- Driver: ESP-IDF has no built-in e-paper driver. Espressif's registry component `espressif/esp_lcd_ssd1681` (version 0.1.0, about two years old) is written for the SSD1681 used in 1.54" 200 × 200 panels, not for the SSD1680. Community SSD1680 drivers exist; one of them (`cleishm/idfxx_epaper_ssd1680`) is C++23 and needs ESP-IDF 5.5 or later. The command set is short, so a driver of our own is a small job.
+- A 1.54" 200 × 200 SSD1681 panel (for example GDEY0154D67, about 32 × 37 mm, from memory) would use Espressif's own component and needs less board, at the cost of a smaller picture.
+
+### Memory LCD as the alternative
+
+- LS013B7DH03: 1.28", 128 × 128, outline 26.6 × 30.3 mm, 2.7–3.3 V, 10-pin FPC into a connector (Sharp recommends SMK CFP-4610-0150F or Molex 51441-1093), -20 to +70 °C. LS011B7DH03: 1.1", 160 × 72, about 31.8 × 13.4 mm; its full datasheet was not read.
+- Needs 3 or 4 pins (clock, data, chip select, plus COM toggle). The display has to be inverted at 54–65 Hz, either on its `EXTCOMIN` pin from a PWM output or by a bit in the serial data.
+- Can redraw every second, for example as a clock. It is small and dimmer than e-paper.
+- Out of stock at LCSC on 2026-11-22 (price from about 3.92 USD). It would come from DigiKey or Mouser and be sent to JLCPCB as a consigned part.
+
+### What it changes on the board
+
+- **Space.** The display needs about 60 × 30 mm of the top face that is neither the sensor island nor the antenna end. Revision 1.0 has none. Two ways: the controller side grows (the board ends up roughly 110 to 120 mm long), or the display goes on a board of its own, next to the controller or stacked on it ([section 5](#5-should-the-board-be-more-modular) allows a stack for a display). **Never over the sensor island**: a panel there blocks the air the sensors need and holds their heat.
+- **Assembly.** JLCPCB fits the FPC connector (for example a 24-pin 0.5 mm part, extended, about 3 USD loading fee) and the boost circuit. The panel itself cannot be reflowed, so it is plugged into the connector by hand, with no soldering. The case has to hold the panel (it is glass) and needs a window for it.
+- **Pins.** E-paper needs six: clock, data, chip select, data/command, reset and busy. Reset cannot be left out, because the SSD1680 only wakes from deep sleep through it. Only five are free: IO2 to IO5 and IO15. The sixth would come from the fallback serial port (IO16/IO17), if revision 1.0 shows that USB works, or from IO0/IO1, which gives up the crystal kept for a battery variant. **Busy goes on IO2 or IO3**: the panel drives that line, and IO4, IO5 and IO15 are start-up configuration pins. Keep `pins.h` and [`schematic.md`](schematic.md) in step.
+- **Firmware.** An SPI driver, a display task with a refresh policy (partial updates, a full one every hour, none while the values have not changed) and a screen layout. The values are already in the state message.
+
+### Try first
+
+A 0.91" OLED breakout with a Qwiic connector (for example SparkFun's 128 × 32) plugs into revision 1.0's Qwiic connector without any hardware change, and ESP-IDF has a built-in SSD1306 driver. That is a cheap way to try out the screen layout and see whether a display is worth having. It also shows how much the OLED warms the SHT45, if it sits close by.
+
+### Not checked yet
+
+- LCSC prices with stock for the e-paper panels. Both listings seen were out of stock, among them a Waveshare 2.13" at 6.71 USD.
+- The boost circuit against the panel datasheet, and the full LS011B7DH03 datasheet.
+- The OLED and TFT heat figures are estimates, not datasheet values.
+
 ## Smaller items noticed along the way
 
 - **Status LED on 3.3 V.** The calculation in [`schematic.md`](schematic.md) covers a typical LED. A green or blue LED at the top of its forward-voltage range would be dim or dark on 3.3 V. If that shows up on the first boards, feed the green and blue LEDs from 5 V (their anodes are separate pads) or choose an LED specified with a lower maximum forward voltage.
