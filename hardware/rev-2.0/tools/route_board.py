@@ -974,6 +974,46 @@ def run(board, origin, geo, log=print):
     if squared:
         log(f"  squared up {squared} one-step diagonals into a track")
 
+    # --- ground stitching vias ---------------------------------------------------
+    # Added last, so they never take a route's place. Candidates: a grid over the pours, and the
+    # denser places the caller asks for (geo["stitch_extra"]: x0, y0, x1, y1, pitch). A via is
+    # kept where it is inside both pours, clear of the board edge, slots and keep-outs (the grid's
+    # hard blocks, which include the antenna and the USB connector's shell), keeps the board's
+    # clearance to every other net's copper, keeps the drill spacing to every via, and stays
+    # 0.5 mm from every pad (paste and hand soldering).
+    stitch = []
+    if geo.get("stitch_pitch"):
+        candidates = []
+        p = geo["stitch_pitch"]
+        x = pour_x0 + 0.6
+        while x <= pour_x1 - 0.6:
+            y = 1.0
+            while y <= H - 1.0:
+                candidates.append((round(x, 2), round(y, 2)))
+                y += p
+            x += p
+        for x0, y0, x1, y1, pitch in geo.get("stitch_extra", ()):
+            nx_, ny_ = int((x1 - x0) / pitch + 1e-6), int((y1 - y0) / pitch + 1e-6)
+            candidates += [(round(x0 + i * pitch, 2), round(y0 + j * pitch, 2)) for i in range(nx_ + 1) for j in range(ny_ + 1)]
+        need_track = 0.153 + VIA_DIAMETER / 2
+        spacing = max(R.via_spacing, VIA_DIAMETER + 0.153)
+        for x, y in candidates:
+            if not pour_x0 + 0.5 <= x <= pour_x1 - 0.5:
+                continue
+            idx = R.cell(x, y)
+            if R.hard["via"][TOP][idx] != FREE or R.hard["via"][BOT][idx] != FREE:
+                continue
+            if any(point_seg((x, y), t[0:2], t[2:4]) < need_track + t[5] / 2 for t in tracks if t[6] != gnd):
+                continue
+            if any(math.hypot(x - v[0], y - v[1]) < spacing for v in list(vias) + stitch):
+                continue
+            if any(max(q["rect"][0] - x, 0, x - q["rect"][2]) ** 2 + max(q["rect"][1] - y, 0, y - q["rect"][3]) ** 2
+                   < (VIA_DIAMETER / 2 + 0.5) ** 2 for q in pads):
+                continue
+            stitch.append((x, y, gnd))
+        vias = list(vias) + stitch
+        log(f"  {len(stitch)} ground stitching vias")
+
     # --- hand the result to KiCad ---------------------------------------------
     def P(x, y):
         return VECTOR2I(FromMM(ox + x), FromMM(oy + y))

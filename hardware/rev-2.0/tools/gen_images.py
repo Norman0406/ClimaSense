@@ -2,6 +2,7 @@
 
   board-angle.png     3D view from the front left
   board-top.png       3D view straight from above
+  board-bottom.png    3D view of the back, with the display panel in place
   copper-top.svg      top copper layer with the board outline
   copper-bottom.svg   bottom copper layer, seen from above through the board (not mirrored)
 
@@ -58,6 +59,8 @@ def main():
     render("board-angle.png", 1600, 800, "--perspective", "--rotate", "-35,0,-20", "--zoom", "1.3", "--pan", "-0.3,0.3,0",
            "--light-side", "0", "--light-camera", "1")
     render("board-top.png", 1600, 760, "--side", "top", "--zoom", "1.8")
+    # the back, with the display panel where it will be stuck (its model is only for this view)
+    render("board-bottom.png", 1600, 760, "--side", "bottom", "--zoom", "1.8")
     copper("copper-top.svg", "F.Cu")
     copper("copper-bottom.svg", "B.Cu")
     for f in sorted(OUT.iterdir()):

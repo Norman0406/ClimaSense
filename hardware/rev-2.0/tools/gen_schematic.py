@@ -409,6 +409,12 @@ def build(lib: Library) -> Schematic:
         tp = sch.add("Connector:TestPoint", f"TP{i + 1}", net.lstrip("+"), 157.48 + i * 7.62, 132.08,
                      footprint="TestPoint:TestPoint_Pad_D1.5mm", in_bom=False)
         sch.power(tp, "1", net)
+    # Revision 2.0: small probe pads (1.0 mm, copper only) for a logic analyser on the display's
+    # SPI lines and BUSY, and on the sensors' I2C bus, which 1.0 brought out on the sensor header J4.
+    for i, net in enumerate(("EPD_SCK", "EPD_MOSI", "EPD_CS", "EPD_BUSY", "I2C_SDA", "I2C_SCL")):
+        tp = sch.add("Connector:TestPoint", f"TP{i + 5}", net, 157.48 + i * 7.62, 119.38,
+                     footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
+        sch.label(tp, "1", net)
 
     # strapping: GPIO8 must be high to enter download mode
     pullup("10k", 27.94, 172.72, "+3V3", "IO8")
@@ -509,17 +515,7 @@ def build(lib: Library) -> Schematic:
     cap_between("100nF", 378.46, 167.64, "+3V3_SENS")
     cap_between("100nF", 393.7, 167.64, "+3V3_SENS")
 
-    # Header on the sensor side, not populated: the sensors' bus for a logic analyser, or for
-    # another microcontroller if the ESP32 side does not work. The 3.3 V pin may only be fed
-    # after the sensor side has been cut off the board: fed while joined and unpowered, the
-    # current would run backwards through the sensor regulator U3.
-    j4 = sch.add("Connector_Generic:Conn_01x05", "J4", "SENSORS", 408.94, 139.7,
-                 footprint="climasense:PinHeader_1x05_P2.54mm_NotFitted", in_bom=False, dnp=True)
-    sch.power(j4, "1", "GND", 17.78)
-    sch.power(j4, "2", "+3V3_SENS", 22.86)
-    sch.label(j4, "3", "I2C_SDA")
-    sch.label(j4, "4", "I2C_SCL")
-    sch.label(j4, "5", "BMP_INT")
+    # Revision 2.0: no header on the sensor side any more (1.0 had J4: GND, 3V3, SDA, SCL, INT).
 
     sch.text(350.52, 187.96,
              "I2C addresses\\n"
@@ -590,7 +586,7 @@ def build(lib: Library) -> Schematic:
         return c
 
     j5 = sch.add("Connector_Generic_MountingPin:Conn_01x24_MountingPin", "J5", "GDEY0213B74", 556.26, 101.6,
-                 footprint="Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
+                 footprint="climasense:Kinghelm_KH-FPC0.5-H2.0SMT-24P-QCHF_1x24-1MP_P0.50mm",
                  fields={"LCSC": "C3249999", "MPN": "KH-FPC0.5-H2.0SMT-24P-QCHF"},
                  ref_at=(0, -33.02, None), value_at=(0, 35.56, None))
     fpc = {

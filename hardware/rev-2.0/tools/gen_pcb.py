@@ -166,7 +166,7 @@ PLACEMENT = {
     "C15": (44.48, 14.45, 0),    # regulator input, below the input and ground pins
     "R15": (42.3, 12.01, 270),   # enable pull-down, left of the regulator, its signal pad on the enable track
     # Both pull-ups hang from the sensor supply where it runs to the bridge (y = 16.1):
-    # supply pad on that line, signal pad below it.
+    # supply pad on that line, signal pad below it. (Revision 2.0 moves them, see below.)
     "R12": (43.5, 16.61, 270),   # SDA pull-up
     "R13": (44.7, 16.61, 270),   # SCL pull-up
     # --- sensor island -----------------------------------------------------
@@ -186,8 +186,6 @@ PLACEMENT = {
     "U8": (55.05, 25.0, 0),      # BMP580; .05 for the same reason as the USB connector
     "C13": (58.0, 25.7, 0),
     "C14": (58.0, 24.3, 0),
-    # Header at the bottom edge of the sensor side, from the left: GND, 3V3, SDA, SCL, INT.
-    "J4": (58.0, 31.8, 0),
     "U5": (71.8, 19.0, 0),       # SHT45 on its tongue, below the two warm sensors
     "C8": (74.0, 19.0, 90),      # beyond the sensor, level with its supply and ground pads
 }
@@ -201,13 +199,9 @@ UP_ARROW = (43.5, 28.0, 0.9, 30.4)
 NAME_Y, NAME_SIZE = 32.2, 0.8
 # text, x, y, height - each button label sits directly below its button
 SILK_LABELS = (
-    # numbering: see "Revision naming" in docs/decisions.md. In the strip below the module: the
-    # sensor header took its old place at the bottom of the sensor side.
+    # numbering: see "Revision naming" in docs/decisions.md. In the strip below the module.
     ("ClimaSense Rev 2.0", 19.8, NAME_Y, NAME_SIZE),
-    # the sensor header: its pins, and the rule for the 3.3 V pin
-    ("GND", 52.92, 30.0, 0.8), ("3V3", 55.46, 30.0, 0.8), ("SDA", 58.0, 30.0, 0.8),
-    ("SCL", 60.54, 30.0, 0.8), ("INT", 63.08, 30.0, 0.8),
-    ("3V3: cut off first", 58.5, 28.7, 0.8),
+    # (1.0's sensor header J4 and its labels are gone in revision 2.0)
     ("BOOT", 29.6, 9.0, 0.8),
     ("RESET", 29.6, 17.95, 0.8),
     ("QWIIC", 37.3, 3.3, 0.8),
@@ -218,7 +212,7 @@ SILK_LABELS = (
     # the test pads, each below its pad (3VS: the sensors' 3.3 V)
     ("5V", 37.9, 19.1, 0.8),
     ("3V3", 27.6, 22.6, 0.8),
-    ("3VS", 44.6, 20.7, 0.8),
+    ("3VS", 44.6, 20.7, 0.8),      # moved with TP3 in revision 2.0 (below)
     ("GND", 44.6, 25.1, 0.8),
     # sensor names: below the part, like the button labels. The SCD41's stands right of its
     # 10 uF capacitor. The SGP41's is above: below it there is a via and then the cut-out.
@@ -381,10 +375,8 @@ BUCK_AREA = (33.0, 8.2, 38.6, 18.2)
 # cannot be cut off from the rest of the ground. Without this the router has done exactly
 # that: it reported the board as routed while KiCad counted two open ground connections.
 USB_GROUND_AREAS = ((31.0, 22.6, 35.4, 26.0), (28.3, 26.0, 37.8, 28.8))
-# And below the sensor regulator U3: its ground vias and those of its input capacitor end here.
-# Signal tracks on the bottom layer once closed this patch in, leaving the regulator's ground
-# joined to the rest through the top pour alone. The strip keeps it open to the south.
-REGULATOR_GROUND_AREA = (40.2, 17.2, 43.2, 21.5)
+# (1.0 kept the bottom layer below the sensor regulator U3 ground as well; in revision 2.0 the
+# regulator sits on the ground kept in the FPC area, see DISPLAY_GROUND_AREAS.)
 
 
 # --------------------------------------------------------------------------
@@ -445,8 +437,11 @@ FPC_SLOT = (71.8, PANEL_TAIL_Y - 6.75, 73.0, PANEL_TAIL_Y + 6.75)
 # pins accordingly (gen_schematic.py, FPC_REVERSED). The connector's front edge sits about
 # 5.8 mm from the slot, so that the 8 mm of flexible tail reach round the slot's edge and the
 # stiffened end lies flat into the connector. To be checked with a paper print and a real panel.
-# TODO: the footprint is KiCad's Hirose FH12 as a stand-in for the Kinghelm part.
-J5_X = 61.6
+# Footprint: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF (gen_footprints.py), origin in the middle of
+# its 4.90 mm deep housing, opening 2.45 mm in front of it; turned by 90 degrees the opening
+# faces right, towards the slot, and pin 1 is at the bottom.
+J5_FRONT_TO_SLOT = 5.8
+J5_X = round(FPC_SLOT[0] - J5_FRONT_TO_SLOT - 4.90 / 2, 3)
 PLACEMENT.update({
     "J5": (J5_X, PANEL_TAIL_Y, 90),
     # After the U-turn the panel's pin 1 is at the top: the boost pins (GDR, RESE) face the
@@ -463,6 +458,16 @@ PLACEMENT.update({
     "D4": (55.8, 14.4, 0),        # VGL to the charge pump
     # the eight 1 uF capacitors of the supply and driving voltages in a row below the connector
     **{f"C{n}": (50.4 + 1.6 * i, 29.4, 270) for i, n in enumerate(range(17, 25))},
+    # The sensor regulator moves to where the sensor bus turns up into the strip to the bridge,
+    # below the FPC slot (1.0 had it next to the buck converter, about 30 mm further left): the
+    # sensors' supply current then runs a few millimetres to the strip instead of the length of
+    # the display area. The 5 V feed and SENS_EN travel instead. Turned by 270 degrees: input,
+    # ground and enable along the top, output at the bottom right above the bus's supply run.
+    # Its capacitors stand in line with its pins as before: input above, output below.
+    "U3": (68.0, 28.4, 270),
+    "C3": (68.475, 25.6, 180),    # LDO input: supply pad over the input pin, ground pad over the ground pin
+    "C4": (68.475, 31.0, 180),    # LDO output: supply pad under the output pin
+    "TP3": (71.0, 29.0, 0),       # test pad for the sensors' 3.3 V, right of the regulator
 })
 POWER_NETS = POWER_NETS + ("/EPD_SW", "/EPD_RESE")
 # Bottom-layer ground that no signal may cut. The sensor island's ground reaches the main pours
@@ -487,13 +492,79 @@ DISPLAY_GROUND_AREAS = ((66.7, 0.3, 75.9, 33.7),       # FPC landing area and th
 # 0.4 mm wide. The left ends are staggered like steps, the lowest run the longest, so that the
 # router can reach each run's end from above (between parallel runs there is no room for a via).
 SENSOR_BUS = (("+3V3_SENS", 44.0, 73.6, 31.9), ("/I2C_SCL", 42.4, 74.1, 32.4), ("/I2C_SDA", 40.8, 74.5, 32.8),
-              ("/BMP_INT", 39.2, 74.9, 33.2))
+              ("/BMP_INT", 38.4, 74.9, 33.2))
 SENSOR_BUS_BRIDGE_Y = {"+3V3_SENS": 16.1, "/I2C_SCL": 16.9, "/I2C_SDA": 17.7, "/BMP_INT": 18.5}   # as `bridge` below
 SENSOR_BUS_FEEDS = tuple(
     dict(net=name, tracks=((0.4 if name == "+3V3_SENS" else 0.2,
                             ((x0, y), (x - 1.0, y), (x, y - 1.0), (x, SENSOR_BUS_BRIDGE_Y[name]))),))
     for name, x0, x, y in SENSOR_BUS)
-SILK_LABELS = SILK_LABELS + (("DISPLAY", J5_X + 1.0, 26.6, 0.8),)
+SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] != "3VS") + (
+    ("DISPLAY", J5_X + 1.0, 26.6, 0.8), ("3VS", 71.2, 27.4, 0.8))
+# The regulator's output joins the bus's supply run straight below it; the router does the rest.
+PREROUTED = PREROUTED + (
+    dict(net="+3V3_SENS", pads=("U3.5", "C4.1"), tracks=((0.4, ((68.95, 29.5), (68.95, 31.0))),)),
+    # USB supply, as the router drew it on revision 1.0 (25 mOhm from the farther pad): the
+    # farther supply pad (A4/B9, left) up past the CC resistor to the protection part's VBUS pin,
+    # under the ESD part on the bottom layer to beside the fuse, and the nearer pad (A9/B4)
+    # straight up into the same point. Nothing runs under the connector's shell (it starts at
+    # y = 27.5); the bottom-layer link stays above the ground kept behind the connector. Left to
+    # the router on revision 2.0 the farther pad took a 73 mm detour round the Qwiic connector.
+    dict(net="VBUS", pads=("J1.A4", "J1.B9", "U1.5", "J1.A9", "J1.B4", "F1.1"), vias=((32.6, 19.0), (35.4, 22.1)),
+         tracks=(
+             (0.4, ((30.6, 26.75), (30.6, 24.7), (30.1, 24.2), (30.1, 19.6), (31.3, 18.4), (32.0, 18.4), (32.5, 18.9),
+                    (32.5, 20.05))),
+             (0.4, ((32.5, 19.0), (32.6, 19.0))),
+             (0.4, ((32.6, 19.0), (32.9, 19.0), (35.4, 21.5), (35.4, 22.1)), "bottom"),
+             (0.4, ((35.4, 22.1), (36.6, 23.3), (38.9, 23.3))),
+             (0.4, ((35.5, 26.75), (35.5, 24.4), (36.6, 23.3))),
+         )),
+)
+
+# Probe pads (1.0 mm, copper only, no part placed on them), revision 2.0.
+# The display's SPI signals and BUSY in a row below the boost converter, left of the connector, 2 mm
+# apart for logic-analyser clips, in the order of their connector pins (BUSY at the top of J5
+# down to SDI at the bottom); each labelled below, upright to fit the pitch. The sensor bus's two lines next to their
+# pull-ups, where the regulator and its test pad were in 1.0.
+# DC and RST had pads too at first; with all six the display area did not route (3 connections
+# open), so only the four that a logic analyser needs to decode SPI and see BUSY remain.
+EPD_PROBES = (("TP8", "BSY"), ("TP7", "CS"), ("TP5", "SCK"), ("TP6", "SDI"))
+EPD_PROBE_Y = 20.6
+for i, (ref, _) in enumerate(EPD_PROBES):
+    PLACEMENT[ref] = (round(48.0 + 2.0 * i, 2), EPD_PROBE_Y, 0)
+# The I2C pull-ups move to where the hand-drawn bus starts at the bottom edge (in 1.0 they sat
+# on the bus's straight run to the bridge, which revision 2.0 no longer passes): each signal pad
+# drops straight onto its bus run's free end, the supply pads join the supply run to the right.
+# The two probe pads sit beside them, each on its line (decided 2026-11-22).
+PLACEMENT.update({
+    "R12": (41.6, 29.6, 270),    # SDA pull-up: above the free end of the SDA run (x 40.8-42.4)
+    "R13": (43.2, 29.6, 270),    # SCL pull-up: above the free end of the SCL run (x 42.4-44.0)
+    "TP9": (39.9, 30.4, 0),      # SDA probe, left of its pull-up
+    "TP10": (44.7, 30.4, 0),     # SCL probe, right of its pull-up
+})
+# the "Up" arrow and its text make room for them, further right on the same line
+UP_ARROW = (47.6, UP_ARROW[1], UP_ARROW[2], UP_ARROW[3])
+SILK_LABELS = SILK_LABELS + tuple((name, round(48.0 + 2.0 * i, 2), EPD_PROBE_Y + 1.9, 0.8, 90)
+                                  for i, (_, name) in enumerate(EPD_PROBES)) + (
+    ("SDA", 39.9, 31.8, 0.8), ("SCL", 44.7, 31.8, 0.8))
+# The display's driving voltages are measured on their capacitors' pads: a name above each,
+# turned upright so that it fits the 1.6 mm pitch.
+SILK_LABELS = SILK_LABELS + tuple((name, round(50.4 + 1.6 * i, 2), 26.0, 0.8, 90) for i, name in enumerate(
+    ("", "VDD", "VSH1", "VSH2", "VSL", "VGH", "VGL", "VCOM")) if name)
+
+# Ground stitching vias (route_board.py adds them after routing): a 5 mm grid over the pours,
+# and denser where the ground return matters (x0, y0, x1, y1, pitch): the strip between the
+# slots and round both ends of the FPC slot, around the boost converter and the display
+# capacitors, along the antenna keep-out, and the free FPC landing area.
+STITCH_PITCH = 5.0
+STITCH_EXTRA = (
+    (73.5, 0.8, 75.5, 33.2, 1.0),       # the strip between the FPC slot and the sensor slot
+    (66.5, 7.0, 75.5, 10.0, 1.2),       # round the top end of the FPC slot
+    (66.5, 23.6, 75.5, 26.6, 1.2),      # round the bottom end
+    (48.3, 0.8, 59.0, 16.5, 1.5),       # round the boost converter and charge pump
+    (49.0, 25.0, 63.0, 31.2, 1.5),      # round the display capacitors
+    (7.7, 1.0, 7.7, 33.0, 1.5),         # along the antenna keep-out
+    (66.8, 10.5, 71.2, 23.0, 1.5),      # between J5 and the FPC slot
+)
 
 
 def P(x, y):
@@ -630,6 +701,20 @@ def main():
         fp.Reference().SetVisible(False)
         board.Add(fp)
 
+    # --- the panel itself, for the 3D view only (board only: no BOM, no placement) ---------
+    panel = pcbnew.FOOTPRINT(board)
+    panel.SetReference("PNL1")
+    panel.SetValue("GDEY0213B74")
+    panel.Reference().SetVisible(False)
+    panel.Value().SetVisible(False)
+    panel.SetAttributes(pcbnew.FP_BOARD_ONLY | pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_EXCLUDE_FROM_POS_FILES)
+    model = pcbnew.FP_3DMODEL()
+    model.m_Filename = "${KIPRJMOD}/lib/climasense.3dshapes/GDEY0213B74.wrl"
+    panel.Add3DModel(model)
+    panel.SetPosition(P((PANEL[0] + PANEL[2]) / 2, (PANEL[1] + PANEL[3]) / 2))
+    board.Add(panel)
+    panel.Flip(panel.GetPosition(), pcbnew.FLIP_DIRECTION_TOP_BOTTOM)
+
     # --- where the panel goes, on the back ------------------------------------
     # Outline on the back fabrication layer, and on the back silkscreen with gaps where it
     # would run over a through-hole pad (the fab leaves silkscreen off copper anyway; the gaps
@@ -765,12 +850,13 @@ def main():
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1", "J5", "Q1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
-            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS, REGULATOR_GROUND_AREA,
+            trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS,
                                                                                *DISPLAY_GROUND_AREAS)],
             internally_joined=INTERNALLY_JOINED,
             # the strip below the module's bottom pad row is where its pins escape; the trunk stays out of it
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],
             solid_pour_pads={"J1", "J2", "U1", "U2", "U3", "U9"},
+            stitch_pitch=STITCH_PITCH, stitch_extra=STITCH_EXTRA,
             debug="--debug" in sys.argv[1:],
             attempts=next((int(x.split("=")[1]) for x in sys.argv[1:] if x.startswith("--attempts=")), 12),
         ))

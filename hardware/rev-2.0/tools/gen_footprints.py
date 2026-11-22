@@ -332,9 +332,69 @@ def led_19_337() -> Footprint:
 
 
 # --------------------------------------------------------------------------
+# Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, 0.5 mm FFC/FPC connector, 24 pins, dual contact,
+# 2.0 mm high, flip lock at the back (LCSC C3249999)
+# Kinghelm customer drawing 8.01A0-C rev L (2019-01-16), single page: "RECOMMENDED PCB LAYOUT",
+# top view, bottom view and side view; the table gives DIM A to G for 24 pins.
+# Origin: middle of the housing (15.50 x 4.90 mm). Seen from the top, with the solder tails at
+# the top (y < 0) and the FPC opening at the bottom (y > 0), pin 1 is on the LEFT: the top view
+# marks it with the "refer pin" triangle at the left end, the pin count "XX" stands at the right.
+# JLCPCB's own footprint of C3249999 (EasyEDA) agrees: pin 1 at the left, same pad sizes.
+# --------------------------------------------------------------------------
+def kinghelm_fpc_24() -> Footprint:
+    PINS, PITCH = 24, 0.50
+    DIM_A, DIM_C, DIM_F, DIM_G = 15.50, 11.50, 13.90, 17.10    # table, 24-pin row
+    assert abs((PINS - 1) * PITCH - DIM_C) < 1e-9               # C: pin 1 to pin 24, centre to centre
+    DEPTH = 4.90                      # bottom view: front edge to the back of the housing
+    TAIL_TIP = 5.32                   # bottom view: front edge to the ends of the solder tails
+    TAB_FRONT, TAB_BACK = 2.85 - 1.60, 2.85   # bottom view: metal holding tab, from the front edge
+    PAD_W, PAD_L = 0.25, 1.30         # layout: signal pad 0.25 wide, 1.30 long
+    PAD_BEYOND_TAIL = 0.45            # layout: "0.45 Ref" from the pad's outer end to the tail's end
+    GAP = 1.03                        # layout: signal pads' inner end to the holding pads
+    MP_L = 2.80                       # layout: holding pads 2.80 long
+    MP_W = (DIM_G - DIM_F) / 2        # layout: DIM F (inner) and DIM G (outer) span the holding pads
+    MP_X = (DIM_F + DIM_G) / 4
+    FRONT = DEPTH / 2                 # front edge (the FPC opening) at y = +2.45
+
+    pad_outer = FRONT - TAIL_TIP - PAD_BEYOND_TAIL     # -3.32
+    pad_y = round(pad_outer + PAD_L / 2, 4)
+    mp_top = pad_outer + PAD_L + GAP                   # holding pads begin 1.03 below the signal pads
+    mp_y = round(mp_top + MP_L / 2, 4)
+    # the metal tab (bottom view: 1.25 to 2.85 mm behind the front edge) sits inside its pad
+    assert mp_top < FRONT - TAB_BACK and mp_top + MP_L > FRONT - TAB_FRONT
+
+    fp = Footprint(
+        "Kinghelm_KH-FPC0.5-H2.0SMT-24P-QCHF_1x24-1MP_P0.50mm",
+        "Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, FFC/FPC connector, 24 pins, 0.5 mm pitch, dual contact, "
+        "2.0 mm high, flip lock (LCSC C3249999; Kinghelm drawing 8.01A0-C rev L, recommended PCB layout)",
+        "FPC FFC connector 0.5mm 24 pin dual contact Kinghelm",
+        ref_at=(0, -4.5), value_at=(0, 4.0))
+    for i in range(PINS):
+        fp.pad(1 + i, round((i - (PINS - 1) / 2) * PITCH, 4), pad_y, PAD_W, PAD_L)
+    for x in (-MP_X, MP_X):
+        fp.pad("MP", round(x, 4), mp_y, MP_W, MP_L)
+
+    x, y0, y1 = DIM_A / 2, -DEPTH / 2, FRONT
+    fp.polyline([(-x, y0), (x, y0), (x, y1), (-x, y1)], "F.Fab", FAB_W, closed=True)
+    fp.text("${REFERENCE}", (0, 0), "F.Fab", size=1.0, thickness=0.15)
+    # silkscreen: the two ends of the housing between the pads, and the pin-1 mark
+    s = x + 0.15
+    for sx in (-1, 1):
+        fp.line((sx * s, round(mp_y + MP_L / 2 + 0.3, 3)), (sx * s, FRONT), "F.SilkS", SILK_W)
+    fp.line((-x, FRONT + 0.15), (x, FRONT + 0.15), "F.SilkS", SILK_W)
+    fp.pin1_triangle(-DIM_C / 2 - 0.45, round(pad_y, 3))
+    # courtyard: pads, housing, and the flip lock, which opens backwards over the tails
+    # (side view: 5.9 mm from the front edge when open)
+    cx = MP_X + MP_W / 2 + 0.25
+    fp.rect(-cx, round(FRONT - 5.9 - 0.25, 3), cx, round(FRONT + 0.25, 3), "F.CrtYd", CRTYD_W)
+    fp.model(f"{MODELS}/Kinghelm_KH-FPC0.5-H2.0SMT-24P.wrl")
+    return fp
+
+
+# --------------------------------------------------------------------------
 # Unpopulated pin headers: a straight row of holes for a 2.54 mm pin header
 # Hole and pad as in KiCad's PinHeader_1xNN_P2.54mm_Vertical: 1.0 mm hole, 1.7 mm pad.
-# Three holes for the fallback serial port, five for the sensor side's header.
+# Three holes for the fallback serial port (revision 2.0 has no sensor-side header).
 # --------------------------------------------------------------------------
 def header(pins: int) -> Footprint:
     PITCH, HOLE, PAD = 2.54, 1.0, 1.7
@@ -359,11 +419,7 @@ def serial_header() -> Footprint:
     return header(3)
 
 
-def sensor_header() -> Footprint:
-    return header(5)
-
-
-FOOTPRINTS = (esp32_c6_wroom_1, sgp41, bmp580, led_19_337, serial_header, sensor_header)
+FOOTPRINTS = (esp32_c6_wroom_1, sgp41, bmp580, led_19_337, kinghelm_fpc_24, serial_header)
 
 
 def main():
@@ -371,7 +427,7 @@ def main():
     for build in FOOTPRINTS:
         fp = build()
         fp.write()
-        print(f"{fp.name}: {len(fp.pad_numbers)} pads ({', '.join(sorted(set(fp.pad_numbers), key=lambda s: int(s)))})")
+        print(f"{fp.name}: {len(fp.pad_numbers)} pads ({', '.join(sorted(set(fp.pad_numbers), key=lambda s: (not s.isdigit(), int(s) if s.isdigit() else 0, s)))})")
     (HW / "fp-lib-table").write_text(
         '(fp_lib_table\n\t(version 7)\n\t(lib (name "climasense") (type "KiCad") '
         '(uri "${KIPRJMOD}/lib/climasense.pretty") (options "") (descr "ClimaSense project footprints"))\n)\n',

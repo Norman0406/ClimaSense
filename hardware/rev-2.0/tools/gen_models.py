@@ -228,11 +228,43 @@ def usb_c_hro():
     return m
 
 
+# --------------------------------------------------------------------------
+# FPC connector - Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, drawing 8.01A0-C rev L: natural housing
+# 15.50 x 4.90 mm, 2.00 mm high, black flip lock over the back half, solder tails reaching
+# 5.32 mm behind the front edge, metal holding tabs at the ends. Footprint origin in the middle
+# of the housing, opening at y = +2.45.
+# --------------------------------------------------------------------------
+def kinghelm_fpc_24():
+    m = Model("Kinghelm_KH-FPC0.5-H2.0SMT-24P")
+    m.box("white", -7.75, -2.45, 7.75, 2.45, 0, 1.6)
+    m.box("black", -7.1, -2.45, 7.1, 0.2, 1.6, 2.0)            # flip lock, closed
+    m.box("hole", -6.3, 1.2, 6.3, 2.46, 0.5, 1.1)              # the opening the FPC goes into
+    for i in range(24):
+        x = (i - 11.5) * 0.5
+        m.box("metal", x - 0.075, -2.87, x + 0.075, -2.45, 0, 0.12)
+    for sx in (-1, 1):
+        m.box("metal", min(sx * 7.75, sx * 8.05), -1.6, max(sx * 7.75, sx * 8.05), 0.0, 0, 1.2)
+    return m
+
+
+# --------------------------------------------------------------------------
+# E-paper panel - Good Display GDEY0213B74, specification page 7: glass 59.2 x 29.2 mm, about
+# 1.0 mm thick. The active area is drawn 48.6 x 23.8 mm in the middle (250 x 122 pixels at
+# about 0.194 mm); its exact position on the glass is approximate. For the 3D view only: the
+# board generator puts it on the back, where the panel will be stuck.
+# --------------------------------------------------------------------------
+def gdey0213b74():
+    m = Model("GDEY0213B74")
+    m.box("white", -29.6, -14.6, 29.6, 14.6, 0, 1.0)
+    m.box("die", -24.3, -11.9, 24.3, 11.9, 1.0, 1.02)
+    return m
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("*.wrl"):
         old.unlink()
-    models = [sht4x(), sgp41(), bmp580(), scd4x(), led_19_337(), ts_1187a(), usb_c_hro()]
+    models = [sht4x(), sgp41(), bmp580(), scd4x(), led_19_337(), ts_1187a(), usb_c_hro(), kinghelm_fpc_24(), gdey0213b74()]
     for m in models:
         m.write()
     print(f"{len(models)} models written to {OUT}: {', '.join(m.name for m in models)}")
