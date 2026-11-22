@@ -23,6 +23,7 @@ from __future__ import annotations
 import heapq
 import math
 from collections import defaultdict
+import sys
 from pathlib import Path
 
 import wx
@@ -30,7 +31,8 @@ wx.DisableAsserts()          # otherwise KiCad debug alerts pop up as dialogs
 import pcbnew
 
 HW = Path(__file__).resolve().parent.parent
-PCB = HW / "climasense.kicad_pcb"
+# the board to audit: the project's, or another one given on the command line (gen_pcb.py --seeds)
+PCB = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else HW / "climasense.kicad_pcb"
 ORIGIN = (100.0, 60.0)       # board origin on the sheet, as in gen_pcb.py
 SLOT_X = 76.0                # the ground pours end here (the sensor slot); right of it ground is tracks
 MM = 1e-6

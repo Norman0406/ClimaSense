@@ -22,7 +22,7 @@ Options:
   --reroute=A,B      with --keep: route these nets anew all the same.
   --seed=N           start order of the router (default ROUTE_SEED).
   --seeds=A-B        route with each of these seeds in parallel processes and keep the best
-                     clean result (no open connection, then no +3V3 track in the display
+                     clean result (no open connection, audit_pcb.py passed, then no +3V3 track in the display
                      bundle, then fewest vias, then shortest tracks).
   --attempts=N       routing retries per seed.   --no-route: stop after placement.
   --out=file, --summary=file, --no-fill: used by --seeds for its worker processes.
@@ -700,6 +700,13 @@ PLACEMENT.update({
 })
 # the "Up" arrow and its text make room for them, further right on the same line
 UP_ARROW = (47.6, UP_ARROW[1], UP_ARROW[2], UP_ARROW[3])
+# The board name and the "Up" arrow move to the sensor island, on one line (2026-11-22, Norman):
+# arrow, "Up", then the name, the whole line centred in the free area below the BMP580. That area,
+# measured on the board: from the island's slot (x 77.5, +0.5) to the lower mounting hole's keep-out
+# (x 96.0), and from the lowest copper of the BMP580 group (y 28.1, +0.3) to the bottom edge (-0.3).
+# Nothing else is there since 1.0's header J4 went.
+NAME_AREA = (78.0, 28.4, 96.0, 33.7)
+SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] != "ClimaSense Rev 2.0")
 # Every test pad's label, and on which side of the pad it stands. Its position is worked out when the
 # board is drawn (pad_label_position): the gap between the outer edge of the pad's silkscreen circle
 # and the nearest edge of the letters, as KiCad draws them, is TP_LABEL_GAP, and the letters are
@@ -734,7 +741,7 @@ SENS_EN_FEED = (dict(net="/SENS_EN", tracks=((0.2, ((38.6, 32.6), (64.6, 32.6)),
 STITCH_PITCH = 5.0
 # Start order of the router (route_board.py, `seed`): 0 = shortest connection first. Found by
 # trying several with --seed=N; the one kept routes this board completely.
-ROUTE_SEED = 4
+ROUTE_SEED = 7
 STITCH_EXTRA = (
     (75.35, 0.8, 75.35, 33.2, 1.5),     # the strip between the FPC slot and the sensor slot
     (66.5, 9.2, 75.5, 9.2, 1.5),        # across the top end of the FPC slot
@@ -851,8 +858,9 @@ def state_file(board_file):
 
 def bundle_supply_length(board):
     """Length (mm) of +3V3 track on the top layer inside the display bundle: the strip that the
-    hand-drawn SPI and reset lines span on the top layer between x 41 and J5's pad row."""
-    x0, x1 = 41.0, J5_X - 2.5
+    hand-drawn SPI and reset lines span on the top layer from x 41 to where SDI rises to its pin
+    (beyond it +3V3 leaves J5's supply pins below the lines)."""
+    x0, x1 = 41.0, SPI_PAD_X[2] + 0.6
     pts = [pt for g in EPD_LINES if g["net"] in ("EPD_SCK", "EPD_MOSI", "EPD_CS", "EPD_RST")
            for width, line, *side in g["tracks"] if not side for pt in line if x0 <= pt[0] <= x1]
     y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
@@ -916,7 +924,13 @@ def seed_batch(spec):
                 print(f"  seed {n}: failed (see build/seed_{n}.log)", flush=True)
     if not results:
         raise SystemExit("no seed produced a board")
-    best = min(results, key=lambda r: (r["open"], r["bundle_supply_mm"] > 0.05, r["vias"], r["track_mm"]))
+    # the clean ones must also pass audit_pcb.py (a net crossing itself or with a loop fails it)
+    for r in results:
+        r["audit_ok"] = r["open"] == 0 and subprocess.run(
+            [sys.executable, str(HW / "tools" / "audit_pcb.py"), r["out"]], capture_output=True).returncode == 0
+        if r["open"] == 0:
+            print(f"  seed {r['seed']}: audit {'passed' if r['audit_ok'] else 'FAILED'}", flush=True)
+    best = min(results, key=lambda r: (r["open"], not r["audit_ok"], r["bundle_supply_mm"] > 0.05, r["vias"], r["track_mm"]))
     shutil.copy(best["out"], BOARD_FILE)
     shutil.copy(state_file(best["out"]), state_file(BOARD_FILE))
     for r in results:
@@ -1168,8 +1182,31 @@ def main():
         pad_label_position(board, ref, label, side)
         LABEL_BOXES.append(text_box(label))
 
-    # Which way up the board hangs: an arrow towards the top edge with "Up" under it.
-    x, tip, head, tail = UP_ARROW
+    # Which way up the board hangs: an arrow towards the top edge, "Up" beside it and the board
+    # name after that, on one line centred in NAME_AREA (the letters measured as KiCad draws them).
+    texts = []
+    for text in ("Up", "ClimaSense Rev 2.0"):
+        t = pcbnew.PCB_TEXT(board)
+        t.SetText(text)
+        t.SetLayer(pcbnew.F_SilkS)
+        t.SetTextSize(VECTOR2I(FromMM(NAME_SIZE), FromMM(NAME_SIZE)))
+        t.SetTextThickness(FromMM(0.15))
+        t.SetPosition(P(0, 0))
+        board.Add(t)
+        texts.append(t)
+    head = UP_ARROW[2]
+    arrow_w, gap_up, gap_name, arrow_h = 1.2 * 0.6 * head + 0.25, 0.5, 1.5, 2.4
+    boxes = [text_box(t) for t in texts]
+    widths = [b[2] - b[0] for b in boxes]
+    ax0, ay0, ax1, ay1 = NAME_AREA
+    cx, cy = (ax0 + ax1) / 2, (ay0 + ay1) / 2
+    left = cx - (arrow_w + gap_up + widths[0] + gap_name + widths[1]) / 2
+    x = left + arrow_w / 2
+    tip, tail = cy - arrow_h / 2, cy + arrow_h / 2
+    starts = (left + arrow_w + gap_up, left + arrow_w + gap_up + widths[0] + gap_name)
+    for t, b, start in zip(texts, boxes, starts):
+        t.SetPosition(P(start - b[0], cy - (b[1] + b[3]) / 2))   # the letters' left edge at `start`, centred on cy
+        LABEL_BOXES.append(text_box(t))
     shaft = pcbnew.PCB_SHAPE(board)
     shaft.SetShape(pcbnew.SHAPE_T_SEGMENT)
     shaft.SetStart(P(x, tip + head))
@@ -1184,13 +1221,6 @@ def main():
     arrowhead.SetLayer(pcbnew.F_SilkS)
     arrowhead.SetWidth(FromMM(0.1))
     board.Add(arrowhead)
-    up = pcbnew.PCB_TEXT(board)
-    up.SetText("Up")
-    up.SetPosition(P(x, NAME_Y))        # on one line with the board name
-    up.SetLayer(pcbnew.F_SilkS)
-    up.SetTextSize(VECTOR2I(FromMM(NAME_SIZE), FromMM(NAME_SIZE)))
-    up.SetTextThickness(FromMM(0.15))
-    board.Add(up)
 
     failures = []
     if "--no-route" not in sys.argv[1:]:
@@ -1234,6 +1264,7 @@ def main():
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],
             solid_pour_pads={"J1", "J2", "U1", "U2", "U3", "U9"},
             stitch_pitch=STITCH_PITCH, stitch_extra=STITCH_EXTRA, stitch_avoid=stitch_avoid(),
+            via_avoid=list(LABEL_BOXES),      # no routed via under a label either (2026-11-22, Norman)
             via_cost=float(next((x.split('=')[1] for x in sys.argv[1:] if x.startswith('--via-cost=')), 30)),
             debug="--debug" in sys.argv[1:],
             attempts=next((int(x.split("=")[1]) for x in sys.argv[1:] if x.startswith("--attempts=")), 12),

@@ -78,7 +78,7 @@ _PER_NET_KEYS = ("prerouted", "fixed_tracks", "fixed_feeds", "free_feeds")
 # Not part of the fingerprint: run options, where stitching vias may not go (they are made anew on
 # every run), and the reserved areas (checked against the kept copper instead).
 _RUN_KEYS = ("keep", "seed", "attempts", "debug", "via_cost", "hand_out", "timing", "stitch_avoid",
-             "reserve_top", "reserve_bottom")
+             "reserve_top", "reserve_bottom", "via_avoid")
 
 
 def _canonical(v):
@@ -354,6 +354,9 @@ def keep_previous(geo, pads, npth, R, nid, log):
             why = why or next((w for w in (track_clashes(name, old_tracks[i][0:2], old_tracks[i][2:4], old_tracks[i][4],
                                                          old_tracks[i][5]) for i in unit_tracks.get(u, ())) if w), None)
             why = why or next((w for w in (via_clashes(name, old_vias[i][0:2]) for i in unit_vias.get(u, ())) if w), None)
+            why = why or next((f"a silkscreen label at {tuple(round(v, 2) for v in rect)}" for i in unit_vias.get(u, ())
+                               for rect in geo.get("via_avoid", ())
+                               if _seg_rect(old_vias[i][0:2], old_vias[i][0:2], rect) < r_via + 0.1), None)
             if why:
                 bad[u] = why
         if not bad:
@@ -476,6 +479,9 @@ def run(board, origin, geo, log=print):
     # between it and the copper: no via and no track under it. That holds for the bottom
     # layer too (decided 2026-11-20): the ground under the connector stays whole.
     R.block_rect(*geo["usb_body"], classes=("via", "sig", "pwr", "wide"))
+    # no via under a silkscreen label (geo["via_avoid"]: the letters' outlines)
+    for rect in geo.get("via_avoid", ()):
+        R.block_rect(*rect, grow=0.1, classes=("via",))
 
     # --- copper of the previous board that stays (gen_pcb.py --keep) ------------------
     kept_nets, kept_gnd_pads, kept_island, kept_tracks, kept_vias = keep_previous(geo, pads, npth, R, nid, log)
