@@ -287,8 +287,8 @@ def alps_skrt():
 # the picture shows the slack honestly. The numbers are returned for the documentation.
 # --------------------------------------------------------------------------
 TAIL = dict(length=14.30, stiff=6.00, width=12.50, flex_t=0.1, stiff_t=0.3, bend_r=0.4,
-            slot_x=0.8 + 0.05,   # centre line of the tail in the slot: 0.05 mm right of its left wall (x 71.8)
-            j5_front=-7.0,       # J5's front edge, 7.0 mm left of the glass edge (x 64.0; J5_FRONT_TO_SLOT in gen_pcb.py)
+            slot_x=1.8 + 0.05,   # centre line of the tail in the slot: 0.05 mm right of its left wall (x 71.8; glass edge x 70.0)
+            j5_front=-5.0,       # J5's front edge, 5.0 mm left of the glass edge (x 65.0; J5_FRONT_TO_SLOT in gen_pcb.py)
             insert=2.1)
 
 
@@ -364,7 +364,7 @@ def main():
     print(f"{len(models)} models written to {OUT}: {', '.join(m.name for m in models)}")
     _, _, needed, slack = tail_path()
     print(f"FPC tail: {TAIL['length']:.2f} mm long, {needed:.2f} mm needed from the glass edge to full insertion "
-          f"with J5's front {-TAIL['j5_front'] + 0.8:.1f} mm from the slot: {slack:+.2f} mm spare")
+          f"with J5's front {TAIL['slot_x'] - 0.05 - TAIL['j5_front']:.1f} mm from the slot: {slack:+.2f} mm spare")
 
 
 if __name__ == "__main__":
