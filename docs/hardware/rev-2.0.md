@@ -156,6 +156,17 @@ Supply (USB-C, fuse, buck converter, sensor and Qwiic regulators), sensors and t
 - An SPI display driver for the SSD1680 (no ESP-IDF component fits; a short driver of our own), a display task, and a screen layout. Refresh: partial updates when values change, a full refresh about once an hour.
 - **Board revision**: 2.0 changes the pin map, so the firmware has to know which board it runs on. **Open**: a build option per board, or detection at run time (for example by reading `EPD_BUSY` with a pull-down: the panel holds it low when present). Not decided.
 
+## Layout as generated
+
+State of 2026-11-22: `gen_pcb.py` gives a fully routed board, 103 × 34 mm; KiCad counts no open connection, DRC has no violation, the board matches the schematic, and the ground pours are one connected piece. Pictures: [`../images/rev-2.0/`](../images/rev-2.0/). What differs from revision 1.0's layout ([`layout.md`](layout.md)):
+
+- **Sensor bus drawn by hand** (`SENSOR_BUS` in `gen_pcb.py`): `+3V3_SENS`, `I2C_SCL`, `I2C_SDA` and `BMP_INT` run on the top layer along the bottom edge (y 31.9–33.2, below C17–C24), then up the strip right of the FPC slot (x 73.6–74.9) into the bridge tracks. Left to the router, the bus crossed the display area diagonally on both layers, cut pockets out of the pours and left `BMP_INT` without a route. Its left ends are staggered like steps so that the router reaches each run from above. It starts at x 39.2, right of the USB connector's shell.
+- **Bottom layer kept as ground** (`DISPLAY_GROUND_AREAS`): the FPC landing area and the strip between the two slots over the full height (this is the sensor island's ground return), behind J5, under the boost converter's switching loop, and along the bottom edge below the module (tracks from the module's corner pins closed in the ground via of the EN capacitor there).
+- The router counts a cut-off pocket of the ground pours as a failure, so an attempt with one is never kept.
+- The rules of 1.0 hold unchanged: nothing under the USB connector on either layer (checked on the generated board), ground behind it, the SCD41 supply link clear of the vent hole.
+- Costs of the bus route, from `audit_pcb.py`: sensor supply to the SHT45 107.6 mm (166 mΩ); `BMP_INT` runs beside `I2C_SDA` for 58 mm. The 5 V path from the connector's farther supply pad to the fuse was 73 mm in this run and gets a hand-drawn link.
+- The panel's outline is on the back silkscreen (broken where it would cross a through-hole pad), with two ticks and "FPC" at the edge the tail leaves from.
+
 ## Not checked yet
 
 - The GDEY0213B74 specification was read on 2026-11-22 (37 pages, revision 1.0 of 2021-03-17): pin table, drawing, reference circuit. Not yet read: its DC characteristics (an image in the PDF) for current in deep sleep and the SPI clock limit.
@@ -166,8 +177,7 @@ Supply (USB-C, fuse, buck converter, sensor and Qwiic regulators), sensors and t
 
 ## Next steps
 
-1. Norman: confirm the board length (about 101 mm) and FPC route A with the dual-contact connector (taken as agreed for now).
-2. Schematic: done in `gen_schematic.py` (2026-11-22): new pins, display block J5, L2, Q1, D2–D4, R18–R19, C17–C26, sheet size A2. Its own netlist was checked by reading it; KiCad's rule check (`check_schematic.py`) has not run yet. The FPC connector uses KiCad's Hirose FH12 footprint as a stand-in until the Kinghelm part's land pattern is checked; the LCSC numbers are in the table above.
-3. Footprints: FPC connector and side button in `gen_footprints.py` if KiCad's library has none that fit.
-4. Board: new outline, FPC slot and placement in `gen_pcb.py`, route, `check_pcb.py`, `audit_pcb.py`. These need KiCad on Norman's computer.
-5. Order bare boards and a stencil only after Norman's go-ahead.
+1. Footprints from the makers' land patterns: FPC connector (Kinghelm, replaces the Hirose FH12 stand-in) and the side-press BOOT button, in `gen_footprints.py`.
+2. A 1:1 paper print and the real panel: tail reach round the slot, contact side, and pin 1's position after the U-turn (`FPC_REVERSED`).
+3. Firmware: board revision mechanism, 2.0 pin map, display driver.
+4. Order bare boards and a stencil only after Norman's go-ahead.
