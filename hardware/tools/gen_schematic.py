@@ -49,8 +49,8 @@ RES = {  # value -> (LCSC, MPN)
     "15k": ("C25756", "0402WGF1502TCE"),
     "68k": ("C36871", "0402WGF6802TCE"),
     "100k": ("C25741", "0402WGF1003TCE"),
-    # revision 2.0, display boost circuit. TODO: LCSC numbers not yet confirmed.
-    "2.2R": ("C25092", "0402WGF220LTCE"),
+    # revision 2.0, display boost circuit (checked at LCSC on 2026-11-22)
+    "2.2R": ("C226973", "AC0402FR-072R2L"),
     "1M": ("C26083", "0402WGF1004TCE"),
 }
 C0603 = "Capacitor_SMD:C_0603_1608Metric"
@@ -62,8 +62,9 @@ CAP = {  # value -> (footprint, LCSC, MPN)
     "22uF": (C0805, "C45783", "CL21A226MAQNNNE"),
     # Display supply (revision 2.0). The panel's driving voltages reach about +/-20 V, and
     # Good Display asks for 0603/0805, X5R/X7R, >= 25 V: a 0402 part keeps too little of its
-    # capacitance at that voltage. TODO: LCSC numbers not yet confirmed.
-    "1uF/25V": (C0603, "C15849", "CL10A105KA8NNNC"),
+    # capacitance at that voltage. LCSC numbers checked at LCSC on 2026-11-22; the 1 uF part is
+    # rated 50 V (the 25 V version was not found there).
+    "1uF/25V": (C0603, "C15849", "CL10A105KB8NNNC"),
     "4.7uF/25V": (C0805, "C1779", "CL21A475KAQNNNE"),
 }
 
@@ -616,8 +617,11 @@ def build(lib: Library) -> Schematic:
 
     # boost converter
     l2 = sch.add("Device:L", "L2", "47uH", 457.2, 53.34, 90,
-                 footprint="Inductor_SMD:L_Taiyo-Yuden_NR-30xx",
-                 fields={"LCSC": "TBD", "MPN": "NR3015T470M"},
+                 # Good Display names NR3015 (3 x 3 mm), but those carry only 300 mA; this 4 x 4 mm
+                 # part is rated 720 mA. Footprint: Sunlord's SWPA4030S, which the APV part copies
+                 # (to be checked against APV's drawing).
+                 footprint="Inductor_SMD:L_Sunlord_SWPA4030S",
+                 fields={"LCSC": "C5363795", "MPN": "APSWPA4030S470MTF"},
                  ref_at=(-1.27, -2.54, "right"), value_at=(1.27, -2.54, "left"))
     lin = l2.pos(1)
     sch.wire(lin, (lin[0] - 7.62, lin[1]))
@@ -629,7 +633,7 @@ def build(lib: Library) -> Schematic:
     sch.label_at(lsw[0] + 2.54, lsw[1], "EPD_SW", 0)
 
     q1 = sch.add("Transistor_FET:Si1308EDL", "Q1", "Si1308EDL", 457.2, 81.28,
-                 fields={"LCSC": "TBD", "MPN": "SI1308EDL-T1-GE3"})
+                 fields={"LCSC": "C469327", "MPN": "SI1308EDL-T1-GE3"})
     sch.label(q1, "3", "EPD_SW")
     sch.label(q1, "1", "EPD_GDR")
     sch.label(q1, "2", "EPD_RESE")
@@ -645,7 +649,9 @@ def build(lib: Library) -> Schematic:
                                           ("EPD_PUMP", "GND"),         # charge pump, ground side
                                           ("EPD_VGL", "EPD_PUMP"))):   # charge pump to PREVGL
         d = sch.add("Diode:MBR0530", f"D{i + 2}", "MBR0530", 495.3, 53.34 + i * 15.24, 0,
-                    fields={"LCSC": "TBD", "MPN": "MBR0530T1G"})
+                    # onsemi part: Vf <= 430 mV at 0.5 A, as Good Display asks. JSCJ's MBR0530
+                    # (C77336) is cheaper but specifies 550 mV. LCSC number not yet confirmed.
+                    fields={"LCSC": "C232832", "MPN": "MBR0530T1G"})
         sch.label(d, "2", anode)
         if cathode == "GND":
             sch.power(d, "1", "GND")

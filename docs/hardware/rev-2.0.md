@@ -96,19 +96,21 @@ From the reference circuit in the GDEY0213B74 specification (page 29). The panel
 
 Boost and charge pump: 47 µH from +3V3 (4.7 µF at its input) to the switch node; the MOSFET from the switch node to `RESE`; a Schottky diode from the switch node to `PREVGH`; 4.7 µF from the switch node to a junction with two Schottky diodes, one from the junction to ground, one from `PREVGL` to the junction, so that `PREVGL` is pumped negative.
 
-| Ref (Good Display) | Part | Good Display's requirement | Proposed | LCSC |
-| --- | --- | --- | --- | --- |
-| P1 | FPC connector | 24 pins, 0.5 mm | see above | C3249999 or C20688 |
-| Q1 | N-MOSFET | Si1308EDL, or: ≥ 30 V, Vgs(th) ≤ 1.5 V, Rds(on) ≤ 400 mΩ | Si1308EDL (SOT-323) as drawn; AO3400A (SOT-23, 30 V, Vgs(th) ≤ 1.45 V) meets the same figures and is a basic part | to look up; AO3400A C20917 |
-| D1–D3 | Schottky diodes | MBR0530, or: ≥ 30 V, ≥ 500 mA, Vf ≤ 430 mV | MBR0530 (SOD-123) | to look up |
-| L1 | Inductor | 47 µH, 500 mA, "refer to NR3015" (Taiyo Yuden, 3 × 3 mm) | NR3015T470M or equivalent | to look up |
-| R1, R2 | 1 MΩ, 2.2 Ω | 0603/0805, 1 %, ≥ 0.05 W | 0402, 1 %, 0.0625 W: meets the rating, smaller than drawn | to look up |
-| C2, C5–C7, C9–C12 | 8 × 1 µF | 0603/0805, X5R/X7R, ≥ 25 V | 1 µF 25 V **0603** | to look up |
-| C3, C4 | 2 × 4.7 µF | as above | 4.7 µF 25 V 0805 | to look up |
+| Ref (Good Display) | Ref (ours) | Part | Good Display's requirement | Chosen | LCSC |
+| --- | --- | --- | --- | --- | --- |
+| P1 | J5 | FPC connector | 24 pins, 0.5 mm | Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, double-sided contacts | C3249999 (980 in stock, from 0.13 USD) |
+| Q1 | Q1 | N-MOSFET | Si1308EDL, or: ≥ 30 V, Vgs(th) ≤ 1.5 V, Rds(on) ≤ 400 mΩ | Vishay SI1308EDL-T1-GE3, SOT-323 | C469327 (39,000 in stock, from 0.12 USD). Fallback AO3400A, C20917, SOT-23 |
+| D1–D3 | D2–D4 | Schottky diodes | MBR0530, or: ≥ 30 V, ≥ 500 mA, Vf ≤ 430 mV | onsemi MBR0530T1G, SOD-123 | C232832 (**not confirmed**). JSCJ's MBR0530, C77336, specifies 550 mV at 0.5 A |
+| L1 | L2 | Inductor | 47 µH, "refer to NR3015: Io = 500 mA (max)" | APV APSWPA4030S470MTF, 4 × 4 mm, 720 mA, 0.58 Ω | C5363795. NR3015-size parts (3 × 3 mm) carry only 300 mA |
+| R1 | R18 | 1 MΩ | 0603/0805, 1 %, ≥ 0.05 W | UNI-ROYAL 0402WGF1004TCE, 0402 | C26083 |
+| R2 | R19 | 2.2 Ω | as above | YAGEO AC0402FR-072R2L, 0402 | C226973 |
+| C2, C5–C7, C9–C12 | C17–C24 | 8 × 1 µF | 0603/0805, X5R/X7R, ≥ 25 V | Samsung CL10A105KB8NNNC, 0603, **50 V** | C15849 (basic) |
+| C3, C4 | C25, C26 | 2 × 4.7 µF | as above | Samsung CL21A475KAQNNNE, 0805, 25 V | C1779 |
+
+Checked at LCSC on 2026-11-22 unless marked. The 1 MΩ and 2.2 Ω resistors are 0402 at 0.0625 W, above the 0.05 W asked for.
 
 - **The 25 V capacitors go to 0603 and 0805, as Good Display asks**, even though the rest of the board is 0402. A 1 µF 0402 ceramic keeps only a small part of its capacitance at 20 V; the larger case keeps more.
 - The panel's voltages are about ±20 V on `VGH`/`VGL`, so 25 V capacitors and 30 V diodes and MOSFET.
-- LCSC numbers marked "to look up" are not chosen yet; the AO3400A number is from memory.
 
 ### Pins
 
@@ -133,7 +135,7 @@ The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 were free. **Decided 2026
 
 The component side faces the wall, so a normal push button and a top-facing LED cannot be seen or pressed from the room.
 
-- **BOOT/USER**: a **side-press button on the top edge** of the board, so a finger or a plunger in the case reaches it from above. **Open**: part (a common SMD side-actuated tactile switch at LCSC; not looked up yet).
+- **BOOT/USER**: a **side-press button on the top edge** of the board, so a finger or a plunger in the case reaches it from above. Proposed: Kinghelm KH-3635-CAJ, LCSC C530670, 6 × 3 mm, 3.5 mm high, right-angle, about 0.03 USD, 63,000 in stock. Its footprint still has to be drawn from its datasheet.
 - **RESET** stays a top-actuated button: it is only for bring-up.
 - **Status LED**: keep the 1.0 LED at the top edge (it already sits there), and let the case carry the light to the room with a light pipe or a thin wall. **Assumption**; the alternative is a side-view LED. With a display, the LED matters less: it is mainly for the moments when the display cannot show anything (start, firmware update, crash).
 
@@ -159,7 +161,7 @@ Supply (USB-C, fuse, buck converter, sensor and Qwiic regulators), sensors and t
 ## Next steps
 
 1. Norman: confirm the board length (about 101 mm) and FPC route A with the dual-contact connector (taken as agreed for now).
-2. Schematic: done in `gen_schematic.py` (2026-11-22): new pins, display block J5, L2, Q1, D2–D4, R18–R19, C17–C26, sheet size A2. Its own netlist was checked by reading it; KiCad's rule check (`check_schematic.py`) has not run yet. The FPC connector uses KiCad's Hirose FH12 footprint as a stand-in until the Kinghelm part's land pattern is checked; the LCSC numbers of the new parts are not confirmed.
+2. Schematic: done in `gen_schematic.py` (2026-11-22): new pins, display block J5, L2, Q1, D2–D4, R18–R19, C17–C26, sheet size A2. Its own netlist was checked by reading it; KiCad's rule check (`check_schematic.py`) has not run yet. The FPC connector uses KiCad's Hirose FH12 footprint as a stand-in until the Kinghelm part's land pattern is checked; the LCSC numbers are in the table above.
 3. Footprints: FPC connector and side button in `gen_footprints.py` if KiCad's library has none that fit.
 4. Board: new outline, FPC slot and placement in `gen_pcb.py`, route, `check_pcb.py`, `audit_pcb.py`. These need KiCad on Norman's computer.
 5. Order bare boards and a stencil only after Norman's go-ahead.
