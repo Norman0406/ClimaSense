@@ -181,7 +181,7 @@ Ranked by value for effort:
 **Probably not worth it**
 
 - **Formaldehyde** (SFA40, $23) — only interesting after renovation or with lots of new furniture.
-- **Small display** (e-paper/OLED) — nice, but adds heat (OLED), cost and enclosure complexity; the data lives in MQTT anyway. Could ride on an expansion header later.
+- **Small display** (e-paper/OLED) — nice, but adds heat (OLED), cost and enclosure complexity; the data lives in MQTT anyway. Could ride on an expansion header later. Researched further on 2026-11-22: see section 6 of [`../hardware/next-revision.md`](../hardware/next-revision.md).
 - **Buzzer, IR blaster** — niche.
 - **CO or radon** — these are safety measurements; use certified dedicated devices instead.
 
