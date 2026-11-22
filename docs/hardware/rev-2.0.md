@@ -125,12 +125,12 @@ The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 were free. **Decided 2026
 | GPIO | Net | Why this pin |
 | --- | --- | --- |
 | IO3 | `EPD_BUSY` | Driven by the panel, so not on a start-up configuration pin (IO4, IO5, IO15 are) |
-| IO2 | `EPD_RST` | |
+| IO10 | `EPD_RST` | **Proposed 2026-11-22, awaiting Norman**: moved from IO2 after the first routing run, which could not route it from the module's antenna end; IO10 is at the end nearest the connector. It floats while the chip is in reset, which is harmless for the panel's reset line. IO2 is now the spare. |
 | IO4 | `EPD_SCK` | Start-up configuration pin; fine as an output that the ESP32 drives only after start |
 | IO5 | `EPD_MOSI` | as IO4 |
 | IO15 | `EPD_CS` | as IO4 |
 | IO1 | `EPD_DC` | |
-| IO0 | `BMP_INT` | **Decided 2026-11-22 (Norman)**: the BMP580 interrupt moves here from IO10. IO0 is one of the pins that can wake the chip from deep sleep and be read by the low-power core, which IO10 cannot (see the BMP580 item in [`next-revision.md`](next-revision.md)); it is not a start-up configuration pin. Costs nothing, since 2.0 changes the pin map anyway. IO10 is now the spare. |
+| IO0 | `BMP_INT` | **Decided 2026-11-22 (Norman)**: the BMP580 interrupt moves here from IO10. IO0 is one of the pins that can wake the chip from deep sleep and be read by the low-power core, which IO10 cannot (see the BMP580 item in [`next-revision.md`](next-revision.md)); it is not a start-up configuration pin. Costs nothing, since 2.0 changes the pin map anyway. |
 
 - SPI goes through the GPIO matrix to these pins; fine at the panel's clock (a few MHz to 20 MHz).
 - No pull-ups: while the ESP32 is in reset the panel is in deep sleep and ignores the bus until it is reset. **Assumption**; a 100 kΩ pull-up on `EPD_CS` would cost one resistor of a type already on the board.

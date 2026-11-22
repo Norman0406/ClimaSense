@@ -545,19 +545,6 @@ def main():
         edge(board, [(SLOT_X[0], y1), (SLOT_X[1], y1), (SLOT_X[1], y2), (SLOT_X[0], y2)])
     fx0, fy0, fx1, fy1 = FPC_SLOT
     edge(board, [(fx0, fy0), (fx1, fy0), (fx1, fy1), (fx0, fy1)])
-    # where the panel goes, on the back: outline on the back silkscreen and fabrication layers
-    for layer in (pcbnew.B_SilkS, pcbnew.B_Fab):
-        px0, py0, px1, py1 = PANEL
-        for a, b in (((px0, py0), (px1, py0)), ((px1, py0), (px1, py1)), ((px1, py1), (px0, py1)),
-                     ((px0, py1), (px0, py0))):
-            line = pcbnew.PCB_SHAPE(board)
-            line.SetShape(pcbnew.SHAPE_T_SEGMENT)
-            line.SetStart(P(*a))
-            line.SetEnd(P(*b))
-            line.SetLayer(layer)
-            line.SetWidth(FromMM(0.15))
-            board.Add(line)
-
     # --- nets --------------------------------------------------------------
     nets = {}
     pad_net = {}
@@ -614,6 +601,72 @@ def main():
         fp.SetAttributes(pcbnew.FP_BOARD_ONLY | pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_EXCLUDE_FROM_POS_FILES)
         fp.Reference().SetVisible(False)
         board.Add(fp)
+
+    # --- where the panel goes, on the back ------------------------------------
+    # Outline on the back fabrication layer, and on the back silkscreen with gaps where it
+    # would run over a through-hole pad (the fab leaves silkscreen off copper anyway; the gaps
+    # keep DRC quiet). Two ticks and "FPC" mark the edge the tail leaves from, so that the
+    # panel cannot be stuck on the wrong way round.
+    px0, py0, px1, py1 = PANEL
+    sides = (((px0, py0), (px1, py0)), ((px1, py0), (px1, py1)), ((px0, py1), (px1, py1)),
+             ((px0, py0), (px0, py1)))
+    tail_y = (PANEL_TAIL_Y - 6.25, PANEL_TAIL_Y + 6.25)
+    ticks = tuple(((px1 - 1.2, y), (px1, y)) for y in tail_y)
+    back_pads = []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.IsOnLayer(pcbnew.B_Cu):
+                bb = pad.GetBoundingBox()
+                back_pads.append(tuple(pcbnew.ToMM(v) for v in (bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom())))
+
+    def segment(layer, a, b):
+        line = pcbnew.PCB_SHAPE(board)
+        line.SetShape(pcbnew.SHAPE_T_SEGMENT)
+        line.SetStart(P(*a))
+        line.SetEnd(P(*b))
+        line.SetLayer(layer)
+        line.SetWidth(FromMM(0.15))
+        board.Add(line)
+
+    def clear_of_pads(a, b, margin=0.25):
+        """Pieces of the axis-parallel line a-b that keep `margin` from every back pad."""
+        horizontal = a[1] == b[1]
+        lo, hi = (a[0], b[0]) if horizontal else (a[1], b[1])
+        cuts = []
+        for x0, y0, x1, y1 in back_pads:
+            x0, y0, x1, y1 = (x0 - ORIGIN[0] - margin, y0 - ORIGIN[1] - margin,
+                              x1 - ORIGIN[0] + margin, y1 - ORIGIN[1] + margin)
+            if horizontal and y0 <= a[1] <= y1:
+                cuts.append((x0, x1))
+            elif not horizontal and x0 <= a[0] <= x1:
+                cuts.append((y0, y1))
+        pieces, start = [], lo
+        for c0, c1 in sorted(cuts):
+            if c1 < start or c0 > hi:
+                continue
+            if c0 > start:
+                pieces.append((start, c0))
+            start = max(start, c1)
+        if start < hi:
+            pieces.append((start, hi))
+        return [((u, a[1]), (v, a[1])) if horizontal else ((a[0], u), (a[0], v))
+                for u, v in pieces if v - u > 0.3]
+
+    for a, b in sides + ticks:
+        segment(pcbnew.B_Fab, a, b)
+        for piece in clear_of_pads(a, b):
+            segment(pcbnew.B_SilkS, *piece)
+    for text, x, y, angle in (("DISPLAY", (px0 + px1) / 2, (py0 + py1) / 2, 0),
+                              ("FPC", px1 - 2.2, PANEL_TAIL_Y, 90)):
+        label = pcbnew.PCB_TEXT(board)
+        label.SetText(text)
+        label.SetLayer(pcbnew.B_SilkS)
+        label.SetMirrored(True)
+        label.SetTextAngleDegrees(angle)
+        label.SetPosition(P(x, y))
+        label.SetTextSize(VECTOR2I(FromMM(1.0), FromMM(1.0)))
+        label.SetTextThickness(FromMM(0.15))
+        board.Add(label)
 
     # --- silkscreen labels ---------------------------------------------------
     # Reference designators are not printed (see above); these few labels are.

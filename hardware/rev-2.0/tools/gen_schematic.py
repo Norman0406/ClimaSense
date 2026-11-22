@@ -343,7 +343,9 @@ def build(lib: Library) -> Schematic:
         # e-paper display (revision 2.0). BUSY is driven by the panel, so it sits on IO3, not
         # on a start-up configuration pin (IO4, IO5, IO15 are); the ESP32 drives the others only
         # after start.
-        "26": "EPD_BUSY", "27": "EPD_RST", "4": "EPD_SCK", "5": "EPD_MOSI", "23": "EPD_CS",
+        # RST sits on IO10 (pin 11), at the module's end nearest the connector; it floats while
+        # the chip is in reset, which only holds the panel in an undefined state until start.
+        "26": "EPD_BUSY", "11": "EPD_RST", "4": "EPD_SCK", "5": "EPD_MOSI", "23": "EPD_CS",
         "9": "EPD_DC",
         # IO18 to IO23 have a weak pull-up while the chip is in reset (chip datasheet table 2-1),
         # IO10 and IO11 have none. An enable that must stay low in reset (QWIIC_EN, held by
@@ -356,7 +358,7 @@ def build(lib: Library) -> Schematic:
     }
     for pin, net in mcu_nets.items():
         sch.label(u_mcu, pin, net)
-    sch.nc(u_mcu, "11")  # IO10, spare
+    sch.nc(u_mcu, "27")  # IO2, spare
     sch.power(u_mcu, "2", "+3V3")
     g = [sch.stub(u_mcu, p)[0] for p in ("1", "28", "29")]
     sch.wire(g[0], g[1])
