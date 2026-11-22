@@ -256,7 +256,7 @@ wsl -d Ubuntu -- bash -c "cmake -S firmware/test/host -B firmware/build/host -G 
 
 ## Continuous integration
 
-`.github/workflows/firmware.yml` runs on every push and pull request that touches `firmware/`:
+`.github/workflows/firmware.yml` runs on every pull request and every push to `main` that touches `firmware/` (pushes to other branches are checked through their pull request, so a commit is not built twice):
 
 - **Unit tests (PC):** configures, builds and runs `test/host` on Ubuntu.
 - **Build (ESP-IDF 6.1.1):** `idf.py build` in Espressif's `espressif/idf:v6.1.1` Docker image, the same ESP-IDF version as on this PC. It keeps the build as the artifact `firmware-<commit>` for 90 days: the `.elf` (to decode crashes of that build), the flash images and `flash_args`.
