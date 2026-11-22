@@ -14,6 +14,11 @@ Run it by hand after the board or a 3D model has changed; it is not part of the 
 so that the repository does not collect a new set of pictures with every run.
 
 The parts KiCad has no 3D model for get theirs from gen_models.py, which this script runs first.
+
+Revision 1.0's top view in the README (docs/images/board-top.png) has the same opaque grey background
+(2026-11-22, Norman). Revision 1.0's own gen_images.py is frozen and renders it transparent, so it was
+made directly with: kicad-cli pcb render --width 1600 --height 760 --quality basic --background opaque
+--side top --zoom 1.8 -o docs/images/board-top.png hardware/rev-1.0/climasense.kicad_pcb
 """
 import re
 import subprocess
