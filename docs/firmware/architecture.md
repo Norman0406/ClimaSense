@@ -48,7 +48,7 @@ Each component has its public headers in `include/<component>/` (included as `"b
 
 ## Testing without hardware
 
-Logic that does not touch hardware lives in headers and sources without ESP-IDF includes (for example `button_logic.h`, `led_logic.h`). `firmware/test/host/` compiles those for the PC and checks them with GoogleTest unit tests: press detection, LED colour balance, and later the sensor CRCs, conversions and command/response parsing, against the examples in the datasheets. The sensor drivers are written against a small I2C interface of our own, so the unit tests can check the bytes a driver sends and replay datasheet responses through a GoogleMock mock of that interface. GitHub Actions runs the unit tests and the ESP-IDF build on every push that touches `firmware/`.
+Logic that does not touch hardware lives in headers and sources without ESP-IDF includes (for example `button_logic.h`, `led_logic.h`). `firmware/test/host/` compiles those for the PC and checks them with GoogleTest unit tests: press detection, LED colour balance, and later the sensor CRCs, conversions and command/response parsing, against the examples in the datasheets. The sensor drivers are written against a small I2C interface of our own, so the unit tests can check the bytes a driver sends and replay datasheet responses through a GoogleMock mock of that interface. GitHub Actions runs the unit tests and the ESP-IDF build on every pull request and every push to `main` that touches `firmware/`.
 
 Code that does touch hardware (LEDC duty on the pins, timers, the I2C driver against real sensors) can only be tested on a board; ESP-IDF's on-target test framework (Unity, run with `pytest-embedded`) is the tool for that once a board is at hand.
 
