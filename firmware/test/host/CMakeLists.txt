@@ -30,14 +30,18 @@ add_executable(host_tests
     test_net.cpp
     test_ota.cpp
     test_portal.cpp
+    test_recovery.cpp
     test_scd41.cpp
     test_settings.cpp
     test_sgp41.cpp
     test_sht45.cpp
     test_single_shot.cpp
+    test_status_pattern.cpp
     test_telemetry.cpp
+    test_voc_baseline.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
+    ${FW}/components/board/src/status_pattern.cpp
     ${FW}/components/diagnostics/src/log_line.cpp
     ${FW}/components/net/src/settings.cpp
     ${FW}/components/ota/src/logic.cpp
@@ -54,6 +58,7 @@ add_executable(host_tests
     ${FW}/components/sensors/src/sgp41.cpp
     ${FW}/components/sensors/vendor/gas_index_algorithm/sensirion_gas_index_algorithm.c
     ${FW}/components/sensors/src/sht45.cpp
+    ${FW}/components/sensors/src/voc_baseline.cpp
 )
 target_include_directories(host_tests PRIVATE
     ${FW}/components/board/include

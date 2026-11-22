@@ -5,5 +5,5 @@ idf_component_register(
         "src/payload.cpp"
     INCLUDE_DIRS "include"
     REQUIRES diagnostics net sensors
-    PRIV_REQUIRES mqtt
+    PRIV_REQUIRES esp_event esp_netif esp_timer mqtt
 )

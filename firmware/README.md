@@ -6,22 +6,24 @@ Framework: **ESP-IDF 6.1, in C++** (see [`docs/decisions.md`](../docs/decisions.
 
 ## Status
 
-Steps 1-8 of the plan below: all four sensors are read and published over MQTT every 60 s together with a boot report and log lines, the device joins Wi-Fi and gets network time, and every setting can be changed in the setup portal. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 185 passing at commit `44cf4d1`, 2026-11-20); they have not been run on this PC (no PC compiler installed here, see below).
+Steps 1-9 of the plan below: all four sensors are read and published over MQTT every 60 s together with a boot report and log lines, the device joins Wi-Fi and gets network time, every setting can be changed in the setup portal, and step 9 added the watchdog, reconnects, sensor recovery, LED status patterns and the saved VOC baseline. Builds with ESP-IDF 6.1.1; **not yet run on hardware**. The unit tests run in GitHub Actions (all 229 passed with g++ 13 on Linux at step 9, 2026-11-22); they have not been run on this PC (no PC compiler installed here, see below).
 
 What the firmware does now:
 
 - prints a banner (version, chip, flash size, build fingerprint, reset reason) and a heartbeat every 5 s on the native USB console;
 - after a reset that kept them, prints the last log lines from before the reset; after a crash, prints the core dump summary (see "After a crash");
 - switches the sensor rail on and the Qwiic rail off, puts a pull-down on `BMP_INT`;
-- shows red, green, blue and white on the status LED in turn at start (to check the LED and its colour balance by eye);
-- BOOT button: a short press cycles the LED through off/red/green/blue/white, a long press (3 s) turns it blue and logs where the Wi-Fi setup portal will go;
-- starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. The SGP41 is conditioned for its first 10 s, then measured every second with the SHT45's humidity and temperature of the same tick for compensation; Sensirion's Gas Index Algorithm turns its raw signals into the VOC index (100 = the room's usual) and the NOx index (1 = the usual). Both indices are 0 for the algorithm's first 46 samples and keep learning the room's baseline for hours; they start again at every reboot (saving the learned state is planned for step 9). At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second.
+- shows red, green, blue and white on the status LED in turn at start (to check the LED and its colour balance by eye), then the device's status (see "Status LED");
+- BOOT button: a short press shows the status for 5 s (green when all is well) or closes the setup portal, a long press (3 s) opens the setup portal;
+- starts the sensor task: it waits until 1 s after power-up (the SCD41's start-up time), opens the sensor bus on the low-power I2C controller at 100 kHz, probes 0x08–0x77 and logs which of the four sensors answered, any unexpected device, and a bus fault (scan stopped on a timeout). Then, once a second, it starts a measurement on the SHT45 (high precision, CRC-checked) and the BMP580 (forced mode, pressure oversampling 16x), waits 40 ms for both, reads both, and logs temperature, humidity and pressure every 10 s at INFO (every second at DEBUG). The BMP580 is reset and its chip ID and calibration memory checked at start; if that fails, it is retried every 10 s. The SCD41 takes a single-shot CO2 measurement every 5 minutes, compensated with the BMP580's pressure: the shot is started at the end of a tick, its result read 6 s later (up to 10 s), without holding up the other sensors; each CO2 value is logged at INFO. The SGP41 is conditioned for its first 10 s, then measured every second with the SHT45's humidity and temperature of the same tick for compensation; Sensirion's Gas Index Algorithm turns its raw signals into the VOC index (100 = the room's usual) and the NOx index (1 = the usual). Both indices are 0 for the algorithm's first 46 samples and keep learning the room's baseline for hours. Once the VOC algorithm has learned for 3 hours, its state is kept in RTC memory (every second) and in flash (every 5 minutes, with the time): after a restart it carries on from there instead of learning again, after a power cut too if the device was off for less than 10 minutes (Sensirion's limit). The NOx index has no such state and starts again. At start the task stops a periodic measurement the SCD41 may still be running after an ESP32 reset, and logs its serial number and whether its automatic self-calibration is on. A failing sensor is logged when it starts failing and when it works again, not every second. A sensor that fails 10 readings in a row (the SCD41: two shots), or a bus that cannot be opened, is recovered by switching the sensor rail off for 1 s and on again and setting all four sensors up again; a further recovery waits 2 minutes, then 4, 8 ... up to 4 hours, back to 2 minutes once all sensors have worked for an hour. Each recovery is logged as a warning, so it also goes out over MQTT.
 
 - loads its settings (network, device name) from NVS over the build defaults and logs where each came from;
 - publishes the sensor values over MQTT every 60 s (see "MQTT"), with Home Assistant discovery if switched on; at each start a boot report (with the crash summary after a crash), and WARNING-and-above log lines;
 - installs signed release images over the air, from a URL sent over MQTT or uploaded in the setup portal, with rollback (see "Releases and updates");
 - opens the setup portal on first boot (no network configured) or on a 3 s press of the BOOT button; see "Setting up a device";
-- joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi.
+- joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection or its IP address is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi. The MQTT client reconnects the same way, and at once when Wi-Fi is back;
+- restarts after an hour without the connection it is set up for (the broker, or Wi-Fi without a broker), as a last resort against a stuck network stack; not while the setup portal is open or an update runs;
+- is watched by the task watchdog: if the app task or the sensor task hangs for 20 s, the device writes a core dump and restarts (see "After a crash").
 
 How the firmware is structured, and why: [`docs/firmware/architecture.md`](../docs/firmware/architecture.md).
 
@@ -35,12 +37,13 @@ sdkconfig.defaults     settings that differ from ESP-IDF's defaults (versioned; 
 partitions.csv         flash layout: NVS, two OTA slots, core dump
 main/main.cpp          entry point
 components/board/      pin map (include/board/pins.h, mirrored from docs/hardware/schematic.md),
-                       supply rails, status LED, button
+                       supply rails, status LED and its patterns (status_pattern.h), button
 components/sensors/    I2C interface (i2c_bus.h) and its ESP-IDF implementation, device list
                        and bus parameters (devices.h), address scan, the sensor task,
                        Sensirion framing and CRC (sensirion.h), SHT45, BMP580, SCD41 and
                        SGP41 drivers, the SCD41's single-shot schedule (single_shot.h),
-                       the gas index wrapper (gas_index.h)
+                       the gas index wrapper (gas_index.h), sensor rail recovery
+                       (recovery.h), the VOC baseline kept across reboots (voc_baseline.h)
 components/sensors/vendor/gas_index_algorithm/
                        Sensirion's Gas Index Algorithm 3.2.2, fixed-point, unchanged (BSD-3)
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
@@ -52,7 +55,8 @@ components/telemetry/  MQTT: settings record and rules, state message and Home A
                        discovery (pure, tested), the client on espressif/mqtt
 components/ota/        updates: version and command logic, trial guard (pure), download, upload
 components/net/        settings record and its rules (settings.h), Wi-Fi station, reconnect
-                       pauses, host name, network time; Kconfig menu "ClimaSense network"
+                       pauses, host name, network time, restart after an hour offline
+                       (offline_guard.h); Kconfig menu "ClimaSense network"
 dependencies.lock      registry components ESP-IDF resolved (espressif/mqtt), versioned
 sdkconfig.defaults.local.example
                        template for the git-ignored file with the Wi-Fi credentials
@@ -149,6 +153,19 @@ Only the release workflow's "Build and sign" job uses the secret; the job that p
 ```powershell
 espsecure generate-signing-key --version 2 --scheme rsa3072 ota_signing_key.pem
 ```
+
+## Status LED
+
+After the colour check at start, the LED shows the most important of these:
+
+| LED | Meaning |
+| --- | --- |
+| magenta, flashing fast | an update is being installed |
+| blue, blinking twice a second | the setup portal is open |
+| yellow, one short flash every 3 s | not connected to Wi-Fi (also while connecting after start) |
+| yellow, two short flashes every 3 s | Wi-Fi works, but the MQTT broker is not reached |
+| red, one short flash every 3 s | a sensor keeps failing (recovery runs, see the log) |
+| off | all well; a short press on BOOT shows green for 5 s to confirm |
 
 ## Setting up a device
 
@@ -252,5 +269,5 @@ When ESP-IDF is updated here, update the image tag there too.
 6. MQTT publishing: 6a sensor values, 6b diagnostics (boot report, crash summary, log lines). Done.
 7. Captive portal for all settings (Wi-Fi, device name, later MQTT). Done; MQTT fields come with step 6.
 8. OTA updates. Done.
-9. Hardening: watchdog, reconnects, sensor recovery by switching the sensor rail, LED status patterns.
+9. Hardening: watchdog, reconnects, sensor recovery by switching the sensor rail, LED status patterns, VOC baseline kept across reboots. Done.
 10. Measure self-heating against a reference thermometer; only then consider sleep modes.
