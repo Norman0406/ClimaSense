@@ -32,12 +32,16 @@ Seen from the component side (the side that faces the wall), with the same left-
 | Zone (x, mm) | Contents |
 | --- | --- |
 | 0 – 26 | ESP32-C6 module, antenna at the left edge (unchanged) |
-| 26 – ~71 | USB-C, protection, fuse, regulators, buttons, Qwiic as in 1.0, plus the FPC connector and the boost circuit for the panel. The panel lies on the other side of this zone, from x ≈ 12 to 71 |
-| ~72.5 – 73.7 | FPC slot (about 13.5 × 1.2 mm), just beyond the panel's edge |
-| ~75 – 76.5 | Milled slot to the sensor island (as 1.0) |
-| ~76.5 – ~101 | Sensor island and SHT45 tongue (as 1.0, moved right) |
+| 26 – 48 | USB-C, protection, fuse, regulators, buttons, Qwiic, exactly as in 1.0 |
+| 48 – 67 | **New**: boost circuit (top), FPC connector J5 (middle, opening towards the slot), the eight 1 µF capacitors (bottom). The panel lies on the other side of 11.8 – 71.0 |
+| 71.8 – 73.0 | FPC slot, 13.5 mm long, y = 10.05 – 23.55, 0.8 mm beyond the panel's edge |
+| 73.0 – 76.0 | Strip where the sensor bus runs round the end of the FPC slot to the bridge |
+| 76.0 – 77.5 | Milled slot to the sensor island (as 1.0) |
+| 77.5 – 103 | Sensor island and SHT45 tongue, exactly as in 1.0, moved right by 28 mm |
 
-- **Size: about 101 × 34 mm** (1.0: 75 × 34). The height stays: the panel is 29.2 mm high. **Assumption**: the panel's left edge keeps 5 mm from the end of the antenna keep-out (x = 6.9 mm in 1.0), so it spans about x = 12 to 71. Espressif asks for no metal near the antenna; the panel has thin metal tracks on glass. Less gap gives a shorter board.
+- **Size: 103 × 34 mm** (1.0: 75 × 34). The height stays: the panel is 29.2 mm high. It came out 2 mm longer than first estimated: the FPC slot lies right in front of the bridge that carries the sensor bus across the sensor slot, so the bus has to run round the slot's end, and that needs a strip of about 3 mm between the two slots.
+- **Assumption**: the panel's left edge keeps 5 mm from the end of the antenna keep-out (x = 6.9 mm in 1.0), so it spans x = 11.8 to 71.0. Espressif asks for no metal near the antenna; the panel has thin metal tracks on glass. Less gap gives a shorter board.
+- The generator (`hardware/rev-2.0/tools/gen_pcb.py`) builds this from the 1.0 placement: everything from x = 48 rightwards moves by 28 mm, nothing else of 1.0 moves, and the new parts go into the gap. The panel's outline is printed on the back silkscreen.
 - The component side under the panel is free for parts, since the panel is on the other side. Only the FPC slot has to lie beyond the panel's edge.
 - Seen from the room the board is mirrored: the antenna end is on the right, the sensors on the left. Up stays up, so the arrangement of the sensors for rising heat is unchanged.
 - **Mounting holes**: the two at the antenna end are outside the panel; the two on the sensor island stay where they are.
@@ -56,10 +60,12 @@ The tail leaves towards the sensor side, so that the FPC and the boost circuit s
 
 | | Route | Contacts on the component side face | Connector | Board |
 | --- | --- | --- | --- | --- |
-| **A (proposed)** | Through the slot, then **back** under the panel's edge (a U-turn round the slot's edge) | up, away from the board | **dual-contact**: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, LCSC **C3249999**, flip lock, 2.0 mm high | about 101 mm |
-| B | Through the slot and **onwards**, away from the panel (an S-bend) | down, onto the board | bottom-contact: BOOMELE 0.5-24P FG, LCSC **C20688**, flip lock, 2.0 mm high, the common one, about 0.08 USD | about 7 mm longer: the connector has to sit beyond the slot |
+| **A (chosen)** | Through the slot, then **back** under the panel's edge (a U-turn round the slot's edge) | up, away from the board | **dual-contact**: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, LCSC **C3249999**, flip lock, 2.0 mm high | 103 mm |
+| B | Through the slot and **onwards**, away from the panel (an S-bend) | down, onto the board | bottom-contact: BOOMELE 0.5-24P FG, LCSC **C20688**, flip lock, 2.0 mm high, the common one, about 0.08 USD | longer: the connector has to sit beyond the slot |
 
 - In route A the connector sits under the panel's edge, with its opening facing the slot. A dual-contact connector also works if the assumption about the contact side above is wrong.
+- **The U-turn reverses the pin order.** The panel's pin 1 is at the top of the tail (drawing, front view; it stays at the top seen from the component side). The connector, turned to face the slot, has its pin 1 at the bottom. So panel pin N lands on connector pin 25 − N, and the schematic wires J5 that way (`FPC_REVERSED` in `gen_schematic.py`). **Check this with the real panel before ordering**: if pin 1 turns out to be at the other end, set `FPC_REVERSED = False`.
+- The connector's front edge is about 5.8 mm from the slot: of the tail's 14.3 mm, about 5 mm of the flexible part go into the slot and the U-turn, the rest and 2.3 mm of the stiffener lie flat on the board, and 3.7 mm go into the connector.
 - **The tail is short.** Of its 14.3 mm, 6 mm are stiff, which leaves about 8 mm to reach the slot, pass through the 1.6 mm board in two bends and come out on top. Feasible, but **check with a 1:1 paper print of the board edge and the real panel** before ordering.
 - Both connectors are extended parts at JLCPCB; for a board assembled at home that costs nothing extra. Price and stock of C3249999 have not been seen yet.
 - Hand assembly: 0.5 mm pitch is fine with a stencil and a hot plate. Bridges are cleared with the rework station and flux.

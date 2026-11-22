@@ -596,15 +596,23 @@ def build(lib: Library) -> Schematic:
         "11": "EPD_DC", "12": "EPD_CS", "13": "EPD_SCK", "14": "EPD_MOSI", "18": "EPD_VDD",
         "20": "EPD_VSH1", "21": "EPD_VGH", "22": "EPD_VSL", "23": "EPD_VGL", "24": "EPD_VCOM",
     }
+    # The keys above are the panel's pin numbers. On the board the tail makes a U-turn
+    # through its slot into the connector, which puts the panel's pin 1 on the connector's
+    # pin 24 (see gen_pcb.py, "Revision 2.0"). The connector's pins are wired accordingly.
+    FPC_REVERSED = True
+
+    def cpin(panel_pin):
+        return str(25 - int(panel_pin)) if FPC_REVERSED else panel_pin
+
     for pin, net in fpc.items():
-        sch.label(j5, pin, net, 5.08)
+        sch.label(j5, cpin(pin), net, 5.08)
     for pin in ("15", "16"):  # VDDIO, VCI
-        sch.power(j5, pin, "+3V3", 5.08)
+        sch.power(j5, cpin(pin), "+3V3", 5.08)
     for pin in ("8", "17"):   # BS1 (4-wire SPI), VSS
-        sch.power(j5, pin, "GND", 5.08)
+        sch.power(j5, cpin(pin), "GND", 5.08)
     sch.power(j5, "MP", "GND")
     for pin in ("1", "4", "6", "7", "19"):
-        sch.nc(j5, pin)
+        sch.nc(j5, cpin(pin))
 
     # supply and driving-voltage capacitors, 25 V
     for i, net in enumerate(("+3V3", "EPD_VDD", "EPD_VSH1", "EPD_VSH2", "EPD_VSL",
@@ -669,7 +677,8 @@ def build(lib: Library) -> Schematic:
     sch.text(431.8, 182.88,
              "Values from the GDEY0213B74 specification, reference circuit (page 29).\\n"
              "Capacitors 0603/0805, X5R/X7R, 25 V. PREVGH/PREVGL reach about +/-20 V.\\n"
-             "The panel sits on the back of the board; its FPC passes through a slot.", size=1.27)
+             "The panel sits on the back of the board; its FPC passes through a slot and turns\\n"
+             "back into J5, so panel pin N is connector pin 25 - N.", size=1.27)
     return sch
 
 

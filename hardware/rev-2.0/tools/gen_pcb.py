@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Create the ClimaSense revision 1.0 board: outline, slots, part placement, nets.
+"""Create the ClimaSense revision 2.0 board: outline, slots, part placement, nets.
+
+Revision 2.0 is revision 1.0 with the sensor island moved right by DX and an e-paper
+display added on the back (see the block "Revision 2.0" below and docs/hardware/rev-2.0.md).
 
 This must run with the Python that ships with KiCad (it needs the `pcbnew`
 module):
@@ -200,7 +203,7 @@ NAME_Y, NAME_SIZE = 32.2, 0.8
 SILK_LABELS = (
     # numbering: see "Revision naming" in docs/decisions.md. In the strip below the module: the
     # sensor header took its old place at the bottom of the sensor side.
-    ("ClimaSense Rev 1.0", 19.8, NAME_Y, NAME_SIZE),
+    ("ClimaSense Rev 2.0", 19.8, NAME_Y, NAME_SIZE),
     # the sensor header: its pins, and the rule for the 3.3 V pin
     ("GND", 52.92, 30.0, 0.8), ("3V3", 55.46, 30.0, 0.8), ("SDA", 58.0, 30.0, 0.8),
     ("SCL", 60.54, 30.0, 0.8), ("INT", 63.08, 30.0, 0.8),
@@ -384,6 +387,87 @@ USB_GROUND_AREAS = ((31.0, 22.6, 35.4, 26.0), (28.3, 26.0, 37.8, 28.8))
 REGULATOR_GROUND_AREA = (40.2, 17.2, 43.2, 21.5)
 
 
+# --------------------------------------------------------------------------
+# Revision 2.0: a longer board with an e-paper panel on the back
+# --------------------------------------------------------------------------
+# Everything above is the 1.0 geometry. Revision 2.0 keeps the controller side as it was,
+# moves the sensor island (everything from the 1.0 slot at x = 48 rightwards) by DX, and
+# puts the display electronics into the gap. Seen from the component side (which faces the
+# wall), the panel lies on the back over x = PANEL[0]..PANEL[2]; its FPC tail leaves the glass
+# towards the sensor side, passes through FPC_SLOT, makes a U-turn back over the slot's edge
+# and enters the connector J5 from the right. The sensor bus runs round the top or bottom end
+# of FPC_SLOT and down to the bridge between FPC_SLOT and the sensor slot.
+DX = 28.0
+ISLAND_X = 48.0               # 1.0 coordinates at or right of this belong to the sensor island
+
+
+def _sx(x: float) -> float:
+    return round(x + DX, 3) if x >= ISLAND_X else x
+
+
+def _shift_pts(pts):
+    return tuple((_sx(x), y) for x, y in pts)
+
+
+W = W + DX
+SLOT_X = tuple(_sx(x) for x in SLOT_X)
+TONGUE_OUTLINE = _shift_pts(TONGUE_OUTLINE)
+TONGUE_CUTOUTS = tuple((_sx(a), b, _sx(c), d) for a, b, c, d in TONGUE_CUTOUTS)
+TONGUE_AREA = (_sx(TONGUE_AREA[0]), TONGUE_AREA[1], _sx(TONGUE_AREA[2]), TONGUE_AREA[3])
+TONGUE_NECK_X = tuple(_sx(x) for x in TONGUE_NECK_X)
+MOUNTING_HOLES = _shift_pts(MOUNTING_HOLES)
+PLACEMENT = {ref: (_sx(x), y, rot) for ref, (x, y, rot) in PLACEMENT.items()}
+SILK_LABELS = tuple((text, _sx(x), y, *rest) for text, x, y, *rest in SILK_LABELS)
+
+
+def _shift_group(g):
+    if not all(x >= ISLAND_X for t in g["tracks"] for x, _ in t[1]):
+        return g
+    out = dict(g)
+    out["tracks"] = tuple((t[0], _shift_pts(t[1]), *t[2:]) for t in g["tracks"])
+    if "vias" in g:
+        out["vias"] = _shift_pts(g["vias"])
+    return out
+
+
+PREROUTED = tuple(_shift_group(g) for g in PREROUTED)
+
+# The panel (GDEY0213B74, 59.2 x 29.2 mm; specification page 7), on the back: x0, y0, x1, y1.
+# Its left edge keeps 5 mm from the antenna keep-out (x = 6.9). Its tail is centred on the short
+# edge (to 0.2 mm), 12.5 mm wide, 14.3 mm long, the last 6 mm stiffened.
+PANEL = (11.8, 2.4, 71.0, 31.6)
+PANEL_TAIL_Y = 2.4 + 8.15 + 12.5 / 2          # centre line of the tail
+# Slot for the tail: 1.2 mm wide, 0.5 mm wider than the tail at each end, 0.8 mm from the glass.
+FPC_SLOT = (71.8, PANEL_TAIL_Y - 6.75, 73.0, PANEL_TAIL_Y + 6.75)
+
+# Display parts. J5 (24-pin, 0.5 mm, dual contact) turned so that its opening faces the slot.
+# With the U-turn, the tail's pin 1 arrives at the connector's pin 24: the schematic maps the
+# pins accordingly (gen_schematic.py, FPC_REVERSED). The connector's front edge sits about
+# 5.8 mm from the slot, so that the 8 mm of flexible tail reach round the slot's edge and the
+# stiffened end lies flat into the connector. To be checked with a paper print and a real panel.
+# TODO: the footprint is KiCad's Hirose FH12 as a stand-in for the Kinghelm part.
+J5_X = 61.6
+PLACEMENT.update({
+    "J5": (J5_X, PANEL_TAIL_Y, 90),
+    # After the U-turn the panel's pin 1 is at the top: the boost pins (GDR, RESE) face the
+    # upper half, the supply and driving-voltage pins (15-24) the lower half.
+    # Boost converter and charge pump above, left of the connector, away from the antenna.
+    "L2": (51.0, 4.0, 0),         # 47 uH, 4 x 4 mm
+    "C25": (51.0, 7.6, 0),        # 4.7 uF at the inductor's input
+    "Q1": (55.4, 4.6, 0),         # MOSFET: drain to the switch node, source to the sense resistor
+    "R19": (57.6, 4.6, 90),       # 2.2 ohm sense resistor
+    "R18": (55.4, 7.0, 0),        # 1 Mohm gate pull-down
+    "C26": (51.0, 11.0, 0),       # 4.7 uF charge pump capacitor
+    "D2": (55.8, 9.6, 0),         # switch node to VGH
+    "D3": (55.8, 12.0, 0),        # charge pump to ground
+    "D4": (55.8, 14.4, 0),        # VGL to the charge pump
+    # the eight 1 uF capacitors of the supply and driving voltages in a row below the connector
+    **{f"C{n}": (50.4 + 1.6 * i, 29.4, 270) for i, n in enumerate(range(17, 25))},
+})
+POWER_NETS = POWER_NETS + ("/EPD_SW", "/EPD_RESE")
+SILK_LABELS = SILK_LABELS + (("DISPLAY", J5_X + 1.0, 26.6, 0.8),)
+
+
 def P(x, y):
     return VECTOR2I(FromMM(ORIGIN[0] + x), FromMM(ORIGIN[1] + y))
 
@@ -459,6 +543,20 @@ def main():
     edge(board, [(0, 0), (W, 0), *TONGUE_OUTLINE, (W, H), (0, H)])
     for y1, y2 in SLOTS_Y:
         edge(board, [(SLOT_X[0], y1), (SLOT_X[1], y1), (SLOT_X[1], y2), (SLOT_X[0], y2)])
+    fx0, fy0, fx1, fy1 = FPC_SLOT
+    edge(board, [(fx0, fy0), (fx1, fy0), (fx1, fy1), (fx0, fy1)])
+    # where the panel goes, on the back: outline on the back silkscreen and fabrication layers
+    for layer in (pcbnew.B_SilkS, pcbnew.B_Fab):
+        px0, py0, px1, py1 = PANEL
+        for a, b in (((px0, py0), (px1, py0)), ((px1, py0), (px1, py1)), ((px1, py1), (px0, py1)),
+                     ((px0, py1), (px0, py0))):
+            line = pcbnew.PCB_SHAPE(board)
+            line.SetShape(pcbnew.SHAPE_T_SEGMENT)
+            line.SetStart(P(*a))
+            line.SetEnd(P(*b))
+            line.SetLayer(layer)
+            line.SetWidth(FromMM(0.15))
+            board.Add(line)
 
     # --- nets --------------------------------------------------------------
     nets = {}
@@ -565,7 +663,7 @@ def main():
                   ("/BMP_INT", 18.5, 1.1))
         failures = route_board.run(board, ORIGIN, dict(
             W=W, H=H,
-            cutouts=[(SLOT_X[0], y1, SLOT_X[1], y2) for y1, y2 in SLOTS_Y] + list(TONGUE_CUTOUTS),
+            cutouts=[(SLOT_X[0], y1, SLOT_X[1], y2) for y1, y2 in SLOTS_Y] + list(TONGUE_CUTOUTS) + [FPC_SLOT],
             antenna_x=6.9,
             module_inner=(MODULE[0] - 12.75, ROW_TOP + 1.05, MODULE[0] + 12.75, ROW_BOTTOM - 1.05),
             module_ref="U4", module_epad="29",
@@ -579,7 +677,7 @@ def main():
             usb_body=(PLACEMENT["J1"][0] - 4.6, PLACEMENT["J1"][1] - 3.3, PLACEMENT["J1"][0] + 4.6, H),
             thin_only=TONGUE_AREA,
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
-            fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1"},
+            fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1", "J5", "Q1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
             trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS, REGULATOR_GROUND_AREA)],
             internally_joined=INTERNALLY_JOINED,
