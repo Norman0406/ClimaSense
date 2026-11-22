@@ -595,8 +595,8 @@ PREROUTED = PREROUTED + (
 # branch. Left to the router, a row of probe pads forced every display line into a detour and the
 # board no longer routed. Left of J5 the three SPI lines run as a staircase (2026-11-22, Norman):
 # CS straight at y 16.5 into its pin, SCK 1.2 mm below it (y 17.7) and SDI (MOSI) 1.2 mm below that
-# (y 18.9), each rising to its pin after its pad; the pads sit on the lines 3.6 mm apart in x (x 47.0,
-# 50.6, 54.2), so that each label fits to the right of its pad before the next pad begins, and SDI's
+# (y 18.9), each rising to its pin after its pad; the pads sit on the lines 4.4 mm apart in x
+# (SPI_PAD_X), so that each label fits to the right of its pad before the next pad begins, and SDI's
 # label ends before J5's ground via. (Before, the three lines dipped
 # in nested U shapes 1.5 mm lower, CS with a detour.) BUSY has its pad above the bundle, on its run down
 # past C26; DC on its run down the right of J5's pad row, between two ground vias. RST has no pad. The
@@ -605,8 +605,9 @@ PREROUTED = PREROUTED + (
 # The CS, SCK and SDI labels are printed to the right of their pads, centred on the pad's height, in
 # a staircase like the pads; DC's on its right too, BSY's below its pad (the diodes are close on its
 # right).
-EPD_PADS = {"TP5": (50.6, 17.7), "TP6": (54.2, 18.9), "TP7": (47.0, 16.5), "TP8": (50.2, 13.3), "TP11": (60.9, 6.6)}
-EPD_PAD_LABELS = (("SCK", 52.5, 17.7), ("SDI", 56.1, 18.9), ("CS", 48.6, 16.5), ("BSY", 48.3, 13.3), ("DC", 63.0, 6.6))
+SPI_PAD_X = (45.4, 49.8, 54.2)   # CS, SCK, SDI: 4.4 mm apart (2026-11-22, Norman), each label fits before the next pad
+EPD_PADS = {"TP7": (SPI_PAD_X[0], 16.5), "TP5": (SPI_PAD_X[1], 17.7), "TP6": (SPI_PAD_X[2], 18.9), "TP8": (50.2, 13.3),
+            "TP11": (60.9, 6.6)}
 R20_AT = (39.49, 15.0)        # EPD_CS pull-up, horizontal: +3V3 pad at x 38.98, CS pad at x 40.0
 EPD_LINES = (
     dict(net="EPD_SCK", pads=("U4.4", "TP5.1", "J5.12"), vias=((11.6, 26.9), (43.7, 17.1)), tracks=(
@@ -658,11 +659,13 @@ EPD_LINES = (
 # sandwiched between the two display lines.
 EPD_POCKETS = ((40.25, 13.4, 41.0, 16.3), (41.0, 14.2, 41.8, 16.3), (41.8, 15.0, 42.6, 16.3),
                # between RST and CS, either side of CS's pad
-               (42.6, 15.7, 46.2, 16.3), (47.8, 15.7, 58.0, 16.3),
+               (42.6, 15.7, SPI_PAD_X[0] - 0.8, 16.3), (SPI_PAD_X[0] + 0.8, 15.7, 58.0, 16.3),
                # between CS and SCK, round the pads
-               (44.4, 16.7, 46.2, 17.5), (46.2, 17.3, 47.8, 17.5), (47.8, 16.7, 49.8, 17.5),
+               (44.4, 16.7, SPI_PAD_X[0] - 0.8, 17.5), (SPI_PAD_X[0] - 0.8, 17.3, SPI_PAD_X[0] + 0.8, 17.5),
+               (SPI_PAD_X[0] + 0.8, 16.7, SPI_PAD_X[1] - 0.8, 17.5),
                # between SCK and SDI (MOSI), round the pads
-               (43.2, 17.9, 49.8, 18.7), (51.4, 17.9, 53.4, 18.7), (52.1, 17.2, 55.4, 18.1))
+               (43.2, 17.9, SPI_PAD_X[1] - 0.8, 18.7), (SPI_PAD_X[1] + 0.8, 17.9, SPI_PAD_X[2] - 0.8, 18.7),
+               (52.1, 17.2, SPI_PAD_X[2] + 1.2, 18.1))
 PREROUTED = PREROUTED + EPD_LINES
 # Three ground test pads get their way into the pours drawn by hand, so that their via does not sit
 # against the pad or under its label (2026-11-22, Norman): the router puts it right beside the pad.
@@ -697,9 +700,22 @@ PLACEMENT.update({
 })
 # the "Up" arrow and its text make room for them, further right on the same line
 UP_ARROW = (47.6, UP_ARROW[1], UP_ARROW[2], UP_ARROW[3])
-SILK_LABELS = SILK_LABELS + tuple((name, x, y, 0.8) for name, x, y in EPD_PAD_LABELS) + (
-    ("SDA", 39.9, 31.8, 0.8), ("SCL", 44.7, 31.8, 0.8), ("INT", 41.4, 27.6, 0.8),
-    ("GND", 60.0, 4.1, 0.8))
+# Every test pad's label, and on which side of the pad it stands. Its position is worked out when the
+# board is drawn (pad_label_position): the gap between the outer edge of the pad's silkscreen circle
+# and the nearest edge of the letters, as KiCad draws them, is TP_LABEL_GAP, and the letters are
+# centred on the pad across that direction (2026-11-22, Norman: the labels sat at different
+# distances, SCK almost on its circle).
+TP_LABEL_GAP = 0.4
+TP_LABELS = {
+    "TP1": ("5V", "below"), "TP2": ("3V3", "above"), "TP3": ("3VS", "right"), "TP4": ("GND", "below"),
+    "TP5": ("SCK", "right"), "TP6": ("SDI", "right"), "TP7": ("CS", "right"), "TP8": ("BSY", "left"),
+    "TP9": ("SDA", "below"), "TP10": ("SCL", "below"), "TP11": ("DC", "right"), "TP12": ("INT", "right"),
+    "TP13": ("GND", "below"), "TP14": ("GND", "above"), "TP15": ("TX", "above"), "TP16": ("RX", "above"),
+}
+# their hand-placed labels from before go
+SILK_LABELS = tuple(lab for lab in SILK_LABELS
+                    if not any(lab[0] == text and abs(lab[1] - PLACEMENT[ref][0]) < 2.6 and abs(lab[2] - PLACEMENT[ref][1]) < 2.6
+                               for ref, (text, _) in TP_LABELS.items() if ref in PLACEMENT))
 # The display's driving voltages are measured on their capacitors' pads: a name above each,
 # turned upright so that it fits the 1.6 mm pitch.
 SILK_LABELS = SILK_LABELS + tuple((name, round(50.4 + 1.6 * i, 2), 26.62, 0.8, 90) for i, name in enumerate(
@@ -776,15 +792,42 @@ def add_fpc_tail(board):
     board.Add(tail)
 
 
+LABEL_BOXES = []      # the letters of every silkscreen label drawn, as KiCad draws them (mm, board frame)
+
+
+def text_box(label):
+    """Box round the letters of a PCB_TEXT as KiCad draws them (strokes included), in board mm."""
+    bb = label.GetEffectiveTextShape().BBox()
+    return (pcbnew.ToMM(bb.GetLeft()) - ORIGIN[0], pcbnew.ToMM(bb.GetTop()) - ORIGIN[1],
+            pcbnew.ToMM(bb.GetRight()) - ORIGIN[0], pcbnew.ToMM(bb.GetBottom()) - ORIGIN[1])
+
+
+def pad_label_position(board, ref, label, side):
+    """Move `label` beside test pad `ref`: TP_LABEL_GAP between the pad's silkscreen circle and the
+    nearest edge of the letters, the letters centred on the pad across that direction."""
+    fp = board.FindFootprintByReference(ref)
+    cx, cy = (pcbnew.ToMM(v) - o for v, o in ((fp.GetPosition().x, ORIGIN[0]), (fp.GetPosition().y, ORIGIN[1])))
+    ring = max(pcbnew.ToMM(g.GetRadius()) + pcbnew.ToMM(g.GetWidth()) / 2 for g in fp.GraphicalItems()
+               if g.GetClass() == "PCB_SHAPE" and g.GetLayer() == pcbnew.F_SilkS and g.GetShape() == pcbnew.SHAPE_T_CIRCLE)
+    label.SetPosition(P(cx, cy))
+    x0, y0, x1, y1 = text_box(label)
+    reach = ring + TP_LABEL_GAP
+    dx, dy = cx - (x0 + x1) / 2, cy - (y0 + y1) / 2              # centre the letters on the pad first
+    if side == "right":
+        dx = cx + reach - x0
+    elif side == "left":
+        dx = cx - reach - x1
+    elif side == "below":
+        dy = cy + reach - y0
+    else:
+        dy = cy - reach - y1
+    label.SetPosition(P(cx + dx, cy + dy))
+
+
 def stitch_avoid():
-    """Where no ground stitching via may go: under a silkscreen label (0.3 mm round its letters, whose
-    size is estimated) and within 1 mm of a test pad's edge (2026-11-22, Norman)."""
-    out = []
-    for text, x, y, size, *angle in SILK_LABELS:
-        w, h = 0.9 * size * len(text) / 2 + 0.3, size / 2 + 0.3
-        if angle and angle[0] in (90, 270):
-            w, h = h, w
-        out.append((x - w, y - h, x + w, y + h))
+    """Where no ground stitching via may go: under a silkscreen label (0.3 mm round its letters) and
+    within 1 mm of a test pad's edge (2026-11-22, Norman)."""
+    out = [(x0 - 0.3, y0 - 0.3, x1 + 0.3, y1 + 0.3) for x0, y0, x1, y1 in LABEL_BOXES]
     for ref, (x, y, _) in PLACEMENT.items():
         if ref.startswith("TP"):
             out.append((x - 1.5, y - 1.5, x + 1.5, y + 1.5))
@@ -1114,6 +1157,16 @@ def main():
         label.SetTextSize(VECTOR2I(FromMM(size), FromMM(size)))
         label.SetTextThickness(FromMM(0.15))
         board.Add(label)
+        LABEL_BOXES.append(text_box(label))
+    for ref, (text, side) in TP_LABELS.items():
+        label = pcbnew.PCB_TEXT(board)
+        label.SetText(text)
+        label.SetLayer(pcbnew.F_SilkS)
+        label.SetTextSize(VECTOR2I(FromMM(0.8), FromMM(0.8)))
+        label.SetTextThickness(FromMM(0.15))
+        board.Add(label)
+        pad_label_position(board, ref, label, side)
+        LABEL_BOXES.append(text_box(label))
 
     # Which way up the board hangs: an arrow towards the top edge with "Up" under it.
     x, tip, head, tail = UP_ARROW
