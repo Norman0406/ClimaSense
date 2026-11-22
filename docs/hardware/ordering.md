@@ -39,6 +39,20 @@ Leave everything at its default except:
 
 The SCD41 can read slightly off after soldering; its datasheet says full accuracy is back after at most five days, whether it is powered or not. Do not judge the CO2 readings on the day the boards arrive.
 
+### The SCD41 and the reflow temperature
+
+After its review JLCPCB puts the assembly on hold and asks what to do with the SCD41 (C3659294): it calls the part "not fully resistant" to its standard reflow profile, which peaks at 240 ± 5 °C. It offers three ways out: medium-temperature solder paste (about 210 °C peak, 32.12 USD per order, mechanically weaker joints), another part, or leaving the part off. Loose parts are not shipped along.
+
+Sensirion's SCD4x datasheet (version 1.7, April 2025, section 4.5) allows a peak of 245 °C for up to 30 seconds, so the standard profile is inside the limit, but at its edge, and the datasheet warns that the sensor's cap can get hotter than its pads. The limit was 235 °C in older datasheet versions.
+
+**First order (decided 2026-11-22):** soldered with the standard paste and profile at our own risk, with no claim on the part. JLCPCB confirmed this. The reply also asked for the peak at the lower end of their range and repeated that the boards must not be washed.
+
+What follows from it:
+
+- **When the boards arrive,** wait the five days above, then compare the CO2 readings of the two boards with each other and with outdoor air (about 420 ppm). Two sensors that agree and read outdoor air correctly came through the oven unharmed.
+- **Later orders:** expect the same hold. The paste fee is per order, not per board (about 6.40 USD a board at five), so the medium-temperature paste is the easy choice there unless the first two sensors show that the standard profile does no harm.
+- Do not solder or rework the SCD41 by hand: the datasheet allows one reflow pass and no added flux.
+
 ## The placement preview: check this before paying
 
 After the BOM and placement files are read, the page draws every part on the board. This is the one place where a mistake in rotation is visible before it is soldered. A part turned by 180° usually destroys it or the board.
