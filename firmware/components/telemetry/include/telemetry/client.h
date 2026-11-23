@@ -39,6 +39,10 @@ bool publish_state(const std::string &json);
 // True once the broker has acknowledged the last state message queued (for the status LED).
 bool state_delivered();
 
+// Queues a message with the Bluetooth tags heard (telemetry::ble_json; QoS 0, not retained);
+// false if not connected. A lost message costs little: the next one follows within a minute.
+bool publish_ble(const std::string &json);
+
 // The boot report (telemetry::boot_json). Call before start(): it is published (QoS 1, retained)
 // on the first connection, and again on later ones until the broker has acknowledged it.
 void set_boot_report(std::string json);

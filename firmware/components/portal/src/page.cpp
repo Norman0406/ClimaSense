@@ -157,6 +157,10 @@ std::string render_settings_page(const PageModel &m)
     out += "<label class=\"hint\"><input type=\"checkbox\" name=\"led\" value=\"1\"";
     out += (m.device == nullptr || m.device->status_led) ? " checked" : "";
     out += "> Status LED (off: dark, except in setup and when the button asks)</label>";
+    out += "<label class=\"hint\"><input type=\"checkbox\" name=\"tags\" value=\"1\"";
+    out += (m.device != nullptr && m.device->tag_scan) ? " checked" : "";
+    out += "> Bluetooth tag scan (sends the identifiers of Find Hub tags nearby over MQTT, for presence"
+           " detection)</label>";
 
     // Advanced
     const bool advanced_error = error_for(m.errors, field::kCountry) != nullptr ||

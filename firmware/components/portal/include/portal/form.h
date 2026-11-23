@@ -20,7 +20,8 @@ inline constexpr std::string_view kPassword = "password";
 inline constexpr std::string_view kOpenNetwork = "open";  // checkbox: the network has no password
 inline constexpr std::string_view kName = "name";
 inline constexpr std::string_view kStatusLed = "led";  // checkbox
-// Hidden marker sent with the device section: with it, a missing "led" means "off".
+inline constexpr std::string_view kTagScan = "tags";   // checkbox
+// Hidden marker sent with the device section: with it, a missing "led" or "tags" means "off".
 inline constexpr std::string_view kDeviceSection = "device_form";
 inline constexpr std::string_view kCountry = "country";
 inline constexpr std::string_view kSntpServer = "sntp";

@@ -27,6 +27,7 @@ inline constexpr const char *kSntpServer = "sntp_server";
 inline constexpr const char *kTimezone = "timezone";
 inline constexpr const char *kDeviceName = "device_name";
 inline constexpr const char *kStatusLed = "status_led";
+inline constexpr const char *kTagScan = "tag_scan";
 inline constexpr const char *kMqttHost = "mqtt_host";
 inline constexpr const char *kMqttPort = "mqtt_port";
 inline constexpr const char *kMqttUser = "mqtt_user";

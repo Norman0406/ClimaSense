@@ -1,5 +1,5 @@
-// Device settings: the name shown for this board, and whether the status LED is on. Pure, tested
-// on the PC.
+// Device settings: the name shown for this board, whether the status LED is on, and whether the
+// board scans for Bluetooth tags. Pure, tested on the PC.
 //
 // The device ID (the host name, from the MAC address) is fixed and goes into the MQTT topics;
 // the name is set in the portal and only travels as information, so renaming never breaks a
@@ -19,6 +19,10 @@ struct DeviceSettings {
     // The status LED (board/status_pattern.h). Off, e.g. in a bedroom: dark except while the
     // setup portal is open and when a short press on the button asks for the status.
     bool status_led = true;
+    // The Bluetooth scan for Find Hub tags (ble/scanner.h), whose identifiers go out over MQTT
+    // for presence detection. Off unless asked for: listening costs some heat next to the
+    // temperature sensor, and not every board needs to take part.
+    bool tag_scan = false;
 };
 
 enum class DeviceProblem : uint8_t {

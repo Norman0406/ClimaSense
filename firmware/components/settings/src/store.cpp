@@ -79,6 +79,13 @@ Loaded<DeviceSettings> load_device(KvStore &store, const DeviceSettings &default
             bad = true;
         }
     }
+    if (const auto scan = load_raw(store, key::kTagScan, result.stored_fields, bad, result.store_failed)) {
+        if (*scan == "1" || *scan == "0") {
+            result.value.tag_scan = *scan == "1";
+        } else {
+            bad = true;
+        }
+    }
     if (bad || validate(result.value)) {
         result.value = defaults;
         result.rejected = true;
@@ -172,6 +179,7 @@ std::optional<SaveError> save_device(KvStore &store, const DeviceSettings &setti
     }
     const bool ok = save_field(store, key::kDeviceName, settings.name) &&
                     store.set(key::kStatusLed, settings.status_led ? "1" : "0").has_value() &&
+                    store.set(key::kTagScan, settings.tag_scan ? "1" : "0").has_value() &&
                     store.commit().has_value();
     return ok ? std::nullopt : std::optional<SaveError>{SaveError::StoreFailed};
 }

@@ -260,6 +260,25 @@ TEST(ApplyForm, StatusLedCheckbox)
     EXPECT_FALSE(r.device.status_led);
 }
 
+TEST(ApplyForm, TagScanCheckbox)
+{
+    settings::DeviceSettings off;
+    auto r = portal::apply_form("device_form=1&led=1&tags=1", current_net(), off);
+    ASSERT_TRUE(r.ok());
+    EXPECT_TRUE(r.device.tag_scan);
+    EXPECT_TRUE(r.device.status_led);
+    // The section marker without the checkbox: unticked, so off.
+    r = portal::apply_form("device_form=1&led=1", current_net(), r.device);
+    ASSERT_TRUE(r.ok());
+    EXPECT_FALSE(r.device.tag_scan);
+    // Without the marker (a form from elsewhere): kept.
+    settings::DeviceSettings on;
+    on.tag_scan = true;
+    r = portal::apply_form("name=Hall", current_net(), on);
+    ASSERT_TRUE(r.ok());
+    EXPECT_TRUE(r.device.tag_scan);
+}
+
 TEST(ApplyForm, FirstSetupOfAnUnconfiguredDevice)
 {
     net::NetSettings blank = current_net();
@@ -312,6 +331,21 @@ TEST(Page, StatusLedCheckboxShowsTheSetting)
     EXPECT_THAT(portal::render_settings_page(m), HasSubstr("name=\"device_form\""));
     device.status_led = false;
     EXPECT_THAT(portal::render_settings_page(m), Not(HasSubstr("name=\"led\" value=\"1\" checked")));
+}
+
+TEST(Page, TagScanCheckboxShowsTheSetting)
+{
+    const net::NetSettings net = current_net();
+    settings::DeviceSettings device;
+    portal::PageModel m;
+    m.net = &net;
+    m.device = &device;
+    EXPECT_THAT(portal::render_settings_page(m), HasSubstr("name=\"tags\" value=\"1\">"));
+    device.tag_scan = true;
+    EXPECT_THAT(portal::render_settings_page(m), HasSubstr("name=\"tags\" value=\"1\" checked>"));
+    // Without settings to show (should not happen): off, the default.
+    m.device = nullptr;
+    EXPECT_THAT(portal::render_settings_page(m), HasSubstr("name=\"tags\" value=\"1\">"));
 }
 
 TEST(Page, NeverContainsThePassword)

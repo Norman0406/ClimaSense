@@ -214,6 +214,53 @@ std::string state_json(const sensors::SensorSnapshot &s, const StateMeta &meta)
     return out;
 }
 
+std::string ble_topic(std::string_view base_topic, std::string_view device_id)
+{
+    return std::string(base_topic) + "/" + std::string(device_id) + "/ble";
+}
+
+std::string ble_json(const ble::Report &report, const BleMeta &meta)
+{
+    static constexpr char kHex[] = "0123456789abcdef";
+    const auto add_hex = [](std::string &out, std::span<const uint8_t> bytes) {
+        for (const uint8_t b : bytes) {
+            out += kHex[b >> 4];
+            out += kHex[b & 0x0F];
+        }
+    };
+    std::string out = "{";
+    out.reserve(160 + report.count * 112);
+    add_string(out, "id", meta.device_id, true);
+    if (!meta.time.empty()) {
+        add_string(out, "time", meta.time);
+    }
+    add_number(out, "window_s", std::to_string(report.window_s));
+    if (report.dropped > 0) {
+        add_number(out, "dropped", std::to_string(report.dropped));
+    }
+    out += ",\"fhn\":[";
+    for (std::size_t i = 0; i < report.count; ++i) {
+        const ble::Sighting &s = report.heard[i];
+        out += i == 0 ? "{\"eid\":\"" : ",{\"eid\":\"";
+        add_hex(out, s.eid_bytes());
+        out += '"';
+        add_number(out, "type", std::to_string(s.type));
+        if (s.flags) {
+            out += ",\"flags\":\"";
+            add_hex(out, std::span<const uint8_t>(&*s.flags, 1));
+            out += '"';
+        }
+        if (s.rssi != ble::kRssiUnknown) {
+            add_number(out, "rssi", std::to_string(s.rssi));
+        }
+        add_number(out, "count", std::to_string(s.count));
+        add_number(out, "age_s", std::to_string(meta.now_s - s.last_s));
+        out += '}';
+    }
+    out += "]}";
+    return out;
+}
+
 namespace {
 
 std::string hex32(uint32_t value)

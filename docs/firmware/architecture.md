@@ -34,6 +34,7 @@ ESP-IDF already runs Wi-Fi, the network stack, the MQTT client and the HTTP serv
 firmware/
   main/                    app_main and top-level wiring
   components/
+    ble/                   Bluetooth tag scan: frame parsing and table of tags heard (pure), scanner
     board/                 pin map, supply rails, status LED, button
     diagnostics/           build fingerprint, last log lines across resets, crash dump report
     settings/              settings store: NVS over build defaults, device name
@@ -77,6 +78,18 @@ Until the boards arrive there are no sensors to test against (no breakouts for t
 - **Settings:** `telemetry::MqttSettings` (broker, port, user, password, base topic, Home Assistant switch and prefix), with build defaults in the Kconfig menu "ClimaSense MQTT", stored and edited like the others; the portal's MQTT section sends a hidden marker so that an unticked checkbox means "off".
 
 - **Offline restart** (step 9, `net/offline_guard.h`): after an hour without the connection the device is set up for (the broker if one is set, else Wi-Fi; the same rule as the update trial), the app task logs an error and restarts. It is the last resort against a network stack or driver that has stopped trying; it does not run while the portal is open or an update runs. A device whose router stays off restarts once an hour, which costs nothing: there is nowhere to send values, and the VOC baseline survives. The reason is in the boot report's log lines afterwards.
+
+## Bluetooth tag scan
+
+Added 2026-11-23 for presence detection ([`../research/presence-sensing.md`](../research/presence-sensing.md)). **Built, not run; nothing measured.** The boards only collect and forward; recognising whose tag an identifier belongs to needs the tag's key and happens in a service on the network, not in the firmware.
+
+- **Scanner** (`components/ble`, on ESP-IDF's NimBLE host with only the observer role built in): a passive scan, legacy advertisements only, 300 ms of every 1000 ms (`ble/scanner.h`). It never transmits. The 30 % were chosen on 2026-11-23 between reception and heat, on estimates: a tag sends its frame at least every 2 s, so it is heard after about 6 s on average, for about 42 mW more; 10 % would be about 20 s and 14 mW, listening all the time about 1 s and 140 mW, next to sensors that were brought down to 12 mW. Wi-Fi stays connected: in modem sleep it needs the radio only for the router's beacons and for sending. To be checked on a board, the SHT45's reading above all.
+- **Filter** (`ble/fhn_frame.h`, pure): of every advertisement received, only service data for UUID `0xFEAA` with frame type `0x40` or `0x41` and a 20- or 32-byte identifier is kept. The controller's duplicate filter is off: it works by address, and every frame counts as a sign of life.
+- **Table** (`ble/sightings.h`, pure): 24 entries, no heap. Per identifier the strongest signal, the frame count and the time last heard in the current window; an identifier not heard for 2 minutes is forgotten, so hearing it again counts as new. With the table full, the entry heard longest ago makes room, unless all were heard in this window: then the frame is counted as dropped.
+- **Tasks:** NimBLE's host task calls the scanner for every advertisement; table access is behind a mutex. The app task takes a report once per interval and builds the message (`telemetry::ble_json`). The report (about 1 KB) is a static, not on the app task's stack.
+- **Message** on `<base>/<id>/ble`, QoS 0, not retained: every 60 s, also when empty, and 2 s after a new identifier was heard (checked once a second). Its own topic, because the state message is flat numbers for Prometheus. Format in `firmware/README.md`.
+- **Paused** while the setup portal is open (Espressif rates access point plus Bluetooth scan as unstable) and during an update. While paused nothing is published, so a board that is not listening does not look like one that heard no tag; the window restarts when the scan resumes.
+- **Setting:** `tag_scan` in `settings::DeviceSettings` (portal checkbox "Bluetooth tag scan", NVS key `tag_scan`), off by default. The Bluetooth stack is only started when it is on and a broker is configured; it is always built in, which costs about 280 KB of flash (237 KB of it Espressif's controller) and about 29 KB of RAM at build time; the image is 1.64 MB in a 3 MB slot, so no partition change. The heap the stack takes when started is not measured.
 
 ## Updates over the air
 

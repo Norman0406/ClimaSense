@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 
+#include "ble/sightings.h"
 #include "diagnostics/log_line.h"
 #include "sensors/snapshot.h"
 
@@ -53,6 +54,25 @@ struct StateMeta {
 };
 
 std::string state_json(const sensors::SensorSnapshot &snapshot, const StateMeta &meta);
+
+// --- Bluetooth tags ------------------------------------------------------------------------------
+
+std::string ble_topic(std::string_view base_topic, std::string_view device_id);  // <base>/<id>/ble
+
+struct BleMeta {
+    std::string_view device_id;
+    std::string_view time;  // RFC 3339 local time; empty before the clock is set: left out
+    uint32_t now_s = 0;     // uptime, the clock the report's sightings were stamped with
+};
+
+// The Find Hub tags heard since the last message (ble/sightings.h), for a service that knows the
+// tags' keys: {"id":...,"time":...,"window_s":60,"fhn":[{"eid":"<hex>","type":64,"flags":"<hex>",
+// "rssi":-71,"count":12,"age_s":3}]}. `type` is the frame type (64 or 65), `rssi` the strongest
+// in the window, `count` the frames heard, `age_s` the time since the last one; `flags` and
+// `rssi` are left out when the tag or the controller gave none, "dropped" appears when frames
+// found no room in the table. An empty list says the board listened and heard no tag. Its own
+// topic, not part of the state message, which stays flat numbers for Prometheus.
+std::string ble_json(const ble::Report &report, const BleMeta &meta);
 
 // --- Diagnostics -------------------------------------------------------------------------------
 

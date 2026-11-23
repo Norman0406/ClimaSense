@@ -26,6 +26,7 @@ esp_mqtt_client_handle_t g_client = nullptr;
 std::atomic<bool> g_connected{false};
 std::string g_boot_topic;
 std::string g_log_topic;
+std::string g_ble_topic;
 std::string g_log_level_topic;
 std::string g_boot_report;            // set before start(), then only read
 std::atomic<int> g_boot_msg_id{-1};
@@ -163,6 +164,7 @@ esp_err_t start(const MqttSettings &settings, const Identity &identity)
     g_ha_status_topic = ha_status_topic(g_settings.ha_prefix.view());
     g_boot_topic = boot_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_log_topic = log_topic(g_settings.base_topic.view(), g_identity.device_id);
+    g_ble_topic = ble_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_log_level_topic = log_level_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_update_topic = update_topic(g_settings.base_topic.view(), g_identity.device_id);
     g_update_status_topic = update_status_topic(g_settings.base_topic.view(), g_identity.device_id);
@@ -208,6 +210,15 @@ bool publish_log(const std::string &json)
         return false;
     }
     return esp_mqtt_client_enqueue(g_client, g_log_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
+                                   true) >= 0;
+}
+
+bool publish_ble(const std::string &json)
+{
+    if (!g_connected || g_client == nullptr) {
+        return false;
+    }
+    return esp_mqtt_client_enqueue(g_client, g_ble_topic.c_str(), json.data(), static_cast<int>(json.size()), 0, 0,
                                    true) >= 0;
 }
 

@@ -117,6 +117,7 @@ FormResult apply_form(std::string_view body, const net::NetSettings &current_net
     take(body, field::kName, r.device.name, r.errors);
     if (form_value(body, field::kDeviceSection).status == FieldStatus::Present) {
         r.device.status_led = form_value(body, field::kStatusLed).status == FieldStatus::Present;
+        r.device.tag_scan = form_value(body, field::kTagScan).status == FieldStatus::Present;
     }
     take(body, field::kSntpServer, r.net.sntp_server, r.errors);
     take(body, field::kTimezone, r.net.timezone, r.errors);

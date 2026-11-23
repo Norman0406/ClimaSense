@@ -2,9 +2,10 @@
 // Report the previous run (its last log lines, a crash dump), bring up the rails, LED and button,
 // start the sensor task (sensors/sensor_task.h), Wi-Fi with network time (net/wifi.h) and, when
 // needed, the setup portal (portal/portal.h), and publish the sensor values over MQTT every
-// 60 s, with a boot report and WARNING-and-above log lines (telemetry/client.h). At start the LED
-// shows red, green, blue and white in turn (a check of the LED and its colour balance), then the
-// device's status (board/status_pattern.h). A long press opens the setup portal; a short press
+// 60 s, with a boot report and WARNING-and-above log lines (telemetry/client.h). If switched on,
+// a Bluetooth scan listens for Find Hub tags and publishes what it hears (ble/scanner.h). At
+// start the LED shows red, green, blue and white in turn (a check of the LED and its colour
+// balance), then the device's status (board/status_pattern.h). A long press opens the setup portal; a short press
 // closes it, or otherwise shows the status for a few seconds (green: all well). The app task is
 // watched by the task watchdog, and the device restarts after an hour offline (net/offline_guard.h).
 
@@ -31,6 +32,7 @@
 #include "board/button.h"
 #include "board/led.h"
 #include "board/status_pattern.h"
+#include "ble/scanner.h"
 #include "diagnostics/diagnostics.h"
 #include "net/offline_guard.h"
 #include "net/wifi.h"
@@ -53,6 +55,10 @@ constexpr int64_t kLogCheckPeriodUs = 1'000'000;
 constexpr int64_t kShowStatusUs = 5'000'000;
 // How often the LED looks for the broker's ack while a message is on its way.
 constexpr uint32_t kSendPollMs = 20;
+// A tag that was not in range before is reported this long after it was first heard, not at the
+// next full interval, so an arrival is known within seconds; the wait lets tags that arrive
+// together (wallet and keys) go out in one message.
+constexpr int64_t kNewTagDelayUs = 2'000'000;
 
 void log_banner()
 {
@@ -130,6 +136,25 @@ bool publish(const std::string &display_name)
     }
     ESP_LOGD(kTag, "published: %s", json.c_str());
     return true;
+}
+
+// Publishes the Bluetooth tags heard since the last message, which starts the next window. An
+// empty list is sent too: it says this board listened and heard none. Nothing is sent while the
+// scan is paused, so that a board that is not listening does not look like one that heard no tag.
+ble::Report g_tag_report;  // about 1 KB: not on the app task's stack
+
+void publish_tags()
+{
+    const auto now_s = static_cast<uint32_t>(esp_timer_get_time() / 1'000'000);
+    ble::take_report(now_s, g_tag_report);
+    if (!ble::scanning() || !telemetry::connected()) {
+        return;
+    }
+    const std::string time = local_time();
+    const std::string json = telemetry::ble_json(g_tag_report, {net::device_id(), time, now_s});
+    if (telemetry::publish_ble(json)) {
+        ESP_LOGD(kTag, "published: %s", json.c_str());
+    }
 }
 
 // The boot report: what the last run left behind (reset reason, its last log lines, a crash).
@@ -273,6 +298,15 @@ extern "C" void app_main()
             ESP_LOGE(kTag, "MQTT not started: %s", esp_err_to_name(err));
         }
     }
+    // The Bluetooth tag scan, if switched on in the portal and there is a broker to tell.
+    bool tag_scan = false;
+    if (device.value.tag_scan && wifi == ESP_OK && telemetry::mqtt_configured(mqtt.value)) {
+        if (const esp_err_t err = ble::start(); err != ESP_OK) {
+            ESP_LOGE(kTag, "Bluetooth tag scan not started: %s", esp_err_to_name(err));
+        } else {
+            tag_scan = true;
+        }
+    }
     if (device.value.status_led) {
         led_self_test();  // not with the LED switched off: a restart at night stays dark
     }
@@ -300,6 +334,8 @@ extern "C" void app_main()
     // The first message after one full interval, so it averages a full minute of readings.
     int64_t next_publish = esp_timer_get_time() + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
     int64_t next_log_check = 0;
+    int64_t next_tags = 0;       // set when the scan starts
+    bool scan_wanted = false;
     int64_t show_status_until = 0;
     int64_t send_started = 0;
     bool send_flash = false;
@@ -364,7 +400,27 @@ extern "C" void app_main()
                     break;
                 }
             }
+            if (tag_scan) {
+                // Not next to the setup portal's access point, and not during an update.
+                const bool wanted = !portal::is_open() && !ota::busy();
+                if (wanted != scan_wanted) {
+                    scan_wanted = wanted;
+                    ble::set_scanning(wanted);
+                    if (wanted) {
+                        ble::take_report(uptime_s, g_tag_report);  // the window starts with the scan
+                        next_tags = now + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
+                    }
+                }
+                if (scan_wanted && ble::take_new_tag()) {
+                    next_tags = std::min(next_tags, now + kNewTagDelayUs);
+                }
+            }
             next_log_check = now + kLogCheckPeriodUs;
+        }
+
+        if (scan_wanted && now >= next_tags) {
+            publish_tags();
+            next_tags = now + static_cast<int64_t>(telemetry::kPublishIntervalS) * 1'000'000;
         }
 
         if (now >= next_publish) {
@@ -393,6 +449,9 @@ extern "C" void app_main()
         int64_t until = std::min({next_heartbeat, next_publish, next_log_check, next_led});
         if (show_status_until > now) {
             until = std::min(until, show_status_until);
+        }
+        if (scan_wanted) {
+            until = std::min(until, next_tags);
         }
         const TickType_t wait = pdMS_TO_TICKS(std::max<int64_t>(until - now, 0) / 1000) + 1;
         const auto event = board::button::wait(wait);

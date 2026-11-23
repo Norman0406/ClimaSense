@@ -53,3 +53,15 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # because a fake server could deliver an image; the signature check above rejects any image not
 # signed with our key, however it arrived. The firmware is not secret, so encryption adds nothing.
 CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=y
+
+# Bluetooth, for the tag scan (components/ble, switched on in the setup portal): NimBLE with the
+# observer role only. The firmware listens and never advertises, connects or pairs, so the other
+# roles and the security manager are left out. Legacy advertisements only (no extended scanning):
+# the tags' 20-byte frame fits them.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=n
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=y
+CONFIG_BT_NIMBLE_SECURITY_ENABLE=n

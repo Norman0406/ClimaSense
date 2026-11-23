@@ -21,6 +21,7 @@ FetchContent_MakeAvailable(googletest)
 set(FW ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 add_executable(host_tests
+    test_ble.cpp
     test_bmp580.cpp
     test_bus_scan.cpp
     test_button_logic.cpp
@@ -39,6 +40,8 @@ add_executable(host_tests
     test_status_pattern.cpp
     test_telemetry.cpp
     test_voc_baseline.cpp
+    ${FW}/components/ble/src/fhn_frame.cpp
+    ${FW}/components/ble/src/sightings.cpp
     ${FW}/components/board/src/button_logic.cpp
     ${FW}/components/board/src/led_logic.cpp
     ${FW}/components/board/src/status_pattern.cpp
@@ -61,6 +64,7 @@ add_executable(host_tests
     ${FW}/components/sensors/src/voc_baseline.cpp
 )
 target_include_directories(host_tests PRIVATE
+    ${FW}/components/ble/include
     ${FW}/components/board/include
     ${FW}/components/diagnostics/include
     ${FW}/components/net/include

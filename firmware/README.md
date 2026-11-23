@@ -19,6 +19,7 @@ What the firmware does now:
 
 - loads its settings (network, device name) from NVS over the build defaults and logs where each came from;
 - publishes the sensor values over MQTT every 60 s (see "MQTT"), with Home Assistant discovery if switched on; at each start a boot report (with the crash summary after a crash), and WARNING-and-above log lines;
+- if switched on in the setup portal, listens for the Bluetooth frames of Find Hub tags and publishes their identifiers (see "Bluetooth tag scan"); built, never run;
 - installs signed release images over the air, from a URL sent over MQTT or uploaded in the setup portal, with rollback (see "Releases and updates");
 - opens the setup portal on first boot (no network configured) or on a 3 s press of the BOOT button; see "Setting up a device";
 - joins the Wi-Fi network from those settings (see "Wi-Fi settings"), reconnects with pauses of up to 60 s when the connection or its IP address is lost, and logs its IP, channel and signal strength; then sets the clock from `ch.pool.ntp.org` (time zone Europe/Zurich). With no network configured it says so and runs without Wi-Fi. The MQTT client retries every 10 s on its own and logs a failed connection once per outage;
@@ -46,6 +47,8 @@ components/sensors/    I2C interface (i2c_bus.h) and its ESP-IDF implementation,
                        (recovery.h), the VOC baseline kept across reboots (voc_baseline.h)
 components/sensors/vendor/gas_index_algorithm/
                        Sensirion's Gas Index Algorithm 3.2.2, fixed-point, unchanged (BSD-3)
+components/ble/        Bluetooth tag scan: Find Hub frame parsing (fhn_frame.h) and the table of
+                       tags heard (sightings.h), both pure and tested; the NimBLE scanner
 components/diagnostics/ build fingerprint, log ring buffer kept across resets, crash dump report
 components/settings/   settings store: load from NVS over build defaults, validate, save;
                        device name record
@@ -205,6 +208,23 @@ mqtt-exporter turns every number into a Prometheus metric, labelled with the top
 - `<base>/<id>/set/log_level`: publish `info` or `debug` (or `warn`, `error`, `none`) to change which lines are sent, until the next restart: `mosquitto_pub -t 'climasense/climasense-a1b2c3/set/log_level' -m info`.
 
 mqtt-exporter subscribes to all topics by default; to keep these out of Prometheus, set its topic filter to `climasense/+/state`.
+
+## Bluetooth tag scan
+
+For presence detection (background: [`docs/research/presence-sensing.md`](../docs/research/presence-sensing.md)). **Built and unit-tested as far as the logic goes; the scanner itself has never run**, and nothing has been measured on a board: reception next to Wi-Fi, memory use when running, and the extra heat near the SHT45. In the build it takes about 280 KB of flash (the image is 1.64 MB, 48 % of its slot free).
+
+Switch it on per board in the setup portal: tick "Bluetooth tag scan" under the device name (off by default; needs a broker). The board then listens passively for the frames that Google Find Hub tags send, 300 ms of every second (so a tag in range is heard after about 6 s on average), and publishes what it heard to `<base>/<id>/ble`:
+
+```json
+{"id":"climasense-a1b2c3","time":"2026-11-23T18:04:05+01:00","window_s":60,
+ "fhn":[{"eid":"f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00010203","type":64,"flags":"0b","rssi":-64,"count":2,"age_s":3}]}
+```
+
+- **When:** every 60 s, also with an empty list (the board listened and heard no tag), and 2 s after a tag is heard that was not in range for the last 2 minutes, so an arrival is reported within seconds.
+- **What:** per tag its current identifier (`eid`, changes about every 17 minutes), the frame type (64, or 65 while the tag is away from its owner's phone), the tag's flags byte if it sends one, the strongest signal in the window, how many frames were heard and how long ago the last one. `window_s` is the time the list covers.
+- **Whose tags:** all Find Hub tags in range, the neighbours' included. The board cannot tell them apart: only a service that holds a tag's key can. No other Bluetooth device is reported.
+- **Not while** the setup portal is open or an update runs; then nothing is published on this topic.
+- At most 24 tags per message; frames of further ones are counted in `dropped`.
 
 ## Wi-Fi settings at build time
 

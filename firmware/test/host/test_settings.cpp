@@ -137,7 +137,7 @@ TEST(SettingsStore, AFailingWriteIsReported)
 TEST(SettingsStore, KeysFitNvs)
 {
     for (const char *k : {key::kWifiSsid, key::kWifiPassword, key::kWifiCountry, key::kSntpServer,
-                          key::kTimezone, key::kDeviceName, key::kStatusLed}) {
+                          key::kTimezone, key::kDeviceName, key::kStatusLed, key::kTagScan}) {
         EXPECT_LE(std::string_view(k).size(), 15u) << k;  // NVS: 15 characters plus NUL
     }
 }
@@ -168,6 +168,43 @@ TEST(DeviceSettings, StatusLedIsOnByDefaultAndRoundTrips)
     d.status_led = true;
     EXPECT_FALSE(settings::save_device(store, d));
     EXPECT_TRUE(settings::load_device(store, DeviceSettings{}).value.status_led);
+}
+
+TEST(DeviceSettings, TagScanIsOffByDefaultAndRoundTrips)
+{
+    FakeStore store;
+    EXPECT_FALSE(settings::load_device(store, DeviceSettings{}).value.tag_scan);
+    DeviceSettings d;
+    d.tag_scan = true;
+    EXPECT_FALSE(settings::save_device(store, d));
+    EXPECT_EQ(store.committed["tag_scan"], "1");
+    const auto loaded = settings::load_device(store, DeviceSettings{});
+    EXPECT_TRUE(loaded.value.tag_scan);
+    EXPECT_TRUE(loaded.value.status_led);  // the other switch is untouched
+    d.tag_scan = false;
+    EXPECT_FALSE(settings::save_device(store, d));
+    EXPECT_FALSE(settings::load_device(store, DeviceSettings{}).value.tag_scan);
+}
+
+TEST(DeviceSettings, TagScanOtherThanZeroOrOneRejectsTheRecord)
+{
+    FakeStore store;
+    store.committed["tag_scan"] = "yes";
+    const auto loaded = settings::load_device(store, DeviceSettings{});
+    EXPECT_TRUE(loaded.rejected);
+    EXPECT_FALSE(loaded.value.tag_scan);
+}
+
+TEST(DeviceSettings, SettingsStoredBeforeTheTagScanExistedStillLoad)
+{
+    FakeStore store;
+    store.committed["device_name"] = "Bedroom";
+    store.committed["status_led"] = "0";
+    const auto loaded = settings::load_device(store, DeviceSettings{});
+    EXPECT_FALSE(loaded.rejected);
+    EXPECT_EQ(loaded.value.name.view(), "Bedroom");
+    EXPECT_FALSE(loaded.value.status_led);
+    EXPECT_FALSE(loaded.value.tag_scan);
 }
 
 TEST(DeviceSettings, StatusLedOtherThanZeroOrOneRejectsTheRecord)
