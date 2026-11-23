@@ -276,40 +276,70 @@ def alps_skrt():
 
 
 # --------------------------------------------------------------------------
-# The panel's FPC tail, for the 3D view only. GDEY0213B74 specification page 7: 12.50 mm wide,
-# 14.30 mm from the glass to its end, the last 6.00 mm stiffened (0.3 mm thick over all, the
-# flexible part about 0.1 mm). Its path, in the frame of the board-only footprint that carries it
-# (origin on the top surface above the glass edge, x to the right, z up; the back of the board is
-# at z = -1.6): from the glass edge along the back to the FPC slot, up through the slot near its
-# left wall, round the slot's edge in a bend of 0.4 mm radius on each side, back to the left on
-# the component side, and with its stiffened end 2.1 mm into J5 (Kinghelm drawing). What length is
-# left over between the bend and the stiffener is drawn as a loop standing up from the board, so
-# the picture shows the slack honestly. The numbers are returned for the documentation.
+# The panel's FPC tail, for the 3D view and for the length check. GDEY0213B74 specification
+# page 7: 14.30 mm from the glass to its end, the last 6.00 mm stiffened (0.3 mm thick over all,
+# the flexible part about 0.1 mm), 12.50 mm wide at the contacts. Where it leaves the glass it is
+# wider: a shoulder from 6.77 mm (dimensioned) to about 21.05 mm (measured off the drawing) below
+# the panel's long edge, 14.3 mm in all against the tail's 8.15 to 20.65 mm, which runs 4.1 mm out
+# from the glass and narrows to the tail's width at 4.9 mm. This wide part is what passes through
+# the board, so the slot is sized for it (FPC_SLOT in gen_pcb.py).
+#
+# Its path, in the frame of the board-only footprint that carries it (origin on the top surface
+# above the glass edge, x to the right, z up; the back of the board is at z = -1.6): the tail
+# leaves the glass on the display side of the panel's back glass, about 0.6 mm off the board
+# (0.5 mm of glass and the tape that holds the panel). It runs to the FPC slot, turns up round the
+# slot's lower edge, climbs the slot's left wall, turns round the upper edge and runs back to the
+# left on the component side, its stiffened end 2.1 mm into J5 (Kinghelm drawing). It goes round
+# the OUTSIDE of both edges of the board, in bends of the smallest radius Good Display allows
+# (0.5 mm inside, docs/datasheets/README.md), against the slot's wall: `needed` is the length of
+# that path. (Wider bends that just clear the two edges are a few tenths shorter, so it errs on
+# the safe side.) (Until 2026-11-23 the model cut both corners through the board with
+# 0.4 mm bends and started on the board's surface, which made the tail look 0.9 mm longer than it
+# is.) What length is left over is drawn as a loop standing up from the board, so the picture
+# shows the slack honestly. A relaxed half-circle bend from the glass to the component side would
+# need about 14.2 mm, the tail's whole length. The numbers are returned for the documentation.
 # --------------------------------------------------------------------------
-TAIL = dict(length=14.30, stiff=6.00, width=12.50, flex_t=0.1, stiff_t=0.3, bend_r=0.4,
-            slot_x=1.8 + 0.05,   # centre line of the tail in the slot: 0.05 mm right of its left wall (x 71.8; glass edge x 70.0)
+TAIL = dict(length=14.30, stiff=6.00, width=12.50, flex_t=0.1, stiff_t=0.3,
+            bend_r=0.5,          # smallest bend, inside radius (Good Display's usage guidelines)
+            ledge=0.6,           # how far off the board's back the tail leaves the glass
+            glue=1.0,            # silicone glue may reach this far onto the tail's back (specification page 35, item 12): rigid, no bend
+            wall_x=1.8,          # the slot's left wall, from the glass edge (x 71.8; glass edge x 70.0)
             j5_front=-5.0,       # J5's front edge, 5.0 mm left of the glass edge (x 65.0; J5_FRONT_TO_SLOT in gen_pcb.py)
-            insert=2.1)
+            insert=2.1,
+            # the shoulder: edges across the tail from its centre line (towards pin 1, towards pin 24),
+            # how far it runs from the glass at full width, and where it has narrowed to the tail's width
+            shoulder=(-(6.25 + 8.15 - 6.77), 6.25 + 0.4), shoulder_run=4.06, shoulder_end=4.87)
 
 
 def tail_path():
     """Centre line of the tail as a list of (x, z) points, the stiffener's start index, and the
     lengths: (points, stiff_from, needed, slack)."""
     t = TAIL
-    r, zb, zt = t["bend_r"], -1.6 - t["flex_t"] / 2, t["flex_t"] / 2
-    xs = t["slot_x"]
-    pts = [(0.0, zb), (xs - r, zb)]
+    rho = t["bend_r"] + t["flex_t"] / 2                         # radius of the centre line in a bend
+    za = -1.6 - t["ledge"]                                       # height at which the tail leaves the glass
+    # lower bend: its centre is level with za + rho and as far left as the board's lower edge
+    # (wall_x, -1.6) allows, which has to stay inside the bend
+    dz = -1.6 - (za + rho)
+    c1 = (t["wall_x"] - math.sqrt(max(t["bend_r"] ** 2 - dz ** 2, 0.0)), za + rho)
+    xv = c1[0] + rho                                             # centre line on its way up through the slot
+    assert math.hypot(t["wall_x"] - c1[0], -1.6 - c1[1]) <= t["bend_r"] + 1e-9, "the lower bend cuts the board's edge"
+    assert xv + t["flex_t"] / 2 < t["wall_x"] + 1.2, "the tail does not fit the slot's width"
+    assert c1[0] >= t["glue"], "the lower bend starts where the glue on the tail's back may still be"
+    # upper bend: centre (xv - rho, 0), so that the board's upper edge (wall_x, 0) just lies inside it
+    c2 = (xv - rho, 0.0)
+    pts = [(0.0, za), (c1[0], za)]
     for i in range(1, 9):                                        # lower bend, up into the slot
         a = math.pi / 2 * i / 8
-        pts.append((xs - r + r * math.sin(a), zb + r - r * math.cos(a)))
-    pts.append((xs, zt - r))
+        pts.append((c1[0] + rho * math.sin(a), c1[1] - rho * math.cos(a)))
+    pts.append((xv, c2[1]))
     for i in range(1, 9):                                        # upper bend, over to the left
         a = math.pi / 2 * i / 8
-        pts.append((xs - r + r * math.cos(a), zt - r + r * math.sin(a)))
+        pts.append((c2[0] + rho * math.cos(a), c2[1] + rho * math.sin(a)))
     run = sum(math.dist(a, b) for a, b in zip(pts, pts[1:]))
     end = t["j5_front"] - t["insert"]
     stiff_start = end + t["stiff"]
-    a, b = pts[-1], (stiff_start, zt)
+    zs = t["stiff_t"] / 2
+    a, b = pts[-1], (stiff_start, zs)
     flex_left = t["length"] - t["stiff"] - run
     chord = math.dist(a, b)
     needed = run + chord + t["stiff"]
@@ -322,17 +352,26 @@ def tail_path():
             phi = (lo + hi) / 2
             R = chord / (2 * math.sin(phi / 2))
             lo, hi = (phi, hi) if R * phi < flex_left else (lo, phi)
-        d = R * math.cos(phi / 2)                                # centre's height above the chord (negative: below)
-        cx, cz = (a[0] + b[0]) / 2, zt + d
+        # the arc over the chord a-b, bulging away from the board
+        mx, mz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        ux, uz = (b[0] - a[0]) / chord, (b[1] - a[1]) / chord    # along the chord
+        nx, nz = uz, -ux                                         # across it ...
+        if nz < 0:
+            nx, nz = -nx, -nz                                    # ... pointing up
+        d = R * math.cos(phi / 2)                                # the centre lies this far below the chord (negative: above)
+        cx, cz = mx - nx * d, mz - nz * d
         a0 = math.atan2(a[1] - cz, a[0] - cx)
+        b0 = math.atan2(b[1] - cz, b[0] - cx)
+        sweep = (b0 - a0) % (2 * math.pi)                        # from a round to b ...
+        if abs(sweep - phi) > 1e-3:
+            sweep -= 2 * math.pi                                 # ... the way that takes the arc's angle
         for i in range(1, 25):
-            ang = a0 + phi * i / 24
+            ang = a0 + sweep * i / 24
             pts.append((cx + R * math.cos(ang), cz + R * math.sin(ang)))
         pts[-1] = b
     else:
         pts.append(b)
     stiff_from = len(pts) - 1
-    zs = t["stiff_t"] / 2
     pts[-1] = (stiff_start, zs)
     pts += [(t["j5_front"] + 0.6, zs), (t["j5_front"], 0.8), (end, 0.8)]   # into J5's opening (0.5-1.1 mm up)
     return pts, stiff_from, needed, slack
@@ -342,15 +381,20 @@ def fpc_tail():
     m = Model("GDEY0213B74_FPC_tail")
     pts, stiff_from, _, _ = tail_path()
     w = TAIL["width"] / 2
+    along = 0.0                                                  # distance from the glass along the tail
     for i, (a, b) in enumerate(zip(pts, pts[1:])):
         t = TAIL["stiff_t"] if i >= stiff_from else TAIL["flex_t"]
         dx, dz = b[0] - a[0], b[1] - a[1]
         n = math.hypot(dx, dz)
         if n < 1e-9:
             continue
+        mid, along = along + n / 2, along + n
+        # the shoulder: full width near the glass, narrowing to the tail's width
+        k = min(1.0, max(0.0, (TAIL["shoulder_end"] - mid) / (TAIL["shoulder_end"] - TAIL["shoulder_run"])))
+        y0, y1 = -w + k * (TAIL["shoulder"][0] + w), w + k * (TAIL["shoulder"][1] - w)
         nx, nz = -dz / n * t / 2, dx / n * t / 2
         section = [(a[0] + nx, a[1] + nz), (b[0] + nx, b[1] + nz), (b[0] - nx, b[1] - nz), (a[0] - nx, a[1] - nz)]
-        m.lying("kapton", section, -w, w)
+        m.lying("kapton", section, y0, y1)
     return m
 
 
@@ -363,8 +407,10 @@ def main():
         m.write()
     print(f"{len(models)} models written to {OUT}: {', '.join(m.name for m in models)}")
     _, _, needed, slack = tail_path()
-    print(f"FPC tail: {TAIL['length']:.2f} mm long, {needed:.2f} mm needed from the glass edge to full insertion "
-          f"with J5's front {TAIL['slot_x'] - 0.05 - TAIL['j5_front']:.1f} mm from the slot: {slack:+.2f} mm spare")
+    print(f"FPC tail: {TAIL['length']:.2f} mm long, at least {needed:.2f} mm needed from the glass edge to full insertion "
+          f"(bends of {TAIL['bend_r']} mm round both edges of the board) with J5's front "
+          f"{TAIL['wall_x'] - TAIL['j5_front']:.1f} mm from the slot: {slack:+.2f} mm spare; the first bend starts "
+          f"{TAIL['wall_x'] - TAIL['bend_r']:.1f} mm from the glass (glue up to {TAIL['glue']:.1f} mm, specification page 35)")
 
 
 if __name__ == "__main__":

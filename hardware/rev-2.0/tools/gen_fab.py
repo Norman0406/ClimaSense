@@ -49,6 +49,18 @@ CORRECTIONS = {
     "JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal": (0, (0.0, -0.062)),   # J2  (C160404)
     # our origin is the middle of the module, JLCPCB's the middle of its pads (no antenna)
     "ESP32-C6-WROOM-1": (0, (0.0, 2.995)),                              # U4  (C5366877)
+    # Revision 2.0's new parts, measured the same way on 2026-11-23. All others (the Schottky
+    # diodes, the 47 uH inductor, the 0603 and 0805 capacitors) agree without correction.
+    # The EasyEDA data of this part number draws the SOT-323 turned by half a turn: its single
+    # pin (3, drain) on the left. It is a "...-BR" drawing like the SOT-23-5's, for which the data
+    # JLCPCB places by turned out to be a quarter turn further (see above): not known for this part
+    # until an order shows it. If the engineer changes Q1 to 270 more than KiCad's angle, take that over.
+    "SOT-323_SC-70": (180, (0.0, 0.0)),                                 # Q1  (C469327)
+    # our origin is the middle of the housing, JLCPCB's the middle between the signal pads' and
+    # the holding pads' centres
+    "Kinghelm_KH-FPC0.5-H2.0SMT-24P-QCHF_1x24-1MP_P0.50mm": (0, (0.0, -1.125)),   # J5  (C3249999)
+    # our origin is the line through the guide bosses, JLCPCB's lies 0.075 mm in front of it
+    "Alps_SKRTLAE010_SidePush": (0, (0.0, 0.075)),                      # SW1, SW2  (C110293)
 }
 
 

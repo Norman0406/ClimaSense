@@ -30,6 +30,10 @@ KICAD_CLI = r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe"
 PCB = HW / "climasense.kicad_pcb"
 OUT = HW.parent.parent / "docs" / "images" / "rev-2.0"
 BACKGROUND = "#0d1117"          # behind the copper plots, so they read the same on light and dark pages
+# Width of the copper plots in pixels: that of the 3D views as KiCad writes them (1600 asked for),
+# so that a page shows plots and views at the same size (2026-11-23, Norman). KiCad gives a plot the
+# board's own size in millimetres, which a browser shows 390 pixels wide.
+PLOT_WIDTH = 1568
 
 
 def cli(*args):
@@ -54,6 +58,11 @@ def copper(name, layer):
     svg, n = re.subn(r"(<svg\b[^>]*>)", rf'\1\n<rect width="100%" height="100%" fill="{BACKGROUND}"/>', svg, count=1)
     if n != 1:
         raise SystemExit(f"{name}: no <svg> element to put the background into")
+    size = re.search(r'width="([\d.]+)mm" height="([\d.]+)mm"', svg)
+    if not size:
+        raise SystemExit(f"{name}: no size in millimetres to replace")
+    width, height = float(size.group(1)), float(size.group(2))
+    svg = svg.replace(size.group(0), f'width="{PLOT_WIDTH}" height="{round(PLOT_WIDTH * height / width)}"', 1)
     path.write_text(svg, encoding="utf-8", newline="\n")
 
 

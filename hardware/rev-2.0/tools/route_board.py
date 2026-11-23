@@ -75,9 +75,12 @@ def _seg_rect(a, b, rect):
 # Everything in `geo` that is not hand-drawn copper of one net. If any of it changes (outline, slots,
 # keep-outs, holes, reserved areas, ...), the copper of the previous board is not reused.
 _PER_NET_KEYS = ("prerouted", "fixed_tracks", "fixed_feeds", "free_feeds")
-# Not part of the fingerprint: run options, where stitching vias may not go (they are made anew on
-# every run), and the reserved areas (checked against the kept copper instead).
+# Not part of the fingerprint: run options, everything about the stitching vias (they are made
+# anew on every run, after routing, so a change to their rule needs no re-route), and the
+# reserved areas (checked against the kept copper instead).
 _RUN_KEYS = ("keep", "seed", "attempts", "debug", "via_cost", "hand_out", "timing", "stitch_avoid",
+             "stitch_pitch", "stitch_subgrid", "stitch_clear", "stitch_apart", "stitch_extra", "stitch_under",
+             "stitch_prefer", "stitched",
              "reserve_top", "reserve_bottom", "via_avoid")
 
 
@@ -189,6 +192,10 @@ def keep_previous(geo, pads, npth, R, nid, log):
     changed_gnd = {k for k in old_pads if (k[0], k[1]) in gnd_redo}
 
     island_x = geo["bridge_x"][1]
+    if "GND" in dirty:
+        # the ground track on the bridge changed (or ground is named in --reroute): the island's
+        # ground, which hangs on that track, is made anew
+        changed_gnd |= {k for k, d in old_pads.items() if d[0] == "GND" and d[1] > island_x}
     # the twelve thermal vias of the ESP32's ground pad are always made anew
     epads = [p for p in pads if p["ref"] == geo["module_ref"] and p["num"] == geo["module_epad"]]
     ex, ey = sum(p["x"] for p in epads) / len(epads), sum(p["y"] for p in epads) / len(epads)
@@ -833,8 +840,10 @@ def run(board, origin, geo, log=print):
             return R.via_allowed(idx, gnd) and R.passable(cls, BOT, idx, gnd) and R.xy(idx)[0] < bx0 - 0.9
 
         y_gnd = geo["bridge_y"]["GND"]
-        stub_end = dict(ref="bridge", num="GND", net=gnd, name="GND", x=bx0 - 1.8, y=y_gnd,
-                        rect=(bx0 - 1.8, y_gnd, bx0 - 1.8, y_gnd), layers=(TOP,), smd=True, narrow=True)
+        # the ground track on the bridge ends, with its via, where its fixed track starts
+        x_gnd = next((x_a for name, x_a, _, _ in geo["fixed_tracks"] if name == "GND"), bx0 - 1.8)
+        stub_end = dict(ref="bridge", num="GND", net=gnd, name="GND", x=x_gnd, y=y_gnd,
+                        rect=(x_gnd, y_gnd, x_gnd, y_gnd), layers=(TOP,), smd=True, narrow=True)
         for p in ([] if kept_island else [stub_end]) + sorted(main_gnd, key=lambda p: (p["x"], p["y"])):
             path = connect(p, goal=to_pour, allow_via=False, limit=60000)
             if path:
@@ -959,7 +968,11 @@ def run(board, origin, geo, log=print):
     # join the layers. Every piece holding ground copper beyond the largest is a pocket.
     pour_x0, pour_x1 = geo["antenna_x"] + 0.2, bx0 - 0.1
 
-    def ground_pockets():
+    def ground_pockets(detail=False):
+        """Places of ground copper that the pours do not join to the rest. With `detail`, the
+        estimate itself instead: each layer's piece number per cell (0: no pour there), the
+        function that names a piece's group, the group that holds most ground copper, and the
+        list the groups are kept in (joining piece a to group g: parent[find_root(a - 1)] = g)."""
         nx, ny = R.nx, R.ny
         ix0, ix1 = int(math.ceil(pour_x0 / R.step)), int(pour_x1 / R.step)
         label = [[0] * n, [0] * n]
@@ -1012,6 +1025,8 @@ def run(board, origin, geo, log=print):
         groups = {}
         for xy, v in holders:
             groups.setdefault(find_root(v - 1), []).append(xy)
+        if detail:
+            return label, find_root, (max(groups, key=lambda k: len(groups[k])) if groups else None), parent
         if len(groups) <= 1:
             return []
         main = max(groups.values(), key=len)
@@ -1398,50 +1413,132 @@ def run(board, origin, geo, log=print):
     t_tidy = time.time()
 
     # --- ground stitching vias ---------------------------------------------------
-    # Added last, so they never take a route's place. Candidates: a grid over the pours, and the
-    # denser places the caller asks for (geo["stitch_extra"]: x0, y0, x1, y1, pitch). A via is
-    # kept where it is inside both pours, clear of the board edge, slots and keep-outs (the grid's
-    # hard blocks, which include the antenna and the USB connector's shell), keeps the board's
-    # clearance to every other net's copper, keeps the drill spacing to every via, and stays
-    # 0.5 mm from every pad (paste and hand soldering).
+    # Added last, so they never take a route's place. One via per cell of a grid over the pours
+    # (geo["stitch_pitch"], 5 mm): at the cell's grid point if a via fits there, otherwise at a
+    # point of a finer grid in that cell where one fits (geo["stitch_subgrid"]: one pitch or
+    # several, the coarsest tried first, on each the points nearest the grid point first). So the
+    # vias stand on as coarse a grid as the copper allows, and a crowded board gets about the
+    # same number per area as an empty one. Before
+    # 2026-11-23 only the grid points themselves were tried: 21 of 98 took a via, nearly half of
+    # them in the empty area left of the FPC slot.
+    # A via fits where it is inside both pours, clear of the board edge, slots and keep-outs (the
+    # grid's hard blocks, which include the antenna and the USB connector's shell), keeps the
+    # board's clearance to every other net's copper, keeps the drill spacing to every via, stays
+    # 0.5 mm from every pad (paste and hand soldering), stands where the estimate of the pours
+    # (ground_pockets) has copper on both layers, at least one of the two pieces joined to the
+    # bulk of the ground (a via in a pocket that tracks close off on both layers would hang in
+    # the air: three of the first 48 did), keeps geo["stitch_clear"] (2 mm) from every
+    # other ground via, so that none stands in a pair with a pad's via, and, off its grid point,
+    # keeps geo["stitch_apart"] (3.5 mm) from every other stitching via.
+    # geo["stitch_extra"] (x0, y0, x1, y1, pitch) adds rows of candidates tried like grid points;
+    # the board uses none any more.
+    # geo["stitch_under"] (a rectangle, the area under the ESP32 module between its pad rows)
+    # lets stitching vias stand there too. The router keeps tracks and its own vias out of that
+    # area; a ground via in the ground pour is another matter. The top layer there is pour
+    # throughout, so only the bottom layer's piece is looked at.
+    # geo["stitch_prefer"] lists spots that are tried first for the cell they lie in when that
+    # cell's own grid point is blocked, before the nearest free spot is looked for.
     stitch = []
     if geo.get("stitch_pitch"):
-        candidates = []
         p = geo["stitch_pitch"]
-        x = pour_x0 + 0.6
-        while x <= pour_x1 - 0.6:
-            y = 1.0
-            while y <= H - 1.0:
-                candidates.append((round(x, 2), round(y, 2)))
-                y += p
-            x += p
-        for x0, y0, x1, y1, pitch in geo.get("stitch_extra", ()):
-            nx_, ny_ = int((x1 - x0) / pitch + 1e-6), int((y1 - y0) / pitch + 1e-6)
-            candidates += [(round(x0 + i * pitch, 2), round(y0 + j * pitch, 2)) for i in range(nx_ + 1) for j in range(ny_ + 1)]
+        sub = geo.get("stitch_subgrid")
+        clear, apart = geo.get("stitch_clear", 0.0), geo.get("stitch_apart", 0.0)
+        under = geo.get("stitch_under")
         # room for the pour all round the via: its 0.2 mm clearance plus a ring of at least
         # 0.25 mm, or the via stands alone in a gap of the pour (KiCad then reports it dangling)
         need_track = 0.45 + VIA_DIAMETER / 2
         spacing = max(R.via_spacing, VIA_DIAMETER + 0.153)
-        for x, y in candidates:
-            if not pour_x0 + 0.5 <= x <= pour_x1 - 0.5:
-                continue
+        other_tracks = [t for t in tracks + kept_tracks if t[6] != gnd]
+        routed_vias = list(vias) + list(kept_vias)
+        ground_vias = [v for v in routed_vias if v[2] == gnd]
+        pour, pour_group, bulk, pour_parent = ground_pockets(detail=True)
+
+        def in_bulk(piece):
+            return bool(piece) and (bulk is None or pour_group(piece - 1) == bulk)
+
+        def fits(x, y, off_grid=False):
+            if not (pour_x0 + 0.5 <= x <= pour_x1 - 0.5 and 0.5 <= y <= H - 0.5):
+                return False
             # not under a silk label, not right next to a test pad (geo["stitch_avoid"])
             if any(ax0 - VIA_DIAMETER / 2 < x < ax1 + VIA_DIAMETER / 2 and ay0 - VIA_DIAMETER / 2 < y < ay1 + VIA_DIAMETER / 2
                    for ax0, ay0, ax1, ay1 in geo.get("stitch_avoid", ())):
-                continue
+                return False
             idx = R.cell(x, y)
-            if R.hard["via"][TOP][idx] != FREE or R.hard["via"][BOT][idx] != FREE:
-                continue
-            if any(point_seg((x, y), t[0:2], t[2:4]) < need_track + t[5] / 2 for t in tracks + kept_tracks if t[6] != gnd):
-                continue
-            if any(math.hypot(x - v[0], y - v[1]) < spacing for v in list(vias) + stitch + kept_vias):
-                continue
+            under_module = bool(under) and under[0] <= x <= under[2] and under[1] <= y <= under[3]
+            if not under_module and (R.hard["via"][TOP][idx] != FREE or R.hard["via"][BOT][idx] != FREE):
+                return False
+            if any(point_seg((x, y), t[0:2], t[2:4]) < need_track + t[5] / 2 for t in other_tracks):
+                return False
+            top, bottom = pour[TOP][idx], pour[BOT][idx]
+            if under_module:
+                if not bottom:
+                    return False
+            elif not (top and bottom) or not (in_bulk(top) or in_bulk(bottom)):
+                return False
+            if any(math.hypot(x - v[0], y - v[1]) < spacing for v in routed_vias + stitch):
+                return False
+            if clear and any(math.hypot(x - v[0], y - v[1]) < clear for v in ground_vias + stitch):
+                return False
+            if off_grid and apart and any(math.hypot(x - v[0], y - v[1]) < apart for v in stitch):
+                return False
             if any(max(q["rect"][0] - x, 0, x - q["rect"][2]) ** 2 + max(q["rect"][1] - y, 0, y - q["rect"][3]) ** 2
                    < (VIA_DIAMETER / 2 + 0.5) ** 2 for q in pads):
-                continue
+                return False
+            return True
+
+        def place(x, y):
             stitch.append((x, y, gnd))
+            if bulk is not None:                             # the via joins both layers' pieces to the bulk
+                idx = R.cell(x, y)
+                for piece in (pour[TOP][idx], pour[BOT][idx]):
+                    if piece and pour_group(piece - 1) != bulk:
+                        pour_parent[pour_group(piece - 1)] = bulk
+
+        cells = []
+        x = pour_x0 + 0.6
+        while x <= pour_x1 - 0.6:
+            y = 1.0
+            while y <= H - 1.0:
+                cells.append((round(x, 2), round(y, 2)))
+                y += p
+            x += p
+        extra = []
+        for x0, y0, x1, y1, pitch in geo.get("stitch_extra", ()):
+            nx_, ny_ = int((x1 - x0) / pitch + 1e-6), int((y1 - y0) / pitch + 1e-6)
+            extra += [(round(x0 + i * pitch, 2), round(y0 + j * pitch, 2)) for i in range(nx_ + 1) for j in range(ny_ + 1)]
+        empty = []
+        for x, y in cells:                                   # first every cell's own grid point
+            if fits(x, y):
+                place(x, y)
+            else:
+                empty.append((x, y))
+        on_grid = len(stitch)
+        for x, y in extra:
+            if fits(x, y):
+                place(x, y)
+        in_rows = len(stitch) - on_grid
+        if sub:
+            # then, for the cells left empty, the points of the finer grids in the cell: the
+            # coarsest grid first, on each the points nearest the cell's own grid point first
+            offsets, seen = [], {(0.0, 0.0)}
+            for pitch in (sub if isinstance(sub, (tuple, list)) else (sub,)):
+                half = int(p / 2 / pitch + 1e-6)
+                level = sorted({(round(i * pitch, 4), round(j * pitch, 4)) for i in range(-half, half + 1) for j in range(-half, half + 1)} - seen,
+                               key=lambda o: (round(math.hypot(*o), 4), o[1], o[0]))
+                offsets += level
+                seen.update(level)
+            prefer = geo.get("stitch_prefer", ())
+            for x, y in empty:
+                for u, v in ([q for q in prefer if abs(q[0] - x) <= p / 2 and abs(q[1] - y) <= p / 2]
+                             + [(round(x + dx, 3), round(y + dy, 3)) for dx, dy in offsets]):
+                    if fits(u, v, off_grid=True):
+                        place(u, v)
+                        break
         vias = list(vias) + stitch
-        log(f"  {len(stitch)} ground stitching vias")
+        geo["stitched"] = [(x, y) for x, y, _ in stitch]
+        beside = len(stitch) - on_grid - in_rows
+        log(f"  {len(stitch)} ground stitching vias ({on_grid} on the {p:g} mm grid, {beside} beside a blocked grid point, "
+            f"{in_rows} in extra rows; {len(cells) - on_grid - beside} of {len(cells)} cells without one)")
 
     # --- hand the result to KiCad ---------------------------------------------
     def P(x, y):

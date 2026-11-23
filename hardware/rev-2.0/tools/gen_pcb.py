@@ -384,6 +384,13 @@ PREROUTED = (
 TRUNKS = (("L1.2", "R8.1"), ("R8.1", "R6.1"), ("R6.1", "C5.1"))
 # No tracks on the bottom layer under the buck converter: its ground stays unbroken.
 BUCK_AREA = (33.0, 8.2, 38.6, 18.2)
+# The top layer under the buck inductor L1, between its two pads, is NOT reserved: on revision
+# 2.0 the router takes one signal through there (BMP_INT on the board of 2026-11-22), 0.35 mm
+# from the pad of the switch node. Keeping that strip for ground was tried on 2026-11-23
+# (reserve_top, x 34.6-37.4, y 12.1-12.9): none of twelve seeds routed the board any more. The
+# lines from the module's lower pin row have to pass between the USB connector and the buck
+# converter, and this is one of their lanes. What couples into a line there is a few tens of
+# millivolts at most (docs/hardware/rev-2.0.md, "Check before ordering").
 # The same behind the USB connector. The ground vias of the protection part U1 and of the
 # two configuration resistors sit in a pocket walled in by USB and supply tracks on the top
 # layer. On the bottom layer the strip from those vias down past the connector's pads to its
@@ -448,8 +455,32 @@ PREROUTED = tuple(_shift_group(g) for g in PREROUTED)
 PANEL_X0 = 10.8
 PANEL = (PANEL_X0, 2.4, PANEL_X0 + 59.2, 31.6)
 PANEL_TAIL_Y = 2.4 + 8.15 + 12.5 / 2          # centre line of the tail
-# Slot for the tail: 1.2 mm wide, 0.5 mm wider than the tail at each end, 1.8 mm from the glass.
-FPC_SLOT = (71.8, PANEL_TAIL_Y - 6.75, 73.0, PANEL_TAIL_Y + 6.75)
+# Where it leaves the glass the tail is wider than the 12.5 mm of its contact end (specification
+# page 7): a shoulder that starts 6.77 mm below the panel's long edge (dimensioned; 1.38 mm above
+# the tail's edge) and ends about 0.4 mm below the tail's other edge (measured off the drawing),
+# 14.3 mm in all. It runs 4.1 mm out from the glass at that width and has narrowed to 12.5 mm at
+# 4.9 mm. The slot starts 1.8 mm from the glass, so this wide part is what passes through the board.
+# Board y of its two edges:
+FPC_SHOULDER = (2.4 + 6.77, 2.4 + 8.15 + 12.5 + 0.4)
+# Slot for the tail: 1.2 mm wide, 1.8 mm from the glass, and symmetric about the tail's centre
+# line, which is J5's (2026-11-23, Norman): 1.5 mm longer than the shoulder's wider side at BOTH
+# ends, although the shoulder is lopsided (1.38 mm on the pin 1 side, 0.4 mm on the other), so
+# the slot does not depend on which side the wide step is on. (Which side that is, and with it
+# the pin order, is verified: Good Display's photos of the panel show the drawing's main view to
+# be the display side, docs/hardware/rev-2.0.md.) The mill leaves the
+# slot's ends round (0.5 to 0.6 mm radius), and the tail lies against the slot's wall, where the
+# round end takes its whole radius: 0.9 mm stay clear there on the wider side, for the mill's
+# tolerance (0.2 mm), the tail's shape and its play in J5. (Until 2026-11-23 the slot was 13.5 mm
+# long, y 10.05 to 23.55, sized for the 12.5 mm of the contact end: the shoulder would have
+# overlapped its upper end by 0.9 mm.)
+FPC_SLOT_MARGIN = 1.5
+_half = max(PANEL_TAIL_Y - FPC_SHOULDER[0], FPC_SHOULDER[1] - PANEL_TAIL_Y) + FPC_SLOT_MARGIN
+_half = round(round(_half / 0.05 + 0.4999) * 0.05, 2)        # up to the next 0.05 mm: 9.15
+FPC_SLOT = (71.8, round(PANEL_TAIL_Y - _half, 2), 73.0, round(PANEL_TAIL_Y + _half, 2))     # y 7.65 to 25.95
+# Centre line of the 3 mm strip between the FPC slot and the island's slots. The two ground vias
+# in that strip stand on it, one above the other (2026-11-23, Norman): the via of the ground track
+# that crosses the bridge, and the strip's stitching via (STITCH_PREFER).
+STRIP_X = round((FPC_SLOT[2] + SLOT_X[0]) / 2, 2)      # 74.5
 
 # Display parts. J5 (24-pin, 0.5 mm, dual contact) turned so that its opening faces the slot.
 # With the U-turn, the tail's pin 1 arrives at the connector's pin 24: the schematic maps the
@@ -465,6 +496,11 @@ FPC_SLOT = (71.8, PANEL_TAIL_Y - 6.75, 73.0, PANEL_TAIL_Y + 6.75)
 # 6.8 mm (2026-11-22, Norman), together with the panel 1 mm further from the slot: the same
 # slack, with the tail's run split more evenly between the back and the component side.
 # To be confirmed with a 1:1 paper print and the real panel.
+# 2026-11-23: checked against the specification instead (page 7: the tail's dimensions; page 35:
+# glue up to 1.0 mm onto the tail's back, so the bend, 0.5 mm radius at the slot wall 1.8 mm
+# from the glass, starts clear of it at 1.3 mm). The spare lengths quoted above were about 0.9 mm too generous (the model let the
+# tail cut the board's corners). The tail needs at least 13.1 mm and has 14.3 +/- 0.3: 1.2 mm
+# spare at 6.8 mm (gen_models.py prints it). Each millimetre J5 moves towards the slot adds one.
 J5_FRONT_TO_SLOT = 6.8
 J5_X = round(FPC_SLOT[0] - J5_FRONT_TO_SLOT - 4.90 / 2, 3)
 PLACEMENT.update({
@@ -477,8 +513,13 @@ PLACEMENT.update({
     "L2": (50.3, 4.0, 0),         # 47 uH, 4 x 4 mm
     "C25": (50.3, 7.6, 0),        # 4.7 uF at the inductor's input
     "Q1": (54.7, 4.6, 0),         # MOSFET: drain to the switch node, source to the sense resistor
-    "R19": (56.9, 4.6, 90),       # 2.2 ohm sense resistor
-    "R18": (54.7, 7.0, 0),        # 1 Mohm gate pull-down
+    # 2.2 ohm sense resistor: below the MOSFET, its first pad under the source pin (2026-11-23; it
+    # stood right of Q1 at 56.9 / 4.6, behind the gate and switch-node tracks, and the source
+    # reached it through 18.6 mm of track and two vias, see BOOST). It takes the place of the gate
+    # pull-down R18, which only has to hold the gate low while the panel does not drive it and can
+    # sit anywhere on the gate line: now beside that line where it runs into J5.
+    "R19": (54.0, 6.6, 0),
+    "R18": (58.2, 9.39, 90),      # 1 Mohm gate pull-down: gate pad below, on a stub from the gate line; clear of J5's courtyard
     "C26": (50.3, 11.0, 0),       # 4.7 uF charge pump capacitor
     "D2": (55.1, 8.8, 0),         # switch node to VGH
     "D3": (55.1, 11.2, 0),        # charge pump to ground
@@ -667,6 +708,59 @@ EPD_POCKETS = ((40.25, 13.4, 41.0, 16.3), (41.0, 14.2, 41.8, 16.3), (41.8, 15.0,
                (43.2, 17.9, SPI_PAD_X[1] - 0.8, 18.7), (SPI_PAD_X[1] + 0.8, 17.9, SPI_PAD_X[2] - 0.8, 18.7),
                (52.1, 17.2, SPI_PAD_X[2] + 1.2, 18.1))
 PREROUTED = PREROUTED + EPD_LINES
+# The boost converter's switching loop, drawn by hand (2026-11-23), like the buck converter's.
+# The loop that carries the inductor's current is input capacitor C25 -> L2 -> Q1 -> sense
+# resistor R19 -> ground -> C25. Left to the router, the gate and switch-node tracks closed in
+# Q1's source pin, and the source reached R19 (3 mm away) by a detour of 18.6 mm with two vias.
+# Now: the source drops 1.4 mm into R19, whose ground pad has its via right below it, 2.3 mm from
+# the via of C25's ground pad, both into the unbroken bottom ground (DISPLAY_GROUND_AREAS). The
+# switch node is 0.3 mm wide from L2 over Q1's gate pin into the drain and on down to D2; its
+# branch to the charge pump capacitor C26 runs under L2 between C25's pads and ducks under
+# EPD_BUSY on the bottom layer, as the router had it. The gate line passes between Q1's pins as
+# before, then right of R19 and between D2's pads to J5; the gate pull-down R18 hangs on it by a
+# stub just before J5. The sense line to J5 (no current) leaves R19 downwards and follows the
+# path the router had found.
+BOOST = (
+    dict(net="EPD_RESE", pads=("Q1.2", "R19.1", "J5.22"), tracks=(
+        (0.3, ((53.8, 5.25), (53.5, 5.55), (53.5, 6.6))),
+        (0.2, ((53.5, 6.6), (53.5, 7.3), (52.7, 8.1), (52.7, 9.7), (53.3, 10.3), (54.2, 10.3), (56.0, 12.1), (59.1, 12.1),
+               (59.2, 12.0), (59.9, 12.0))),
+    )),
+    dict(net="GND", pads=("C25.2",), vias=((52.2, 7.6),), tracks=((0.4, ((51.25, 7.6), (52.2, 7.6))),)),
+    dict(net="GND", pads=("R19.2",), vias=((54.5, 7.5),), tracks=((0.3, ((54.5, 6.6), (54.5, 7.5))),)),
+    dict(net="GND", pads=("R18.2",), vias=((58.2, 8.0),), tracks=((0.3, ((58.2, 8.9), (58.2, 8.0))),)),
+    dict(net="EPD_SW", pads=("L2.2", "Q1.3", "D2.2", "C26.1"), vias=((50.1, 9.1), (49.3, 9.9)), tracks=(
+        (0.3, ((51.8, 4.0), (52.4, 4.0), (52.4, 3.7), (52.7, 3.4), (54.7, 3.4), (55.6, 4.3), (55.6, 4.6))),
+        (0.3, ((55.6, 4.6), (55.6, 5.8), (56.5, 6.7), (56.5, 7.8), (56.8, 8.1), (56.8, 8.8))),
+        (0.2, ((51.8, 4.0), (51.2, 4.0), (50.4, 4.8), (50.4, 8.8), (50.1, 9.1))),
+        (0.2, ((50.1, 9.1), (49.3, 9.9)), "bottom"),
+        (0.2, ((49.3, 9.9), (49.3, 11.0))),
+    )),
+    dict(net="EPD_GDR", pads=("Q1.1", "R18.1", "J5.23"), tracks=(
+        (0.2, ((53.8, 3.95), (53.8, 4.2), (54.3, 4.7), (54.6, 4.7), (54.7, 4.8), (54.7, 5.4), (55.1, 5.8), (55.1, 8.8),
+               (56.0, 9.7), (56.9, 9.7), (58.2, 11.0), (58.7, 11.5), (59.9, 11.5))),
+        (0.2, ((58.2, 9.9), (58.2, 11.0))),
+    )),
+)
+PREROUTED = PREROUTED + BOOST
+# The buck converter's two ground connections get two vias each, drawn by hand (2026-11-23): the
+# converter's ground pin with the input capacitor C1, and the output capacitor C2. On revision
+# 1.0 each of the two patches of top pour they sit in had two vias; on revision 2.0's denser
+# board the router's single via per patch was all that was left, a single point of failure for
+# the 3.3 V supply. The link from the ground pin to C1 is the one from PREROUTED above.
+BUCK_GND = (
+    dict(net="GND", pads=("U2.1", "C1.2"), vias=((37.1, 15.2), (37.1, 16.3)), tracks=(
+        (0.3, ((36.5, 15.7), (36.5, 16.2), (36.3, 16.4), (35.2, 16.4), (35.0, 16.6), (35.0, 16.9), (34.6, 17.3),
+               (33.9, 17.3))),
+        (0.3, ((36.5, 15.7), (36.5, 15.3), (36.6, 15.2), (37.1, 15.2))),
+        (0.3, ((36.5, 16.2), (36.6, 16.3), (37.1, 16.3))),
+    )),
+    dict(net="GND", pads=("C2.2",), vias=((33.2, 9.0), (33.4, 10.2)), tracks=(
+        (0.4, ((34.1, 9.0), (33.2, 9.0))),
+        (0.4, ((34.1, 9.0), (34.1, 9.9), (33.8, 10.2), (33.4, 10.2))),
+    )),
+)
+PREROUTED = tuple(g for g in PREROUTED if not (g["net"] == "GND" and g["pads"] == ("U2.1", "C1.2"))) + BUCK_GND
 # Three ground test pads get their way into the pours drawn by hand, so that their via does not sit
 # against the pad or under its label (2026-11-22, Norman): the router puts it right beside the pad.
 # TP4 (middle) moves 0.8 mm down, its via 1 mm above its edge; TP13 (top, by the boost converter)
@@ -737,22 +831,50 @@ SILK_LABELS = SILK_LABELS + tuple((name, round(50.4 + 1.6 * i, 2), 26.62, 0.8, 9
 # connector to below R5; the router joins its ends. Left to the router it found no way through.
 SENS_EN_FEED = (dict(net="/SENS_EN", tracks=((0.2, ((38.6, 32.6), (64.6, 32.6)), "bottom"),)),)
 
-# Ground stitching vias (route_board.py adds them after routing): a uniform 5 mm grid over the
-# pours, plus single rows where the ground return matters (x0, y0, x1, y1, pitch): the strip
-# between the slots, across both ends of the FPC slot, along the antenna keep-out, and round the
-# boost converter's grounds. (A first version was denser round the display connector too; that
-# was more than needed, decided 2026-11-22.)
+# Ground stitching vias (route_board.py adds them after routing, so they never block a track):
+# one per 5 mm cell over the pours, at the cell's grid point if a via fits there, otherwise at the
+# free spot nearest to it in that cell, looked for on a 0.5 mm raster (2026-11-23, Norman: a
+# stitching pass over the whole board). Before that only the 5 mm grid points were tried, with
+# extra rows at 1.5 to 2.5 mm pitch in four places; a crowded board left 77 of 98 grid points
+# empty, so the vias stood in a block in the empty area left of the FPC slot and hardly anywhere
+# else. Tried on the routed board: falling back to a 2.5 mm grid only gave 30 vias, with 1.25 mm
+# added 35, the nearest free spot on a 0.5 mm raster 48 (0.25 mm: 53, not worth the odd positions).
+# No stitching via stands within 2 mm of another ground via, and none off its grid point within
+# 3.5 mm of another stitching via. The cells that stay empty lie under the ESP32 module and the
+# USB connector, where no via may go, and where both layers are full of tracks. The strip between
+# the slots, which carries the sensor island's ground return, gets its vias by the same rule.
 STITCH_PITCH = 5.0
+STITCH_SUBGRID = 0.5          # raster on which a blocked grid point's nearest free spot is looked for
+STITCH_CLEAR = 2.0            # from every other ground via
+STITCH_APART = 3.5            # between a via off its grid point and any other stitching via
+STITCH_EXTRA = ()             # no extra rows any more
+# Spots tried first for the cell they lie in when the cell's own grid point is blocked. One: the
+# grid point (72.7, 11.0) lies in the FPC slot, and the nearest free spot is 0.7 mm beside the slot,
+# off the middle of the strip and out of line with the bridge's ground via below it.
+STITCH_PREFER = ((STRIP_X, 11.0),)
+# Stitching vias also stand under the ESP32 module, between its pad rows (2026-11-23, Norman):
+# the router keeps tracks and its own vias out from under the module, but the top layer there
+# is ground pour throughout and until now only the twelve vias of the module's ground pad tied
+# it to the bottom layer, all in one spot. The antenna keep-out stays as it is.
+STITCH_UNDER_MODULE = True
+# Patches of pour that tracks close off and that hold no ground copper are left out of the pour by
+# KiCad (island removal): 78 on the top layer and 15 on the bottom of the board of 2026-11-23,
+# 206 mm2 together, among them the strips kept for ground between the display lines. After
+# KiCad's fill, tie_patches() gives every such patch of at least PATCH_MIN_AREA (mm2) one via
+# where it lies over connected pour of the other layer, so the copper stays (2026-11-23, Norman:
+# connect them instead of dropping them). 0 switches that off. Patches where no via fits stay
+# left out: those narrower than a via, and those with no connected ground on the other layer.
+# A long patch tied at one spot only is a stub of ground. So a patch then gets further vias until
+# no spot of it where a via fits lies more than PATCH_REACH from one of its vias (0: one via per
+# patch only).
+PATCH_MIN_AREA = 1.0
+PATCH_REACH = 5.0
+PATCH_VIA_EDGE = 0.3          # from the via's centre to the edge of the copper it stands in, both layers: the via lies wholly in ground copper
+PATCH_VIA_SPACING = 0.9       # between the centres of a patch via and any other via
+PATCH_VIA_PAD = 0.5           # from the via's edge to any pad, as for the stitching vias
 # Start order of the router (route_board.py, `seed`): 0 = shortest connection first. Found by
 # trying several with --seed=N; the one kept routes this board completely.
 ROUTE_SEED = 7
-STITCH_EXTRA = (
-    (75.35, 0.8, 75.35, 33.2, 1.5),     # the strip between the FPC slot and the sensor slot
-    (66.5, 9.2, 75.5, 9.2, 1.5),        # across the top end of the FPC slot
-    (66.5, 24.4, 75.5, 24.4, 1.5),      # across the bottom end
-    (7.7, 1.0, 7.7, 33.0, 2.0),         # along the antenna keep-out
-    (47.6, 1.0, 58.3, 16.0, 2.5),       # round the boost converter's grounds
-)
 
 
 def P(x, y):
@@ -843,6 +965,248 @@ def stitch_avoid():
         if ref.startswith("TP"):
             out.append((x - 1.5, y - 1.5, x + 1.5, y + 1.5))
     return out
+
+
+def usb_body():
+    """The USB connector's shell, from just behind its row of pads to the board edge: no track and
+    no via under it, on either layer."""
+    x, y = PLACEMENT["J1"][:2]
+    return (x - 4.6, y - 3.3, x + 4.6, H)
+
+
+def _pour_pieces(board_file):
+    """The ground pours' filled copper as KiCad stored it: {layer name: [piece]}. A piece is one
+    connected area of copper: dict(area in mm2, box, rows), `rows` holding the edge segments of its
+    outline and of its holes by the millimetre rows of y they pass through, in board millimetres."""
+    board = pcbnew.LoadBoard(str(board_file))
+    out = {}
+    for zone in board.Zones():
+        if zone.GetIsRuleArea():
+            continue
+        for layer in zone.GetLayerSet().Seq():
+            polys = zone.GetFilledPolysList(layer)
+            pieces = out.setdefault(board.GetLayerName(layer), [])
+            for i in range(polys.OutlineCount()):
+                chains = [polys.Outline(i)] + [polys.Hole(i, h) for h in range(polys.HoleCount(i))]
+                area = abs(chains[0].Area()) - sum(abs(c.Area()) for c in chains[1:])
+                rows = {}
+                x0 = y0 = float("inf")
+                x1 = y1 = -float("inf")
+                for n, chain in enumerate(chains):
+                    ring = [(pcbnew.ToMM(chain.CPoint(k).x) - ORIGIN[0], pcbnew.ToMM(chain.CPoint(k).y) - ORIGIN[1])
+                            for k in range(chain.PointCount())]
+                    if n == 0:
+                        x0, y0 = min(q[0] for q in ring), min(q[1] for q in ring)
+                        x1, y1 = max(q[0] for q in ring), max(q[1] for q in ring)
+                    for (ax, ay), (bx, by) in zip(ring, ring[1:] + ring[:1]):
+                        for row in range(int(min(ay, by) // 1), int(max(ay, by) // 1) + 1):
+                            rows.setdefault(row, []).append((ax, ay, bx, by))
+                pieces.append(dict(area=area / 1e12, box=(x0, y0, x1, y1), rows=rows))
+    return out
+
+
+def _edge_distance(pt, piece, near):
+    """Distance from pt to the nearest edge of the piece's copper, or `near` if none is that close."""
+    x, y = pt
+    best = near
+    for row in range(int((y - near) // 1), int((y + near) // 1) + 1):
+        for ax, ay, bx, by in piece["rows"].get(row, ()):
+            if min(ax, bx) - best > x or max(ax, bx) + best < x or min(ay, by) - best > y or max(ay, by) + best < y:
+                continue
+            dx, dy = bx - ax, by - ay
+            length2 = dx * dx + dy * dy
+            t = 0.0 if length2 == 0 else max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / length2))
+            best = min(best, ((x - ax - t * dx) ** 2 + (y - ay - t * dy) ** 2) ** 0.5)
+    return best
+
+
+def _in_piece(pt, piece, margin):
+    """Does pt lie in the piece's copper, at least `margin` from the copper's edge?"""
+    x, y = pt
+    x0, y0, x1, y1 = piece["box"]
+    if not (x0 + margin <= x <= x1 - margin and y0 + margin <= y <= y1 - margin):
+        return False
+    inside = False                              # even-odd over outline and holes together
+    for ax, ay, bx, by in piece["rows"].get(int(y // 1), ()):
+        if (ay > y) != (by > y) and x < (bx - ax) * (y - ay) / (by - ay) + ax:
+            inside = not inside
+    return inside and _edge_distance(pt, piece, margin) >= margin
+
+
+def tie_patches(board_file, report):
+    """Tie the patches of ground pour that KiCad leaves out for want of a connection to ground;
+    see PATCH_MIN_AREA and PATCH_REACH. This works on KiCad's own fill: the patches are what a
+    fill that keeps every piece has more than the board's.
+
+    A via stands where both layers have copper round it (PATCH_VIA_EDGE from its centre to the
+    copper's edge; that edge keeps the pour's clearance from every other net), the other layer's
+    copper being joined to ground already, PATCH_VIA_SPACING from every other via, PATCH_VIA_PAD
+    from every pad, not under the USB connector or a silkscreen label and not within 1 mm of a
+    test pad. Spots are looked for every 0.1 mm, in strips hardly wider than a via every 0.05 mm.
+
+    A patch gets its first via at the fitting spot deepest inside it, then further ones, each at
+    the fitting spot furthest from those it has, until none is further than PATCH_REACH from one
+    of them. A patch tied in one round can carry the via of a patch of the other layer in the next.
+
+    Returns (patches tied, further vias, patches still left out, their area in mm2)."""
+    from route_board import VIA_DIAMETER, VIA_DRILL
+    record_file = state_file(board_file)
+    avoid = stitch_avoid() + [usb_body()]
+    step = 0.1
+    scratch = HW / "build" / (Path(board_file).stem + ".allpour.kicad_pcb")
+    tied = further = 0
+    left = []
+
+    def key(q):
+        return (round(q["area"], 3), tuple(round(v, 2) for v in q["box"]))
+
+    for round_ in range(7):
+        kept = _pour_pieces(board_file)
+        board = pcbnew.LoadBoard(str(board_file))
+        for zone in board.Zones():
+            if not zone.GetIsRuleArea():
+                zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_NEVER)
+        pcbnew.SaveBoard(str(scratch), board)
+        subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--format", "json",
+                        "-o", str(scratch.with_suffix(".json")), str(scratch)], check=True, capture_output=True)
+        every = _pour_pieces(scratch)
+        left = []
+        for layer, other in (("F.Cu", "B.Cu"), ("B.Cu", "F.Cu")):
+            have = {key(q) for q in kept.get(layer, [])}
+            left += [(q, other) for q in every.get(layer, []) if key(q) not in have]
+        if round_ == 6:
+            break
+        # the board itself, as it is on disk (the copy above only served to find the patches)
+        board = pcbnew.LoadBoard(str(board_file))
+        vias = [(pcbnew.ToMM(t.GetPosition().x) - ORIGIN[0], pcbnew.ToMM(t.GetPosition().y) - ORIGIN[1])
+                for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+        pads = []
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                bb = pad.GetBoundingBox()
+                pads.append((pcbnew.ToMM(bb.GetLeft()) - ORIGIN[0], pcbnew.ToMM(bb.GetTop()) - ORIGIN[1],
+                             pcbnew.ToMM(bb.GetRight()) - ORIGIN[0], pcbnew.ToMM(bb.GetBottom()) - ORIGIN[1]))
+        new = []
+        for patch, other in sorted(left, key=lambda q: (-q[0]["area"], q[0]["box"])):
+            if patch["area"] < PATCH_MIN_AREA:
+                continue
+            x0, y0, x1, y1 = patch["box"]
+            # where the via lies wholly in the patch's copper: every 0.1 mm, and where that just
+            # misses (the middle of a strip hardly wider than a via) 0.05 mm beside it
+            room = set()
+            for j in range(int(y0 / step), int(y1 / step) + 2):
+                for i in range(int(x0 / step), int(x1 / step) + 2):
+                    pt = (round(i * step, 3), round(j * step, 3))
+                    if not _in_piece(pt, patch, 0.0):
+                        continue
+                    depth = _edge_distance(pt, patch, PATCH_VIA_EDGE)
+                    if depth >= PATCH_VIA_EDGE:
+                        room.add(pt)
+                    elif depth >= PATCH_VIA_EDGE - 0.75 * step:
+                        room.update(q for q in ((round(pt[0] + dx * step / 2, 3), round(pt[1] + dy * step / 2, 3))
+                                                for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+                                    if _in_piece(q, patch, PATCH_VIA_EDGE))
+            spots = []
+            for pt in sorted(room, key=lambda q: (q[1], q[0])):
+                if any(a[0] - VIA_DIAMETER / 2 < pt[0] < a[2] + VIA_DIAMETER / 2 and a[1] - VIA_DIAMETER / 2 < pt[1] < a[3] + VIA_DIAMETER / 2 for a in avoid):
+                    continue
+                if any((pt[0] - v[0]) ** 2 + (pt[1] - v[1]) ** 2 < PATCH_VIA_SPACING ** 2 for v in vias + new):
+                    continue
+                if any(max(q[0] - pt[0], 0, pt[0] - q[2]) ** 2 + max(q[1] - pt[1], 0, pt[1] - q[3]) ** 2 < (VIA_DIAMETER / 2 + PATCH_VIA_PAD) ** 2 for q in pads):
+                    continue
+                if not any(_in_piece(pt, q, PATCH_VIA_EDGE) for q in kept.get(other, [])):
+                    continue
+                spots.append(pt)
+            if not spots:
+                continue
+            own = [max(spots, key=lambda q: (round(_edge_distance(q, patch, 3.0), 3), -q[1], -q[0]))]
+            tied += 1
+            while PATCH_REACH:
+                free = [q for q in spots if all((q[0] - v[0]) ** 2 + (q[1] - v[1]) ** 2 >= PATCH_VIA_SPACING ** 2 for v in own)]
+                pt = max(free, key=lambda q: (round(min((q[0] - v[0]) ** 2 + (q[1] - v[1]) ** 2 for v in own), 4), -q[1], -q[0]), default=None)
+                if pt is None or min((pt[0] - v[0]) ** 2 + (pt[1] - v[1]) ** 2 for v in own) <= PATCH_REACH ** 2:
+                    break
+                own.append(pt)
+                further += 1
+            new += own
+        if not new:
+            break
+        gnd = board.FindNet("GND")
+        for x, y in new:
+            via = pcbnew.PCB_VIA(board)
+            via.SetViaType(pcbnew.VIATYPE_THROUGH)
+            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            via.SetPosition(P(x, y))
+            via.SetDrill(FromMM(VIA_DRILL))
+            try:
+                via.SetWidth(pcbnew.F_Cu, FromMM(VIA_DIAMETER))
+            except TypeError:
+                via.SetWidth(FromMM(VIA_DIAMETER))
+            via.SetNet(gnd)
+            board.Add(via)
+        pcbnew.SaveBoard(str(board_file), board)
+        record = json.loads(record_file.read_text()) if record_file.exists() else {}
+        record["stitched"] = [list(v) for v in record.get("stitched", [])] + [list(v) for v in new]
+        record["patched"] = [list(v) for v in record.get("patched", [])] + [list(v) for v in new]
+        record_file.write_text(json.dumps(record, indent=1))
+        subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--severity-all", "--format", "json",
+                        "-o", str(report), str(board_file)], check=True, capture_output=True)
+    for junk in (scratch, scratch.with_suffix(".json"), scratch.with_suffix(".kicad_pro"), scratch.with_suffix(".kicad_prl")):
+        junk.unlink(missing_ok=True)
+    return tied, further, len(left), sum(q["area"] for q, _ in left)
+
+
+def fill_pours(board_file):
+    """Fill the ground pours with KiCad's own filler and store the result in the board, then tie
+    the patches of pour that nothing connects to ground (tie_patches). The stitching vias are
+    placed on the router's estimate of the pours, the patch vias on the fill itself; where KiCad's
+    fill then does not reach one of them on both layers (it reports the via as dangling or
+    unconnected), that via is taken out again and the pours are filled once more. Only these vias
+    are ever removed: a part's ground via left hanging stays in the board for check_pcb.py to
+    report. Returns the number of vias taken out."""
+    # (one report per board: several seeds are filled at the same time)
+    report = HW / "build" / (Path(board_file).stem + ".fill.json")
+    record = state_file(board_file)
+
+    def fill():
+        subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--severity-all", "--format", "json",
+                        "-o", str(report), str(board_file)], check=True, capture_output=True)
+
+    def prune():
+        removed = 0
+        for _ in range(5):
+            stitched = {(round(x, 3), round(y, 3)) for x, y in (json.loads(record.read_text()).get("stitched", []) if record.exists() else [])}
+            drc = json.loads(report.read_text(encoding="utf-8"))
+            loose = set()
+            for v in [v for v in drc.get("violations", []) if v.get("type") == "via_dangling"] + drc.get("unconnected_items", []):
+                for item in v.get("items", []):
+                    pos = item.get("pos")
+                    if pos and "Via" in item.get("description", ""):
+                        at = (round(pos["x"] - ORIGIN[0], 3), round(pos["y"] - ORIGIN[1], 3))
+                        if at in stitched:
+                            loose.add(at)
+            if not loose:
+                break
+            board = pcbnew.LoadBoard(str(board_file))
+            for t in list(board.GetTracks()):
+                if t.GetClass() == "PCB_VIA" and (round(pcbnew.ToMM(t.GetPosition().x) - ORIGIN[0], 3),
+                                                  round(pcbnew.ToMM(t.GetPosition().y) - ORIGIN[1], 3)) in loose:
+                    board.Remove(t)
+                    removed += 1
+            pcbnew.SaveBoard(str(board_file), board)
+            fill()
+        return removed
+
+    fill()
+    removed = prune()
+    if PATCH_MIN_AREA:
+        tied, further, left, left_area = tie_patches(board_file, report)
+        removed += prune()
+        print(f"{tied} patch(es) of pour tied to ground with a via, {further} further via(s) in patches reaching more than "
+              f"{PATCH_REACH:g} mm from their first; {left} patch(es) still left out of the pours, {left_area:.1f} mm2")
+    if removed:
+        print(f"{removed} stitching or patch via(s) taken out again: KiCad's fill does not reach them on both layers")
+    return removed
 
 
 def option(name):
@@ -941,8 +1305,7 @@ def seed_batch(spec):
         for ext in (".kicad_pcb", ".kicad_pro", ".kicad_prl"):
             Path(r["out"]).with_suffix(ext).unlink(missing_ok=True)
     t_fill = time.time()
-    subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--format", "json",
-                    "-o", str(HW / "build" / "drc.json"), str(BOARD_FILE)], check=True, capture_output=True)
+    fill_pours(BOARD_FILE)
     print(f"kept seed {best['seed']} ({best['open']} open, {best['vias']} vias, {best['track_mm']} mm) -> "
           f"{BOARD_FILE.name}; pours filled in {time.time() - t_fill:.0f} s; {time.time() - t0:.0f} s in total"
           + ("" if best["seed"] == ROUTE_SEED or keep is not None
@@ -1105,7 +1468,7 @@ def main():
     px0, py0, px1, py1 = PANEL
     sides = (((px0, py0), (px1, py0)), ((px1, py0), (px1, py1)), ((px0, py1), (px1, py1)),
              ((px0, py0), (px0, py1)))
-    tail_y = (PANEL_TAIL_Y - 6.25, PANEL_TAIL_Y + 6.25)
+    tail_y = FPC_SHOULDER                    # the tail's edges where it leaves the glass (its wide part)
     ticks = tuple(((px1 - 1.2, y), (px1, y)) for y in tail_y)
     back_pads = []
     for fp in board.GetFootprints():
@@ -1243,6 +1606,7 @@ def main():
         # Revision 2.0: the bus reaches the bridge from below, up the strip between the FPC
         # slot and the sensor slot, so each fixed track starts where its feed comes up.
         start_x = {name: x for name, _, x, _ in SENSOR_BUS}
+        start_x["GND"] = STRIP_X      # ground has no feed: its track starts, with its via, on the strip's centre line
         timing["placement"] = time.time() - t0 - timing.get("read previous board", 0.0)
         geo = dict(
             W=W, H=H,
@@ -1258,7 +1622,7 @@ def main():
                 (name, TONGUE_NECK_X[0] - 0.9, TONGUE_NECK_X[1] + 0.9 + 0.6 * k, y)
                 for k, (name, y) in enumerate(TONGUE_NECK_TRACKS)],
             # the connector's shell, from just behind its row of pads to the board edge
-            usb_body=(PLACEMENT["J1"][0] - 4.6, PLACEMENT["J1"][1] - 3.3, PLACEMENT["J1"][0] + 4.6, H),
+            usb_body=usb_body(),
             fixed_feeds=SENSOR_BUS_FEEDS,
             free_feeds=SENS_EN_FEED,
             thin_only=TONGUE_AREA,
@@ -1272,7 +1636,9 @@ def main():
             # the strip below the module's bottom pad row is where its pins escape; the trunk stays out of it
             no_trunk=[(6.9, ROW_BOTTOM + 0.75, MODULE[0] + 14.2, ROW_BOTTOM + 2.55)],
             solid_pour_pads={"J1", "J2", "U1", "U2", "U3", "U9"},
-            stitch_pitch=STITCH_PITCH, stitch_extra=STITCH_EXTRA, stitch_avoid=stitch_avoid(),
+            stitch_pitch=STITCH_PITCH, stitch_subgrid=STITCH_SUBGRID, stitch_clear=STITCH_CLEAR, stitch_apart=STITCH_APART,
+            stitch_extra=STITCH_EXTRA, stitch_avoid=stitch_avoid(), stitch_prefer=STITCH_PREFER,
+            stitch_under=(MODULE[0] - 12.75, ROW_TOP + 1.05, MODULE[0] + 12.75, ROW_BOTTOM - 1.05) if STITCH_UNDER_MODULE else None,
             via_avoid=list(LABEL_BOXES),      # no routed via under a label either (2026-11-22, Norman)
             via_cost=float(next((x.split('=')[1] for x in sys.argv[1:] if x.startswith('--via-cost=')), 30)),
             debug="--debug" in sys.argv[1:],
@@ -1284,7 +1650,8 @@ def main():
         timing.update(geo.get("timing", {}))
         (HW / "build").mkdir(exist_ok=True)
         state_file(out_file).write_text(json.dumps(dict(hand=route_board.hand_drawn_hashes(geo), seed=geo["seed"],
-                                                        reserved=route_board.reserved_areas(geo)), indent=1))
+                                                        reserved=route_board.reserved_areas(geo),
+                                                        stitched=geo.get("stitched", [])), indent=1))
 
     t_save = time.time()
     pcbnew.SaveBoard(str(out_file), board)
@@ -1299,8 +1666,7 @@ def main():
     if "--no-route" not in sys.argv[1:] and "--no-fill" not in sys.argv[1:]:
         # fill the ground pours with KiCad's own filler and store the result in the board
         t_fill = time.time()
-        subprocess.run([KICAD_CLI, "pcb", "drc", "--refill-zones", "--save-board", "--format", "json",
-                        "-o", str(HW / "build" / "drc.json"), str(out_file)], check=True, capture_output=True)
+        fill_pours(out_file)
         timing["pour fill"] = time.time() - t_fill
     timing["total"] = time.time() - t0
     print(f"{placed} parts placed, {len(nets)} nets, board {W} x {H} mm -> {out_file.name}")

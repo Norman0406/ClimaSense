@@ -49,7 +49,7 @@ RES = {  # value -> (LCSC, MPN)
     "15k": ("C25756", "0402WGF1502TCE"),
     "68k": ("C36871", "0402WGF6802TCE"),
     "100k": ("C25741", "0402WGF1003TCE"),
-    # revision 2.0, display boost circuit (checked at LCSC on 2026-11-22)
+    # revision 2.0, display boost circuit (checked at LCSC on 2026-11-22, at JLCPCB on 2026-11-23)
     "2.2R": ("C226973", "AC0402FR-072R2L"),
     "1M": ("C26083", "0402WGF1004TCE"),
 }
@@ -396,7 +396,7 @@ def build(lib: Library) -> Schematic:
     sch.power(sw_boot, "2", "GND")
 
     # Fallback serial port. If USB does not work there is otherwise no way to flash the board
-    # or to see its boot messages. Revision 2.0: three of KiCad's standard 1.5 mm test pads on the
+    # or to see its boot messages. Revision 2.0: three of KiCad's standard 1.0 mm test pads on the
     # component side instead of 1.0's header J3, whose holes would have come out under the display
     # panel (decided 2026-11-22). From the left on the board: GND, TX, RX.
     for i, net in enumerate(("GND", "UART_TX", "UART_RX")):
@@ -620,6 +620,8 @@ def build(lib: Library) -> Schematic:
     # The keys above are the panel's pin numbers. On the board the tail makes a U-turn
     # through its slot into the connector, which puts the panel's pin 1 on the connector's
     # pin 24 (see gen_pcb.py, "Revision 2.0"). The connector's pins are wired accordingly.
+    # Verified 2026-11-23 against the specification (drawing page 7, block diagram page 28) and
+    # Good Display's photos of the panel, which show the drawing's main view to be the display side.
     FPC_REVERSED = True
 
     def cpin(panel_pin):
@@ -647,10 +649,11 @@ def build(lib: Library) -> Schematic:
     # boost converter
     l2 = sch.add("Device:L", "L2", "47uH", 457.2, 53.34, 90,
                  # Good Display names NR3015 (3 x 3 mm), but those carry only 300 mA; this 4 x 4 mm
-                 # part is rated 720 mA. Footprint: Sunlord's SWPA4030S, which the APV part copies
-                 # (to be checked against APV's drawing).
+                 # part is rated 720 mA (saturation 950 mA). Sunlord's own SWPA4030S470MT, the part
+                 # KiCad's footprint was drawn for (2026-11-23: APV's copy APSWPA4030S470MTF, C5363795,
+                 # had no stock at JLCPCB; this one 6,400; its pads lie on JLCPCB's within 0.03 mm).
                  footprint="Inductor_SMD:L_Sunlord_SWPA4030S",
-                 fields={"LCSC": "C5363795", "MPN": "APSWPA4030S470MTF"},
+                 fields={"LCSC": "C54731", "MPN": "SWPA4030S470MT"},
                  ref_at=(-1.27, -2.54, "right"), value_at=(1.27, -2.54, "left"))
     lin = l2.pos(1)
     sch.wire(lin, (lin[0] - 7.62, lin[1]))
@@ -682,8 +685,10 @@ def build(lib: Library) -> Schematic:
                                           ("EPD_VGL", "EPD_PUMP"))):   # charge pump to PREVGL
         d = sch.add("Diode:MBR0530", f"D{i + 2}", "MBR0530", 495.3, 53.34 + i * 15.24, 0,
                     # onsemi part: Vf <= 430 mV at 0.5 A, as Good Display asks. JSCJ's MBR0530
-                    # (C77336) is cheaper but specifies 550 mV. LCSC number not yet confirmed.
-                    fields={"LCSC": "C232832", "MPN": "MBR0530T1G"})
+                    # (C77336) is cheaper but specifies 550 mV. C82046 is onsemi's MBR0530T1G at JLCPCB
+                    # (checked 2026-11-23: 166,000 in stock; the number used before, C232832, is another
+                    # maker's "MBR0530" with no stock).
+                    fields={"LCSC": "C82046", "MPN": "MBR0530T1G"})
         sch.label(d, "2", anode)
         if cathode == "GND":
             sch.power(d, "1", "GND")

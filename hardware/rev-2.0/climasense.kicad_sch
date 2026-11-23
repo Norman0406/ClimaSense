@@ -11780,7 +11780,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C232832"
+		(property "LCSC" "C82046"
 			(at 495.3 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -13357,7 +13357,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C232832"
+		(property "LCSC" "C82046"
 			(at 495.3 83.82 0)
 			(hide yes)
 			(show_name no)
@@ -15295,7 +15295,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C5363795"
+		(property "LCSC" "C54731"
 			(at 457.2 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -15306,7 +15306,7 @@
 				)
 			)
 		)
-		(property "MPN" "APSWPA4030S470MTF"
+		(property "MPN" "SWPA4030S470MT"
 			(at 457.2 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -17111,7 +17111,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C232832"
+		(property "LCSC" "C82046"
 			(at 495.3 53.34 0)
 			(hide yes)
 			(show_name no)

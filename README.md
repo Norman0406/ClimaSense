@@ -4,7 +4,7 @@
 
 An ESP32-based indoor environment sensor. It periodically measures temperature, humidity, CO2, VOC/NOx and air pressure and publishes the readings via MQTT. Wi-Fi is configured through a captive portal.
 
-The picture shows the latest revision, 2.0, which is still in design. All pictures here are renders of the KiCad design (`python hardware/rev-<N>/tools/gen_images.py`), not photographs.
+The picture shows the latest revision, 2.0, which is still in design. All pictures here are renders and plots of the KiCad design (`python hardware/rev-<N>/tools/gen_images.py`), not photographs.
 
 ## Revision 1.0
 
@@ -32,6 +32,12 @@ All parts sit on the side that faces the wall. The buttons and the status LED mo
 The panel sits on the back, the side that faces the room. Its flexible tail runs through a slot in the board into a connector on the component side:
 
 ![Revision 2.0 from the back, with the display panel in place](docs/images/rev-2.0/board-bottom.png)
+
+The copper of the two layers. Most tracks run on the component side; the back is mostly ground. Both are drawn as seen from the component side, the bottom layer through the board, so the two pictures line up:
+
+![Revision 2.0, top copper layer](docs/images/rev-2.0/copper-top.svg)
+
+![Revision 2.0, bottom copper layer, seen through the board](docs/images/rev-2.0/copper-bottom.svg)
 
 ## Contents
 
