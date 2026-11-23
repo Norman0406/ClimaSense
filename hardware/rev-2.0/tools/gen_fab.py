@@ -15,6 +15,13 @@ laying the pads of JLCPCB's footprint (EasyEDA data of the part number) over our
 parts on the board agreed without correction. JLCPCB's order page shows the parts placed on
 the board before you pay: check there that pin 1 of every chip is where the silkscreen
 shows it (see docs/hardware/ordering.md).
+
+Two values differ from revision 1.0's table. They come from JLCPCB's review of the revision 1.0
+order (2026-11-23), where the engineer changed the placement of exactly these parts:
+  - SOT-23-5 (C404027): JLCPCB's assembly data draws this part with pins 1-2-3 along the bottom
+    ("...-BL"), the EasyEDA data of the part number with pins 1-2-3 up the right side ("...-BR").
+    The first one is what the part is placed by, so the rotation to add is 270, not 180.
+  - USB-C connector: the engineer put its centre 0.064 mm nearer the board edge.
 """
 import csv
 import math
@@ -36,9 +43,9 @@ LAYERS = "F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts"
 # footprint's own frame: x to the right, y down, in mm, footprint not rotated)
 CORRECTIONS = {
     "SOT-23-6": (270, (0.0, 0.0)),                                      # U1  (C7519)
-    "SOT-23-5": (180, (0.0, 0.0)),                                      # U3, U9  (C404027)
+    "SOT-23-5": (270, (0.0, 0.0)),                                      # U3, U9  (C404027)
     # KiCad's origin is between the locating pegs, JLCPCB's in the middle of the pads
-    "USB_C_Receptacle_HRO_TYPE-C-31-M-12": (0, (0.0, -1.571)),          # J1  (C165948)
+    "USB_C_Receptacle_HRO_TYPE-C-31-M-12": (0, (0.0, -1.507)),          # J1  (C165948)
     "JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal": (0, (0.0, -0.062)),   # J2  (C160404)
     # our origin is the middle of the module, JLCPCB's the middle of its pads (no antenna)
     "ESP32-C6-WROOM-1": (0, (0.0, 2.995)),                              # U4  (C5366877)

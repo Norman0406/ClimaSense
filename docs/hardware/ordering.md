@@ -77,6 +77,19 @@ The rotation and centre of J1, J2, U1, U3, U4 and U9 are corrected in the placem
 
 If anything looks wrong and you cannot tell why, stop there. Nothing is charged until the order is placed.
 
+## After the review: confirming the placement
+
+After its review JLCPCB places the parts again itself and asks for the result to be confirmed: order history → "Confirm Parts Placement". The page shows the parts as the engineer placed them, with a magenta dot on pin 1 of each; "Show Revised Items" under the picture lists the parts whose rotation the engineer changed. Go through the table above once more there. On 2026-11-23 the order page showed a countdown ("please confirm parts placement within 2d19h, or your order will be produced directly"), so do not count on the order waiting.
+
+**First order (checked 2026-11-23):** 49 parts placed, none left out; J3, J4 and the test pads are not in the list. The engineer changed two things, and both are right:
+
+- **U3 and U9 (regulators): rotation 270° → 0°.** The parts are not turned on the board. JLCPCB has two drawings of this part (C404027): the EasyEDA data of the part number has pins 1-2-3 up the right side ("…-BR"), the data the part is placed by has them along the bottom ("…-BL"), a quarter turn apart. `CORRECTIONS` was measured against the first. In the second, 0° is exactly how U3 and U9 sit on the board, pin 1 at the bottom left.
+- **J1 (USB-C): moved 0.064 mm** towards the board edge.
+
+The other 46 parts were left exactly as in the placement file. This was checked in the picture and in the numbers: the page loads the engineer's position and rotation of every part, and JLCPCB's footprints laid over the board's pads at those values match pin for pin.
+
+Another order of revision 1.0 from the same files will come back with the same two changes; that is expected. Revision 2.0's `gen_fab.py` has both values taken over (SOT-23-5: 270 instead of 180; USB-C centre −1.507 instead of −1.571 mm), so its placement should come back unchanged.
+
 ## Cost and import (Switzerland)
 
 **Ordered on 2026-11-20** with the settings on this page: 187.64 USD paid, which is the quote below plus shipping, less a 30 USD coupon. The order then waits for JLCPCB's file review and for the placement drawing to be approved in the order history.
