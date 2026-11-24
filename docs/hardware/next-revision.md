@@ -182,6 +182,33 @@ A 0.91" OLED breakout with a Qwiic connector (for example SparkFun's 128 × 32) 
 - The boost circuit against the panel datasheet, and the full LS011B7DH03 datasheet.
 - The OLED and TFT heat figures are estimates, not datasheet values.
 
+## 7. Parts on the room side of the board
+
+Raised on 2026-11-24 (Norman). **Not decided.** On revision 2.0 every part faces the wall and only the panel faces the room ([`rev-2.0.md`](rev-2.0.md)). The idea: put the buttons and the LED, and perhaps the sensors, on the room side as well. **Short answer: for buttons and LED the gain is small and the board has to grow; for the sensors the gain may be real but is not measured, and it ends assembly on a hot plate. Measure on a 1.0 board first** (measurement 7 below).
+
+What holds for any part on the room side:
+
+- **Assembly at home.** The hot plate needs a bare, flat back. With parts on both sides, the second side is done with hot air or an iron, or the board goes into a small reflow oven. A second stencil is needed.
+- **Assembly at JLCPCB.** Two-sided assembly repeats the fixed fees for the second side and, as far as known, needs the standard service instead of the economic one. **Not checked** against JLCPCB's current terms.
+- **Scripts.** `gen_pcb.py` places every part on one side; `gen_fab.py` has no placement corrections for parts on the bottom side (JLCPCB counts their rotation differently); `check_pcb.py` renders the top only. The router already reads pads per layer.
+- **Nothing under the panel.** The panel lies flat on the room side from x 10.8 to 70.0 and y 2.4 to 31.6.
+
+### Buttons and LED
+
+- **There is no room for them.** The panel leaves 2.4 mm above and below it. Left of it is the antenna, right of it the FPC slot, the strip for the sensor bus and the sensor island. So the board grows by about 5 to 6 mm in height for a strip above the panel, or in length; or the panel becomes the 1.54" one.
+- **Gain:** a simpler case. A flexible tab and a window in its front, instead of a plunger from the top onto the side-push buttons and a light pipe for the LED.
+- **Soldering:** both part types can be soldered by hand after the hot-plate pass, so this alone keeps home assembly possible.
+- The top-edge arrangement of 2.0 already works without any of this, and the display takes over most of the LED's job.
+
+### Sensors
+
+- **What it might gain.** The sensors would see room air directly, not the air in the gap between board and wall, which follows the wall's temperature on an outside wall. The board would also stand between them and the warm air that rises from the ESP32 and the regulators. How much the wall side costs is not known.
+- **The SCD41 allows one reflow pass, no hand soldering and no added flux** ([`ordering.md`](ordering.md)). On a hot plate the sensor side would have to be the side soldered on the plate, which leaves the ESP32, the USB connector and the regulators for hot air. In practice: a reflow oven, or boards assembled at JLCPCB with the sensor side soldered last.
+- **The island is laid out again.** A part moved to the other side is mirrored. The hand-drawn copper of the island (the SCD41's supply link past its vent hole, the order of the tracks on the bridge and in the tongue's neck) has to be redone, and the 1.0 boards no longer prove the island's layout, only its circuit.
+- **Light.** The SGP41 must not sit in bright light. Facing the wall it is shaded for free; facing the room the case needs a front grille that lets air through and no light.
+- **Depth.** The SCD41 is 6.5 mm high, the panel 1.0 mm. The case's front is stepped, or the display sits about 5 mm behind it.
+- **Route B of [section 5](#5-should-the-board-be-more-modular)** gets to the same place another way: a separate sensor board can face the room whatever the controller board does.
+
 ## Smaller items noticed along the way
 
 - **Status LED on 3.3 V.** The calculation in [`schematic.md`](schematic.md) covers a typical LED. A green or blue LED at the top of its forward-voltage range would be dim or dark on 3.3 V. If that shows up on the first boards, feed the green and blue LEDs from 5 V (their anodes are separate pads) or choose an LED specified with a lower maximum forward voltage.
@@ -201,3 +228,4 @@ A 0.91" OLED breakout with a Qwiic connector (for example SparkFun's 128 × 32) 
 4. Whether `SENS_EN` is ever needed in practice to recover a sensor.
 5. LED brightness per colour.
 6. The 5 V rail at the regulators while a live USB-A-to-C cable is plugged in (oscilloscope, single shot): the peak must stay below 6.0 V.
+7. The same board hung both ways on the same wall: parts facing the room, and parts facing the wall on spacers of about a centimetre. Compare the SHT45 against the reference thermometer, how fast temperature, humidity and CO2 follow a change in the room (a window opened), and the Wi-Fi signal strength. This decides [section 7](#7-parts-on-the-room-side-of-the-board) for the sensors and answers revision 2.0's open question about the antenna facing the wall.
