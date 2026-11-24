@@ -211,7 +211,7 @@ What holds for any part on the room side:
 
 ### Variant: the board turned round, the panel above the parts
 
-Raised on 2026-11-24 (Norman). **Not decided.** The parts face the room again, as on revision 1.0, and the panel sits on the same side, above the parts of the controller side. Of the ways to get the sensors facing the room this is the one that keeps the board one-sided. No note was found that it was considered when the flip was chosen on 2026-11-22.
+Raised on 2026-11-24 (Norman), who wants to go this way and have the board changed for it. **The board is not changed yet**; how the panel is carried is open, see [Case concept](#case-concept-frame-flat-front-bezel-2026-11-24). The parts face the room again, as on revision 1.0, and the panel sits on the same side, above the parts of the controller side. Of the ways to get the sensors facing the room this is the one that keeps the board one-sided. No note was found that it was considered when the flip was chosen on 2026-11-22.
 
 What it solves:
 
@@ -219,20 +219,89 @@ What it solves:
 - **One-sided assembly stays**: a bare, flat back, one stencil, the hot plate.
 - **No FPC slot through the board.** The slot and the strip where the sensor bus runs round its end are not needed; the board gets a few millimetres shorter.
 - **The antenna faces the room**, not a wall a centimetre away.
-- **Depth.** The panel's face ends up about 4.5 mm above the board, 2 mm below the top of the SCD41 (6.5 mm), not 5.5 mm below it. The sensors need no gap to the wall, so the device gets thinner.
+- **Depth.** The panel's face ends up 4.5 to 5.75 mm above the board, close under the top of the SCD41 (6.5 mm) and not 5.5 mm below it, so one flat front can cover both. The sensors need no gap to the wall, so the device gets thinner.
 - The question whether the USB connector's shell legs stand proud under the panel goes away.
 
 What it costs:
 
-- **The panel needs a carrier.** The tallest parts under it are about 3.3 mm high (USB connector 3.26 mm, switches 3.3 mm, the ESP32 module and the boost inductor about 3 mm), so the panel's back is about 3.5 mm above the board. A printed frame on the board, or the case's front, has to hold the 1 mm glass over its whole area; on 2.0 it is taped to the bare back.
-- **The tail's path is new.** It would fold back under the panel into a connector below the panel's edge, on the same side. First estimate, **not checked against the specification**: about 3 mm of drop between the tail and the connector allow a bend of about 1.5 mm radius, gentler than the 0.5 mm bends round the slot's edges, and leave about 8 mm of the 14.3 mm for the straight run into the connector (6 mm of it stiffened). It needs the same check as 2.0's path ([`rev-2.0.md`](rev-2.0.md), FPC slot and connector): the fold has to begin beyond the glue, the panel's rotation and the pin order have to be derived again, and the panel has to be put on after the tail is plugged in.
+- **The panel needs a carrier.** The tallest parts under it are about 3.3 mm high (USB connector 3.26 mm, switches 3.3 mm, the ESP32 module and the boost inductor about 3 mm), so the panel's back is at least 3.5 mm above the board. A printed frame, or standoffs with a plate, has to carry the 1 mm glass; on 2.0 it is taped to the bare back.
+- **The tail's path is new**: it folds back under the panel into a connector below the panel's edge, on the same side. Checked against the specification on 2026-11-24, see [The tail's fold](#the-tails-fold-checked-2026-11-24): it fits, with more room than round the slot, if the panel's back is 3.5 to about 4.75 mm above the board. The pin order at J5 turns round.
 - **Buttons and LED gain nothing.** They are under or beside the panel, so the buttons stay side-push parts on the top edge with a plunger in the case.
 - **The test pads are under the panel.** They would move to the back as bare pads, which need no assembly.
 - **Warm air under the panel.** The ESP32 and the buck converter sit in a pocket behind the glass. The carrier has to let that air out upwards, away from the sensors. The panel is rated to 50 °C; not measured.
 - **The SGP41 needs shade**, as on revision 1.0 and as under [Sensors](#sensors) above.
 - **Revision 2.0 is reworked**: the display zone placed and routed again, the check before ordering repeated.
 
-Measurement 7 below comes first here too: if the sensors read as well facing the wall, revision 2.0 as it stands needs none of this.
+Measurement 7 below still shows what the sensors gain by facing the room. It is no longer the only reason: a flat front with the display and the sensors behind it needs this arrangement whatever the measurement says.
+
+#### The tail's fold (checked 2026-11-24)
+
+Against the GDEY0213B74 specification (pages 7 and 35, [`../datasheets/`](../datasheets/README.md)) and Good Display's usage guidelines with their two pictures of the tail (<https://www.good-display.com/news/80.html>). The path: the tail leaves the glass towards the sensor side, turns down in one half circle and runs back under the panel into J5, whose opening faces the fold as on 2.0.
+
+Taken as given: the panel's back 3.5 mm above the board (the tallest parts are 3.3 mm); the tail leaves the glass 0.5 mm above the panel's back, as in 2.0's model (the drawing does not dimension it); J5 takes the tail 1.15 mm above the board and 2.1 mm deep. The 1.15 mm are measured off the side view of Kinghelm's drawing 8.01A0-C (fetched again on 2026-11-24): it draws the gap between the upper and the lower contact but does not dimension it; scaled by the housing's 2.00 mm, the gap's middle lies 1.13 to 1.17 mm up. (`gen_models.py` draws the opening at 0.5 to 1.1 mm; 2.0's length check does not depend on that.) That is a drop of 2.85 mm.
+
+| Rule | Source | The fold |
+| --- | --- | --- |
+| Bend towards the panel's back, never towards its front | guidelines, picture "bending direction" | Towards the back, as on 2.0 |
+| No bend where glue may lie: 1.0 mm on the tail's back | specification page 35, item 12 | Begins 1.7 mm from the glass; 1.0 mm with every tolerance against it |
+| Bend radius above 0.5 mm | guidelines, picture "bending position" | 1.4 mm inside |
+| The last 6.0 ± 0.5 mm are stiff | page 7 | Straight: 2.1 mm in J5, the rest in front of it |
+| 14.30 ± 0.30 mm long | page 7 | The half circle needs 5.5 mm of the 8.3 mm that bend (7.5 mm at worst): 2.8 mm spare, 2.0 mm at worst. Round the slot of 2.0 it is 1.2 mm, 0.15 mm at worst |
+| Bend once, not a second time | guidelines, same picture | Plug in, close the lock, fold the panel down, leave it |
+
+- **J5's front edge about 4.3 mm inside the glass edge** (2.0: 5.0 mm), opening towards the fold; 3.0 mm with the panel's back at 4.6 mm. The fold hangs free, so spare length does not have to go anywhere: it starts later and stands further out. With all tolerances it begins 1.0 to 2.4 mm from the glass and reaches at most 4.3 mm beyond the glass edge.
+- **The panel's height is the figure that matters.** Every 0.1 mm more takes 0.16 mm of tail. Spare length, and what is left of it with every tolerance against it: 2.0 mm (1.2 mm) at 4.0 mm, 1.4 mm (0.6 mm) at 4.4 mm, 1.1 mm (0.3 mm) at 4.6 mm, 0.9 mm (0.1 mm) at 4.75 mm. At 5.0 mm the tail no longer makes a half circle with every tolerance against it, and the bending moves to the glue line and the stiffener's edge. So the panel's back has to lie between 3.5 mm (parts) and about 4.75 mm (tail) above the board, and J5's position is fixed only once the carrier's height is.
+- **The pin order turns round.** The tail has to leave towards the sensors, which is to the right seen from the room, so the panel is turned by 180° against the drawing's main view and its pin 1 is at the bottom. The fold keeps each contact's height, and J5 with its opening to the right has pin 1 at the bottom: panel pin N on connector pin N (`FPC_REVERSED` false; 2.0: 25 − N). The gate-drive pins are then at the bottom of J5 and the driving voltages at the top, the other way round than on 2.0, so the boost circuit and the capacitor row change places. The firmware turns the picture by 180°.
+- **The contacts face the board** after the fold, the stiffener faces the panel. J5 has contacts on both sides; this uses its lower row, 2.0 its upper.
+- **The lock of J5 lies under the panel.** The tail is plugged in and locked with the panel standing up, and the panel folded down onto its carrier afterwards.
+- **Free room for the fold:** from the glass edge to 4.3 mm beyond it, about 18 mm wide (the tail's 14.3 mm shoulder with 1.5 mm either side, as the slot of 2.0), from the board up to the panel. In front of J5, under the stiff end, nothing higher than about 0.5 mm. The carrier is open on that side.
+- **Not settled by the documents:**
+  - The guidelines' picture marks 1.0 to 1.5 mm between the glass edge and the outermost point of a tail that is wrapped tightly round the glass and stuck to its back. This fold is three times as wide and reaches 3.3 mm out. It keeps the three rules the picture gives a reason for (direction, radius, clear of the glue); whether Good Display minds a wider fold is a question for them.
+  - The tail narrows from its shoulder to 12.5 mm between 4.1 and 4.9 mm from the glass, inside the fold. On 2.0 the second bend ends just before it.
+  - The guidelines also ask for an electrically conductive frame between the panel and the board behind it, against interference. On 2.0 the panel lies on the board's ground pour; here it would lie on a printed carrier 3.5 mm or more above the ESP32 and the buck converter.
+
+#### Case concept: frame, flat front, bezel (2026-11-24)
+
+What Norman wants (2026-11-24): a **flat front**; the display behind a **bezel, as shallow as it can be made**; a separate printed **frame as a placeholder** between the board and the panel, with the front going on top and clamping the panel; a **wall in the case that separates the sensor area** from the rest; and the board changed to suit. Whether the panel is carried by a frame or by standoffs is open. Nothing of this is designed or drawn yet.
+
+The stack, with the frame at 4.6 mm:
+
+| Level | Above the board |
+| --- | --- |
+| Tallest part under the frame (switches) | 3.3 mm |
+| Top of the frame, back of the panel | 4.6 mm |
+| Face of the panel, where the front clamps it | 5.6 mm |
+| Top of the SCD41 | 6.5 mm |
+| Outer surface of the front, flat over the whole device | 7.2 mm |
+
+- **Only the controller side has to fit under the frame**, and everything there is 3.3 mm or lower. The SCD41 stands on the sensor island, beside the panel.
+- **The front is stepped on the inside only**: over the panel it reaches down to the glass, over the sensor island it clears the SCD41 and carries the grille.
+- **The display cannot be level with the front.** The tail holds the panel's face at 5.75 mm or lower ([The tail's fold](#the-tails-fold-checked-2026-11-24)); the SCD41 holds the front at 6.8 mm or higher.
+- **How deep the bezel is** follows from the frame's height and from what covers the SCD41:
+
+  | Over the SCD41 | Front's surface | Bezel, frame 4.4 mm | Frame 4.6 mm | Frame 4.75 mm |
+  | --- | --- | --- | --- | --- |
+  | Grille with an air gap (0.3 mm gap, 0.6 mm bars) | 7.4 mm | 2.0 mm | 1.8 mm | 1.65 mm |
+  | Thin bars close over the sensor (0.2 mm, 0.5 mm) | 7.2 mm | 1.8 mm | 1.6 mm | 1.45 mm |
+  | Open window, the sensor's top 0.3 mm below the surface | 6.8 mm | 1.4 mm | 1.2 mm | 1.05 mm |
+
+  A printed lip that clamps glass needs about 1 mm, so little more is to be had. The open window leaves the SCD41's membrane where a finger reaches it, and nothing may press on it. **4.6 mm with thin bars** is the working figure: 1.3 mm over the parts, 1.1 mm of spare tail (0.3 mm with every tolerance against it).
+- **Where the front may clamp.** The glass has about 2.7 mm of border round the picture on three sides and about 8 mm on the tail's side (off the drawing, page 7). Good Display forbids pressing on the driver chip and on the tail's bond, and on the picture itself; the load stays under 1 kg. So the lip clamps on three sides, with something soft between, and only covers the tail's side.
+- **The frame** is open on the tail's side (18 mm wide, the fold reaches up to 4.3 mm beyond the glass), leaves the plungers of the two buttons and the LED's light through, and lets the warm air under the panel out upwards.
+- **The case comes to about 107 × 38 mm** seen from the front with 2 mm walls round the 103 × 34 mm board; the board's length may still change.
+
+**Open, to be worked out with the board:**
+
+- **Frame or standoffs.** A frame that stands on the board needs spots free of parts to stand on and holes to locate it, and makes board, frame and panel one unit that works without the case. A frame that rests on the case's back beside the board needs nothing on the board, but the panel's height then depends on how the board sits in the case. Soldered standoffs would carry a plate, since glass cannot be screwed down; none has been looked up at JLCPCB.
+- **The wall round the sensor area.** It would stand at the island's slot, beyond the tail's fold, and has to leave the three bridges free. The sensor area must not become a closed pocket: the grille is its only exchange with the room.
+- **A conductive layer behind the panel**, which Good Display's guidelines ask for (see above).
+- **The tail's height where it leaves the glass** (0.5 mm above the panel's back, assumed): every 0.1 mm moves the limit of the frame's height by 0.1 mm. Only a real panel shows it.
+
+**Ways to a display level with the front, looked at and not followed** once a bezel was allowed:
+
+1. **A display board of its own**: 2.0's display zone as a second board, panel on its bare side, J5 and the boost circuit on the other, eight lines to the main board. The connection sets the panel's height freely, the panel lies on a ground pour, and the tail's path of 2.0 carries over as checked. It costs a second board design with its own fees and stencil, a connector pair, and aligning the two. Fits [section 5](#5-should-the-board-be-more-modular).
+2. **A vertical FPC connector on the main board**: the tail runs about 7 mm straight out and turns down once into it. Estimate, **not checked against a drawing**: the tail's stiff 6.0 ± 0.5 mm stand upright in the connector, so the panel's back is about 7.4 mm above the board and its face about 8.4 mm, taking the tail's end 0.6 mm above the board; the connector stands about 7 mm beyond the panel's edge and the board gets about 4 mm longer. Even then the tail's side is not level: the driver chip, its glue and the tail need a cover, which stands about 0.5 mm proud unless a clear sheet covers the whole front. In JLCPCB's parts library on 2026-11-24 (24 pins, 0.5 mm, for 0.3 mm tails, contacts on one side): Hirose FH12-24S-0.5SVA(54), C3169218, 9,706 in stock, 0.98 USD, 3.6 mm high, hinged lock; HDGC 0.5K-A-24PB, C2914148, 19,732, 0.14 USD, 4.5 mm, slide lock; XUNPU FPC-0.5AD-24PB, C3446062, 2,063, 0.26 USD, 3.9 mm, no lock.
+3. **A lower CO2 sensor**: the SCD41 is the only part above 3.3 mm. It was chosen for its accuracy ([`../decisions.md`](../decisions.md)); not reopened.
 
 ## Smaller items noticed along the way
 
