@@ -25,13 +25,15 @@ How the board is laid out and why: [`docs/hardware/layout.md`](docs/hardware/lay
 
 Revision 2.0 adds a 2.13" black-and-white e-paper panel and is 103 × 34 mm. **It is still being designed and has not been built or ordered.** Its notes: [`docs/hardware/rev-2.0.md`](docs/hardware/rev-2.0.md).
 
-All parts sit on the side that faces the wall. The buttons and the status LED move to the top edge, and the sensors keep their arrangement behind the slot:
+The parts face the room, as on revision 1.0. The panel lies above them, on a printed frame 4.6 mm above the board that is not designed yet; its flexible tail folds back under it into a connector. The picture at the top of this page shows the panel in place; the pictures below show the board without it.
 
-![Revision 2.0 from above (component side, facing the wall)](docs/images/rev-2.0/board-top.png)
+The panel covers everything from the module to the display connector. The buttons and the status LED are on the top edge, and the sensors keep their arrangement behind the slot:
 
-The panel sits on the back, the side that faces the room. Its flexible tail runs through a slot in the board into a connector on the component side:
+![Revision 2.0 from above, without the display panel](docs/images/rev-2.0/board-top.png)
 
-![Revision 2.0 from the back, with the display panel in place](docs/images/rev-2.0/board-bottom.png)
+The back carries no parts, only the test pads:
+
+![Revision 2.0 from the back](docs/images/rev-2.0/board-bottom.png)
 
 The copper of the two layers. Most tracks run on the component side; the back is mostly ground. Both are drawn as seen from the component side, the bottom layer through the board, so the two pictures line up:
 
@@ -50,7 +52,7 @@ The copper of the two layers. Most tracks run on the component side; the back is
 ## Status
 
 - **Hardware, revision 1.0:** schematic and board are finished and pass KiCad's rule checks; the order files for JLCPCB are in [`hardware/rev-1.0/fab/`](hardware/rev-1.0/fab/). Not manufactured yet, and not reviewed by a second person.
-- **Hardware, revision 2.0:** in design (e-paper display on the back); the board routes completely and passes KiCad's rule checks, but it is not finished and not ordered.
+- **Hardware, revision 2.0:** in design (e-paper display above the parts, on a frame); the board routes completely and passes KiCad's rule checks, but it is not finished and not ordered.
 - **Firmware:** in progress, and so far only built, not run on hardware. See [`firmware/README.md`](firmware/README.md) and [`docs/firmware/architecture.md`](docs/firmware/architecture.md).
 
 What was decided and why: [`docs/decisions.md`](docs/decisions.md). The component research behind it: [`docs/research/hardware-options.md`](docs/research/hardware-options.md).
