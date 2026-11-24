@@ -794,8 +794,10 @@ def run(board, origin, geo, log=print):
             by_net.setdefault(p["name"], []).append(p)
     island_x = bx1
     gnd_pads = by_net.pop("GND", [])
+    # A ground pad on the bottom layer alone (the test pads on the back) lies in the bottom pour
+    # and needs no track and no via: KiCad's fill joins it, and its check finds it if not.
     main_gnd = [p for p in gnd_pads if p["x"] <= island_x and p["smd"] and not any(p is q for q in epads)
-                and not gnd_kept_pad(p)]
+                and not gnd_kept_pad(p) and TOP in p["layers"]]
     groups = {name: plist for name, plist in by_net.items() if name not in kept_nets}
     if not kept_island:
         groups[ISLAND_GND] = [p for p in gnd_pads if p["x"] > island_x]
@@ -1072,6 +1074,18 @@ def run(board, origin, geo, log=print):
         length = math.hypot(b[0] - a[0], b[1] - a[1])
         return abs(math.hypot(pt[0] - a[0], pt[1] - a[1]) + math.hypot(b[0] - pt[0], b[1] - pt[1]) - length) < 1e-6
 
+    def near(pt, a, b, tol=0.055):
+        """`pt` lies on the track a-b or within half a grid step of its centre line. The router
+        joins a track to a hand-drawn one at the nearest grid node; where the hand-drawn track
+        follows a pin's centre line that is off the grid (the SCD41's supply link), that node is
+        up to 0.05 mm beside it. The copper overlaps and KiCad counts the two as joined, so the
+        tidy-up must not cut the joining track off as a dead end (2026-11-24: it did, on the
+        sensor island and at the boost converter, and the router did not notice)."""
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length2 = dx * dx + dy * dy
+        k = 0.0 if length2 < 1e-12 else max(0.0, min(1.0, ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / length2))
+        return math.hypot(pt[0] - a[0] - k * dx, pt[1] - a[1] - k * dy) <= tol
+
     def prune(tracks, vias):
         """Cut every track back to the last point where something is attached to it."""
         while True:
@@ -1109,12 +1123,12 @@ def run(board, origin, geo, log=print):
                 held = []
                 for j, o in enumerate(tracks):
                     if j != i and o[6] == net and o[4] == layer:
-                        held += [math.hypot(e[0] - a[0], e[1] - a[1]) for e in (o[0:2], o[2:4]) if touches(e, a, b)
-                                 or e == a or e == b]
+                        held += [min(length, math.hypot(e[0] - a[0], e[1] - a[1])) for e in (o[0:2], o[2:4])
+                                 if near(e, a, b)]
                         # the other track may also pass over one of this track's ends
-                        held += [d for e, d in ((a, 0.0), (b, length)) if touches(e, o[0:2], o[2:4])]
-                held += [math.hypot(v[0] - a[0], v[1] - a[1]) for v in vias
-                         if v[2] == net and (touches(v[0:2], a, b) or v[0:2] == a or v[0:2] == b)]
+                        held += [d for e, d in ((a, 0.0), (b, length)) if near(e, o[0:2], o[2:4])]
+                held += [min(length, math.hypot(v[0] - a[0], v[1] - a[1])) for v in vias
+                         if v[2] == net and near(v[0:2], a, b)]
                 steps = max(1, int(round(length / 0.05)))
                 # A pad holds the track at one point, the one nearest the pad's centre. A
                 # piece that only pokes into a pad and leads nowhere then counts as a dead
@@ -1147,8 +1161,12 @@ def run(board, origin, geo, log=print):
             def live(v):
                 if v[2] == gnd and v[0] < bx0:
                     return True                                       # joins the two ground pours
-                on = {t[4] for t in tracks if t[6] == v[2] and (touches(v[0:2], t[0:2], t[2:4])
-                                                                 or v[0:2] in (t[0:2], t[2:4]))}
+                on = {t[4] for t in tracks if t[6] == v[2] and near(v[0:2], t[0:2], t[2:4])}
+                # a pad of its net that the via stands in is copper on that layer too: the via
+                # under a test pad on the back joins the pad to a track on the top layer
+                on |= {layer for q in pads if q["net"] == v[2] for layer in q["layers"]
+                       if q["rect"][0] - 0.01 <= v[0] <= q["rect"][2] + 0.01
+                       and q["rect"][1] - 0.01 <= v[1] <= q["rect"][3] + 0.01}
                 return len(on) == 2
             kept = [v for v in vias if live(v)]
             if not changed and len(kept) == len(vias):
@@ -1159,6 +1177,51 @@ def run(board, origin, geo, log=print):
     tracks, vias = prune(tracks, vias)
     if (len(tracks), len(vias)) != before:
         log(f"  removed {before[0] - len(tracks)} dead-end track segments and {before[1] - len(vias)} vias")
+
+    # Joins beside a centre line. A track that the router ended on the grid node nearest to a
+    # hand-drawn track which is off the grid (see near()) stops up to 0.05 mm beside that
+    # track's centre line. Let it run on, or stop short, in its own direction until it meets the
+    # centre line exactly: a T-junction as it should look, and one that the audit's path check
+    # and the splitting at T-junctions below recognise (2026-11-24, Norman: connections should
+    # be clean).
+    def snap(tracks):
+        ends_at = {}
+        for t in tracks:
+            for e in (t[0:2], t[2:4]):
+                ends_at[(e, t[4], t[6])] = ends_at.get((e, t[4], t[6]), 0) + 1
+        moved = 0
+        for i, t in enumerate(tracks):
+            for first in (True, False):
+                t = tracks[i]
+                e, o = (t[0:2], t[2:4]) if first else (t[2:4], t[0:2])
+                layer, net = t[4], t[6]
+                if ends_at.get((e, layer, net), 0) != 1 or any(v[2] == net and v[0:2] == e for v in vias):
+                    continue
+                if any(q["net"] == net and layer in q["layers"] and q["rect"][0] - 0.02 <= e[0] <= q["rect"][2] + 0.02
+                       and q["rect"][1] - 0.02 <= e[1] <= q["rect"][3] + 0.02 for q in pads):
+                    continue
+                for j, u in enumerate(tracks):
+                    if j == i or u[6] != net or u[4] != layer:
+                        continue
+                    a, b = u[0:2], u[2:4]
+                    if touches(e, a, b) or not near(e, a, b):
+                        continue
+                    d, f = (e[0] - o[0], e[1] - o[1]), (b[0] - a[0], b[1] - a[1])
+                    den = d[0] * f[1] - d[1] * f[0]
+                    if abs(den) < 1e-9:
+                        continue                                      # running alongside, not into it
+                    k = ((a[0] - o[0]) * f[1] - (a[1] - o[1]) * f[0]) / den
+                    x = (round(o[0] + k * d[0], 6), round(o[1] + k * d[1], 6))
+                    if k <= 0 or math.dist(x, e) > 0.08 or not near(x, a, b, 1e-5):
+                        continue
+                    tracks[i] = (*x, *o, *t[4:]) if first else (*o, *x, *t[4:])
+                    moved += 1
+                    break
+        return tracks, moved
+
+    tracks, snapped = snap(tracks)
+    if snapped:
+        log(f"  {snapped} track ends moved onto the centre line of the track they join")
 
     # The clean-up below moves copper by a fraction of a millimetre. The grids are too
     # coarse to judge that (they are built to be safe, not exact), so these checks measure
@@ -1388,6 +1451,114 @@ def run(board, origin, geo, log=print):
     tracks, squared = square_up(tracks)
     if squared:
         log(f"  squared up {squared} one-step diagonals into a track")
+
+    # Jogs. A single piece of 0.1 or 0.2 mm between two longer ones shows as a bump at the turn
+    # (2026-11-24, Norman, on the I2C clock line: a run down, 0.1 mm sideways, then a diagonal).
+    # destair() above only takes runs of two or more short pieces. Two cases:
+    # - the two longer pieces meet at 45 degrees: let them run on to where their lines cross and
+    #   drop the piece between them;
+    # - they are parallel, 0.1 mm apart (a change of lane): move one of them onto the other's
+    #   line, if the piece at its far end can follow by getting longer or shorter.
+    # A short piece between two pieces at a right angle is a cut corner and stays. Every piece
+    # that moves is measured against the other nets' copper first (legal()).
+    def dejog(tracks):
+        def key(x, y):
+            return (round(x, 4), round(y, 4))
+
+        def unit(a, b):
+            n = math.hypot(b[0] - a[0], b[1] - a[1])
+            return ((b[0] - a[0]) / n, (b[1] - a[1]) / n)
+
+        def cross_point(p, d, q, e):
+            # where the line through p along d meets the line through q along e
+            den = d[0] * e[1] - d[1] * e[0]
+            if abs(den) < 1e-9:
+                return None
+            k = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / den
+            pt = (p[0] + k * d[0], p[1] + k * d[1])
+            on_grid = all(abs(v / R.step - round(v / R.step)) < 1e-6 for v in pt)
+            return key(*pt) if on_grid else None
+
+        def far(t, v):
+            return key(*t[2:4]) if key(*t[0:2]) == v else key(*t[0:2])
+
+        done, tried = 0, set()
+        while True:
+            ends = {}
+            for i, t in enumerate(tracks):
+                for end in (key(*t[0:2]), key(*t[2:4])):
+                    ends.setdefault((end, t[4], t[6]), []).append(i)
+
+            def inner(v, layer, net):
+                # exactly two pieces meet at v and nothing else is attached there
+                idx = ends.get((v, layer, net), [])
+                if len(idx) != 2 or any(key(x, y) == v for x, y, _ in vias):
+                    return False
+                if any(q["net"] == net and layer in q["layers"] and q["rect"][0] - 0.02 <= v[0] <= q["rect"][2] + 0.02
+                       and q["rect"][1] - 0.02 <= v[1] <= q["rect"][3] + 0.02 for q in pads):
+                    return False
+                return not any(k not in idx and t[6] == net and t[4] == layer and near(v, t[0:2], t[2:4])
+                               for k, t in enumerate(tracks))
+
+            for i, t in enumerate(tracks):
+                span = math.hypot(t[2] - t[0], t[3] - t[1])
+                layer, width, net = t[4], t[5], t[6]
+                a, b = key(*t[0:2]), key(*t[2:4])
+                if not 1e-6 < span <= 0.25 or (a, b, layer, net) in tried:
+                    continue
+                tried.add((a, b, layer, net))
+                if not inner(a, layer, net) or not inner(b, layer, net):
+                    continue
+                i1 = next(k for k in ends[(a, layer, net)] if k != i)
+                i2 = next(k for k in ends[(b, layer, net)] if k != i)
+                n1, n2 = tracks[i1], tracks[i2]
+                if i1 == i2 or abs(n1[5] - width) > 1e-9 or abs(n2[5] - width) > 1e-9:
+                    continue
+                f1, f2 = far(n1, a), far(n2, b)
+                if min(math.dist(f1, a), math.dist(f2, b)) <= 0.25:
+                    continue                                          # a run of short pieces: destair()'s business
+                d1, d2 = unit(f1, a), unit(b, f2)                     # the way in and the way out
+                turn, along = d1[0] * d2[1] - d1[1] * d2[0], d1[0] * d2[0] + d1[1] * d2[1]
+                new = None
+                if abs(turn) > 1e-6 and along > 0.5:
+                    # 45 degrees: both run on to where their lines cross
+                    pt = cross_point(f1, d1, f2, d2)
+                    rest = [o for k, o in enumerate(tracks) if k not in (i, i1, i2)]
+                    if (pt and (pt[0] - f1[0]) * d1[0] + (pt[1] - f1[1]) * d1[1] > 0.05
+                            and (f2[0] - pt[0]) * d2[0] + (f2[1] - pt[1]) * d2[1] > 0.05
+                            and legal(f1, pt, width, layer, net, rest) and legal(pt, f2, width, layer, net, rest)):
+                        new = rest + [(*f1, *pt, layer, width, net), (*pt, *f2, layer, width, net)]
+                elif abs(turn) <= 1e-6 and along > 0:
+                    # parallel: one of the two moves onto the other's line
+                    for stay_far, stay_at, move_far in sorted(((f2, b, f1), (f1, a, f2)),
+                                                              key=lambda c: math.dist(c[2], a if c[2] == f1 else b)):
+                        i_move = i1 if move_far == f1 else i2
+                        if not inner(move_far, layer, net):
+                            continue
+                        m = next(k for k in ends[(move_far, layer, net)] if k != i_move)
+                        piece = tracks[m]
+                        g = far(piece, move_far)
+                        if m in (i, i1, i2) or abs(piece[5] - width) > 1e-9 or math.dist(g, move_far) < 1e-6:
+                            continue
+                        dm = unit(g, move_far)
+                        pt = cross_point(stay_at, d1, g, dm)
+                        rest = [o for k, o in enumerate(tracks) if k not in (i, i1, i2, m)]
+                        if (pt and (pt[0] - g[0]) * dm[0] + (pt[1] - g[1]) * dm[1] > 0.05
+                                and math.dist(pt, stay_at) > 0.05
+                                and ((stay_at[0] - pt[0]) * d1[0] + (stay_at[1] - pt[1]) * d1[1] > 0) == (move_far == f1)
+                                and legal(pt, stay_far, width, layer, net, rest) and legal(g, pt, width, layer, net, rest)):
+                            new = rest + [(*g, *pt, layer, width, net), (*pt, *stay_far, layer, width, net)]
+                            break
+                if new:
+                    tracks = new
+                    done += 1
+                    break
+            else:
+                return tracks, done
+
+    tracks, jogs = dejog(tracks)
+    if jogs:
+        log(f"  removed {jogs} jogs (a single short piece between two longer ones)")
 
     # --- T-junctions ----------------------------------------------------------------
     # A track that ends on the middle of another track of its net is joined to it, but KiCad's

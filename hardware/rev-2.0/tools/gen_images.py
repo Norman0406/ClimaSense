@@ -1,9 +1,10 @@
 """Write the pictures of the board that the README and the layout notes show, into docs/images/:
 
-  board-angle.png     3D view from the front left
-  board-top.png       3D view straight from above
-  board-bottom.png    3D view of the back, with the display panel in place
-  board-fpc.png       close-up of the panel's FPC tail running into its connector
+  board-angle.png     3D view from the front left, the display panel on its frame's height
+  board-top.png       3D view straight from above: what faces the room
+  board-parts.png     the same without the panel: the parts under it
+  board-bottom.png    3D view of the back, with the test pads
+  board-fpc.png       close-up of the panel's FPC tail folding back under the panel into its connector
   copper-top.svg      top copper layer with the board outline
   copper-bottom.svg   bottom copper layer, seen from above through the board (not mirrored)
 
@@ -27,8 +28,9 @@ from pathlib import Path
 
 HW = Path(__file__).resolve().parent.parent
 KICAD_CLI = r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe"
+KICAD_PYTHON = r"C:\Program Files\KiCad\10.0\bin\python.exe"
 PCB = HW / "climasense.kicad_pcb"
-OUT = HW.parent.parent / "docs" / "images" / "rev-2.0"
+OUT =HW.parent.parent / "docs" / "images" / "rev-2.0"
 BACKGROUND = "#0d1117"          # behind the copper plots, so they read the same on light and dark pages
 # Width of the copper plots in pixels: that of the 3D views as KiCad writes them (1600 asked for),
 # so that a page shows plots and views at the same size (2026-11-23, Norman). KiCad gives a plot the
@@ -42,12 +44,12 @@ def cli(*args):
         raise SystemExit(f"kicad-cli {' '.join(map(str, args[:3]))} failed:\n{r.stdout}\n{r.stderr}")
 
 
-def render(name, width, height, *view, out=None):
+def render(name, width, height, *view, out=None, board=PCB):
     # Basic quality on purpose: the high setting adds a floor with shadows.
     # An opaque background: with a transparent one, holes and slots show whatever the page
     # behind the picture has (white or dark), which looked like parts or copper.
     cli("pcb", "render", "--width", width, "--height", height, "--quality", "basic", "--background", "opaque",
-        *view, "-o", out or OUT / name, PCB)
+        *view, "-o", out or OUT / name, board)
 
 
 def copper(name, layer):
@@ -83,10 +85,22 @@ def main():
     render("board-angle.png", 1600, 800, "--perspective", "--rotate", "-35,0,-20", "--zoom", "1.3", "--pan", "-0.3,0.3,0",
            "--light-side", "0", "--light-camera", "1")
     render("board-top.png", 1600, 760, "--side", "top", "--zoom", "1.8")
-    # close-up of the FPC tail entering J5, from the component side
-    render("board-fpc.png", 1600, 900, "--perspective", "--rotate", "-65,0,-30", "--zoom", "3.5",
-           "--pan", "-1.2,0.4,0", "--light-side", "0", "--light-camera", "1")
-    # the back, with the display panel where it will be stuck (its model is only for this view)
+    # The parts under the panel: the same view of a copy of the board without the panel and its
+    # tail (gen_pcb.py writes it, next to the board so that the 3D models are found).
+    bare = HW / "climasense-without-panel.kicad_pcb"
+    r = subprocess.run([KICAD_PYTHON, str(HW / "tools" / "gen_pcb.py"), f"--without-panel={bare}"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        raise SystemExit(f"gen_pcb.py --without-panel failed:\n{r.stdout}\n{r.stderr}")
+    try:
+        render("board-parts.png", 1600, 760, "--side", "top", "--zoom", "1.8", board=bare)
+    finally:
+        for ext in (".kicad_pcb", ".kicad_pro", ".kicad_prl"):
+            bare.with_suffix(ext).unlink(missing_ok=True)
+    # close-up of the FPC tail: out of the glass, down in a half circle and back under the panel into J5
+    render("board-fpc.png", 1600, 900, "--rotate", "-70,0,-20", "--zoom", "2.6", "--pan", "-6,0,0",
+           "--light-side", "0", "--light-camera", "1")
+    # the back, with the test pads and their labels
     render("board-bottom.png", 1600, 760, "--side", "bottom", "--zoom", "1.8")
     copper("copper-top.svg", "F.Cu")
     copper("copper-bottom.svg", "B.Cu")

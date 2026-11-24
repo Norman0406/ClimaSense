@@ -7092,17 +7092,6 @@
 		)
 		(uuid "1a402bb8-0caf-540a-b330-a4323ae364cc")
 	)
-	(text "Values from the GDEY0213B74 specification, reference circuit (page 29).\nCapacitors 0603/0805, X5R/X7R, 25 V. PREVGH/PREVGL reach about +/-20 V.\nThe panel sits on the back of the board; its FPC passes through a slot and turns\nback into J5, so panel pin N is connector pin 25 - N."
-		(exclude_from_sim no)
-		(at 431.8 182.88 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3978d35f-4875-5c45-b0d3-2df45a1c0162")
-	)
 	(text "QWIIC - OWN I2C BUS (IO19 / IO20), OWN SWITCHED SUPPLY"
 		(exclude_from_sim no)
 		(at 213.36 203.2 0)
@@ -7205,6 +7194,17 @@
 		)
 		(uuid "9edd0633-8611-52ef-ba81-fccd8ba1e07a")
 	)
+	(text "Values from the GDEY0213B74 specification, reference circuit (page 29).\nCapacitors 0603/0805, X5R/X7R, 25 V. PREVGH/PREVGL reach about +/-20 V.\nThe panel sits on the back of the board; its FPC passes through a slot and turns\nback into J5, so panel pin N is connector pin 25 - N."
+		(exclude_from_sim no)
+		(at 431.8 182.88 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "bfff5613-d377-5572-bedf-e19bd6279ab3")
+	)
 	(text "MCU"
 		(exclude_from_sim no)
 		(at 20.32 96.52 0)
@@ -7305,15 +7305,15 @@
 		(uuid "4d8c3752-8b0f-5f6d-8c80-7e3d79348440")
 	)
 	(no_connect
-		(at 551.18 124.46)
+		(at 551.18 81.28)
 		(uuid "5ebee3ba-c3aa-5f08-b735-4ba200606b4d")
 	)
 	(no_connect
-		(at 551.18 119.38)
+		(at 551.18 86.36)
 		(uuid "656c0498-aa46-543f-a492-8d4fc2d3f493")
 	)
 	(no_connect
-		(at 551.18 132.08)
+		(at 551.18 73.66)
 		(uuid "66150088-d06f-50a0-8cdf-f326117f8297")
 	)
 	(no_connect
@@ -7321,7 +7321,7 @@
 		(uuid "a1927a03-00de-56ff-a938-d6106a20e641")
 	)
 	(no_connect
-		(at 551.18 86.36)
+		(at 551.18 119.38)
 		(uuid "ad74140f-6cfb-53a0-95b9-fb2757a5d012")
 	)
 	(no_connect
@@ -7333,7 +7333,7 @@
 		(uuid "cd2d8a75-fa76-53b0-bff3-28b85cc19a45")
 	)
 	(no_connect
-		(at 551.18 116.84)
+		(at 551.18 88.9)
 		(uuid "d34d57c9-c94a-5e09-97ff-f01e100bcf4c")
 	)
 	(wire
@@ -7368,7 +7368,7 @@
 	)
 	(wire
 		(pts
-			(xy 491.49 83.82) (xy 488.95 83.82)
+			(xy 491.49 68.58) (xy 488.95 68.58)
 		)
 		(stroke
 			(width 0)
@@ -7448,7 +7448,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 83.82) (xy 546.1 83.82)
+			(xy 551.18 121.92) (xy 546.1 121.92)
 		)
 		(stroke
 			(width 0)
@@ -7498,16 +7498,6 @@
 	)
 	(wire
 		(pts
-			(xy 515.62 95.25) (xy 515.62 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "16a5d46f-90a7-5632-8d11-0170ae4cf498")
-	)
-	(wire
-		(pts
 			(xy 55.88 55.88) (xy 58.42 55.88)
 		)
 		(stroke
@@ -7518,7 +7508,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 78.74) (xy 546.1 78.74)
+			(xy 551.18 127) (xy 546.1 127)
 		)
 		(stroke
 			(width 0)
@@ -7618,7 +7608,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 81.28) (xy 546.1 81.28)
+			(xy 551.18 124.46) (xy 546.1 124.46)
 		)
 		(stroke
 			(width 0)
@@ -7758,7 +7748,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 99.06) (xy 546.1 99.06)
+			(xy 551.18 106.68) (xy 546.1 106.68)
 		)
 		(stroke
 			(width 0)
@@ -7928,7 +7918,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 73.66) (xy 546.1 73.66)
+			(xy 551.18 132.08) (xy 546.1 132.08)
 		)
 		(stroke
 			(width 0)
@@ -7998,7 +7988,7 @@
 	)
 	(wire
 		(pts
-			(xy 499.11 83.82) (xy 501.65 83.82)
+			(xy 499.11 68.58) (xy 501.65 68.58)
 		)
 		(stroke
 			(width 0)
@@ -8078,23 +8068,23 @@
 	)
 	(wire
 		(pts
-			(xy 515.62 102.87) (xy 515.62 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "589a9ea5-c036-5c1d-b488-34b68e1c20fd")
-	)
-	(wire
-		(pts
-			(xy 551.18 127) (xy 546.1 127)
+			(xy 551.18 78.74) (xy 546.1 78.74)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "58a48b76-25ab-5a2f-a21e-0e2e244d4be6")
+	)
+	(wire
+		(pts
+			(xy 499.11 53.34) (xy 501.65 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5a85f737-7012-5e02-bb03-3531ce9c206e")
 	)
 	(wire
 		(pts
@@ -8228,7 +8218,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 104.14) (xy 546.1 104.14)
+			(xy 551.18 101.6) (xy 546.1 101.6)
 		)
 		(stroke
 			(width 0)
@@ -8278,6 +8268,16 @@
 	)
 	(wire
 		(pts
+			(xy 491.49 53.34) (xy 488.95 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "76668cdc-1031-5340-b80d-14681dd2423c")
+	)
+	(wire
+		(pts
 			(xy 203.2 119.38) (xy 203.2 121.92)
 		)
 		(stroke
@@ -8298,7 +8298,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 129.54) (xy 546.1 129.54)
+			(xy 551.18 76.2) (xy 546.1 76.2)
 		)
 		(stroke
 			(width 0)
@@ -8308,7 +8308,7 @@
 	)
 	(wire
 		(pts
-			(xy 491.49 53.34) (xy 488.95 53.34)
+			(xy 482.6 120.65) (xy 482.6 123.19)
 		)
 		(stroke
 			(width 0)
@@ -8325,6 +8325,16 @@
 			(type default)
 		)
 		(uuid "81f9d513-df5c-514d-8c8d-bf4e675af4e5")
+	)
+	(wire
+		(pts
+			(xy 482.6 123.19) (xy 485.14 123.19)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "832d1ef8-a920-5910-a1ff-ed821e7a71c3")
 	)
 	(wire
 		(pts
@@ -8448,6 +8458,16 @@
 	)
 	(wire
 		(pts
+			(xy 515.62 95.25) (xy 515.62 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8f8ebc65-41c7-5f1a-b03d-148eda230bba")
+	)
+	(wire
+		(pts
 			(xy 320.04 162.56) (xy 317.5 162.56)
 		)
 		(stroke
@@ -8568,7 +8588,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 88.9) (xy 546.1 88.9)
+			(xy 551.18 116.84) (xy 546.1 116.84)
 		)
 		(stroke
 			(width 0)
@@ -8728,23 +8748,13 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 76.2) (xy 546.1 76.2)
+			(xy 551.18 129.54) (xy 546.1 129.54)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "b07fec8b-ebe0-5bae-964b-dfbfeac7d69f")
-	)
-	(wire
-		(pts
-			(xy 499.11 68.58) (xy 501.65 68.58)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b2fc09ab-2b6d-5a55-9ffa-94053468e9d8")
 	)
 	(wire
 		(pts
@@ -8928,7 +8938,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 91.44) (xy 546.1 91.44)
+			(xy 551.18 114.3) (xy 546.1 114.3)
 		)
 		(stroke
 			(width 0)
@@ -8938,7 +8948,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 101.6) (xy 546.1 101.6)
+			(xy 551.18 104.14) (xy 546.1 104.14)
 		)
 		(stroke
 			(width 0)
@@ -8948,7 +8958,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 121.92) (xy 546.1 121.92)
+			(xy 551.18 83.82) (xy 546.1 83.82)
 		)
 		(stroke
 			(width 0)
@@ -9038,7 +9048,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 114.3) (xy 546.1 114.3)
+			(xy 551.18 91.44) (xy 546.1 91.44)
 		)
 		(stroke
 			(width 0)
@@ -9068,6 +9078,16 @@
 	)
 	(wire
 		(pts
+			(xy 499.11 83.82) (xy 501.65 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d1a34657-5c66-54b6-aa04-1a6740f60413")
+	)
+	(wire
+		(pts
 			(xy 55.88 50.8) (xy 58.42 50.8)
 		)
 		(stroke
@@ -9088,7 +9108,17 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 109.22) (xy 546.1 109.22)
+			(xy 515.62 102.87) (xy 515.62 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d648c144-8a79-5cab-b0d0-d25c68edde26")
+	)
+	(wire
+		(pts
+			(xy 551.18 96.52) (xy 546.1 96.52)
 		)
 		(stroke
 			(width 0)
@@ -9108,6 +9138,16 @@
 	)
 	(wire
 		(pts
+			(xy 491.49 83.82) (xy 488.95 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ddaf83b2-c09e-52ec-9591-c0a70787ddd7")
+	)
+	(wire
+		(pts
 			(xy 53.34 120.65) (xy 55.88 120.65)
 		)
 		(stroke
@@ -9115,16 +9155,6 @@
 			(type default)
 		)
 		(uuid "dea71a8b-2a31-5139-b0ed-fc59f21609fd")
-	)
-	(wire
-		(pts
-			(xy 499.11 53.34) (xy 501.65 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "dfe63320-522e-5e4b-b768-c220c2f6a9e7")
 	)
 	(wire
 		(pts
@@ -9228,7 +9258,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 93.98) (xy 546.1 93.98)
+			(xy 551.18 111.76) (xy 546.1 111.76)
 		)
 		(stroke
 			(width 0)
@@ -9258,7 +9288,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 111.76) (xy 546.1 111.76)
+			(xy 551.18 93.98) (xy 546.1 93.98)
 		)
 		(stroke
 			(width 0)
@@ -9268,7 +9298,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 106.68) (xy 546.1 106.68)
+			(xy 551.18 99.06) (xy 546.1 99.06)
 		)
 		(stroke
 			(width 0)
@@ -9278,7 +9308,7 @@
 	)
 	(wire
 		(pts
-			(xy 551.18 96.52) (xy 546.1 96.52)
+			(xy 551.18 109.22) (xy 546.1 109.22)
 		)
 		(stroke
 			(width 0)
@@ -9305,16 +9335,6 @@
 			(type default)
 		)
 		(uuid "fbc4849b-7eeb-5b8e-8ae5-6b24409fe355")
-	)
-	(wire
-		(pts
-			(xy 491.49 68.58) (xy 488.95 68.58)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fd6ddbfc-4914-500b-b47f-0da588d4e961")
 	)
 	(wire
 		(pts
@@ -9346,16 +9366,6 @@
 		)
 		(uuid "0448d4fb-3ded-59c0-85c7-1c5ce87c5591")
 	)
-	(label "EPD_PUMP"
-		(at 515.62 105.41 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "077c655e-f1de-58df-beaa-617c0de5a88c")
-	)
 	(label "CC2"
 		(at 91.44 64.77 0)
 		(effects
@@ -9377,7 +9387,7 @@
 		(uuid "0df26f65-ed70-5468-8472-708a6cfc2182")
 	)
 	(label "EPD_VDD"
-		(at 546.1 88.9 180)
+		(at 546.1 116.84 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9397,14 +9407,14 @@
 		(uuid "0fe655e6-d3bd-515d-90bc-e97d5468c383")
 	)
 	(label "EPD_PUMP"
-		(at 501.65 68.58 0)
+		(at 515.62 105.41 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
-		(uuid "16ec43d0-8c1e-5a36-98d2-e337ddc72421")
+		(uuid "19d1d950-f76e-5d29-b48d-db3cc68723ec")
 	)
 	(label "I2C_SDA"
 		(at 78.74 172.72 180)
@@ -9426,7 +9436,7 @@
 		)
 		(uuid "1edaaa12-ce22-5c2d-9892-a4bc7952a777")
 	)
-	(label "EPD_MOSI"
+	(label "EPD_RST"
 		(at 78.74 170.18 180)
 		(effects
 			(font
@@ -9517,7 +9527,7 @@
 		(uuid "3386487b-152f-5a29-bea2-06027aba3c92")
 	)
 	(label "EPD_GDR"
-		(at 546.1 129.54 180)
+		(at 546.1 76.2 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9537,7 +9547,7 @@
 		(uuid "3a59b9a0-c284-5e00-bfa4-1ae113de1379")
 	)
 	(label "EPD_SCK"
-		(at 546.1 101.6 180)
+		(at 546.1 104.14 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9557,7 +9567,7 @@
 		(uuid "3bfbe39c-fe1b-56f0-b1aa-3362f1229b1d")
 	)
 	(label "EPD_VSH2"
-		(at 546.1 121.92 180)
+		(at 546.1 83.82 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9565,16 +9575,6 @@
 			(justify right bottom)
 		)
 		(uuid "3e6394f0-9624-53f1-a31c-6c8ca7f47242")
-	)
-	(label "EPD_SW"
-		(at 501.65 53.34 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "413273ba-162e-56c3-bc78-7ce0dc7b0d40")
 	)
 	(label "EPD_CS"
 		(at 78.74 147.32 180)
@@ -9617,7 +9617,7 @@
 		(uuid "44770efc-7f1a-534f-8b75-33c98b515e9a")
 	)
 	(label "EPD_VCOM"
-		(at 546.1 73.66 180)
+		(at 546.1 132.08 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9656,7 +9656,7 @@
 		)
 		(uuid "47f86e52-aa63-50e5-8ede-85d91ff72491")
 	)
-	(label "EPD_DC"
+	(label "EPD_BUSY"
 		(at 119.38 139.7 0)
 		(effects
 			(font
@@ -9697,7 +9697,7 @@
 		(uuid "4b6caacd-f344-5a13-b380-2a6f192c00ae")
 	)
 	(label "EPD_VSH1"
-		(at 546.1 83.82 180)
+		(at 546.1 121.92 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9717,7 +9717,7 @@
 		(uuid "50c7d060-31d2-5cfe-ac8f-7354968140e9")
 	)
 	(label "EPD_RST"
-		(at 546.1 109.22 180)
+		(at 546.1 96.52 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9766,8 +9766,8 @@
 		)
 		(uuid "5808ae04-d9d8-56ef-87a3-2b219c14427a")
 	)
-	(label "EPD_VGL"
-		(at 501.65 83.82 0)
+	(label "EPD_PUMP"
+		(at 501.65 68.58 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9787,7 +9787,7 @@
 		(uuid "5e6c9e8a-3460-5851-91ad-16637a84952d")
 	)
 	(label "EPD_BUSY"
-		(at 546.1 111.76 180)
+		(at 546.1 93.98 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9797,7 +9797,7 @@
 		(uuid "60b6894a-88fc-590b-a007-3478339f60a1")
 	)
 	(label "EPD_VGH"
-		(at 546.1 81.28 180)
+		(at 546.1 124.46 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9826,7 +9826,7 @@
 		)
 		(uuid "688d800e-974d-5ab0-8d37-9f27973bbb3f")
 	)
-	(label "EPD_BUSY"
+	(label "EPD_MOSI"
 		(at 119.38 144.78 0)
 		(effects
 			(font
@@ -9866,6 +9866,16 @@
 		)
 		(uuid "74f6234e-77ce-565e-89f7-73bad302efec")
 	)
+	(label "EPD_SW"
+		(at 501.65 53.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7629e821-5d33-5d77-93c5-d5cb3deea4b6")
+	)
 	(label "UART_RX"
 		(at 78.74 162.56 180)
 		(effects
@@ -9877,7 +9887,7 @@
 		(uuid "7719494b-526d-5a12-9cc3-09c732d652fb")
 	)
 	(label "EPD_CS"
-		(at 546.1 104.14 180)
+		(at 546.1 101.6 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9956,16 +9966,6 @@
 		)
 		(uuid "819910dc-e331-572d-bb54-b498c91a2c6d")
 	)
-	(label "EPD_SW"
-		(at 515.62 92.71 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "84e944c9-6e82-59f6-8a2c-fcf695d73805")
-	)
 	(label "UART_TX"
 		(at 180.34 149.86 270)
 		(effects
@@ -9977,7 +9977,7 @@
 		(uuid "8bf958f2-dee5-5e12-8f34-335900bb41f6")
 	)
 	(label "EPD_DC"
-		(at 546.1 106.68 180)
+		(at 546.1 99.06 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10057,7 +10057,7 @@
 		(uuid "a8ad1111-4cac-58e3-8def-af8a3e3c82e3")
 	)
 	(label "EPD_RESE"
-		(at 546.1 127 180)
+		(at 546.1 78.74 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10157,7 +10157,7 @@
 		(uuid "c42fa518-f437-5e9f-b094-68e0f0937b83")
 	)
 	(label "EPD_VGL"
-		(at 546.1 76.2 180)
+		(at 546.1 129.54 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10196,6 +10196,16 @@
 		)
 		(uuid "ce44f017-c878-5f26-88d3-11517e0f5a03")
 	)
+	(label "EPD_SW"
+		(at 515.62 92.71 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "cf6bd64f-77ab-58c4-913d-7a16cdcb7a47")
+	)
 	(label "EPD_DC"
 		(at 203.2 121.92 270)
 		(effects
@@ -10226,8 +10236,18 @@
 		)
 		(uuid "d669f6a6-d72b-5670-9ab7-43de8816eaa5")
 	)
+	(label "EPD_RST"
+		(at 485.14 123.19 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "dabf0ba9-c006-5fc6-a77c-e7dad79a4c72")
+	)
 	(label "EPD_VSL"
-		(at 546.1 78.74 180)
+		(at 546.1 127 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10235,6 +10255,16 @@
 			(justify right bottom)
 		)
 		(uuid "db172ea5-f154-5f49-9218-d34e3ffd6515")
+	)
+	(label "EPD_PUMP"
+		(at 488.95 83.82 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "dc20e2d2-f36a-5054-8b8f-d5debc569620")
 	)
 	(label "USB_DN"
 		(at 116.84 50.8 0)
@@ -10246,7 +10276,7 @@
 		)
 		(uuid "dc915a97-1e74-5502-a30c-b780f33c1d27")
 	)
-	(label "EPD_RST"
+	(label "EPD_SCK"
 		(at 119.38 157.48 0)
 		(effects
 			(font
@@ -10296,16 +10326,6 @@
 		)
 		(uuid "e8d17b37-3781-593a-bf9b-c970adaa994e")
 	)
-	(label "EPD_VGH"
-		(at 488.95 53.34 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "e95a5b29-e271-5b87-92c9-5e513c14ad04")
-	)
 	(label "EPD_SW"
 		(at 459.74 73.66 90)
 		(effects
@@ -10315,6 +10335,16 @@
 			(justify left bottom)
 		)
 		(uuid "e9c5b2c3-b20f-51cf-a789-b30ad4c225a6")
+	)
+	(label "EPD_VGL"
+		(at 501.65 83.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ee7e7746-edbd-5597-8adb-da2b42736b83")
 	)
 	(label "QWIIC_EN"
 		(at 119.38 152.4 0)
@@ -10346,7 +10376,7 @@
 		)
 		(uuid "efd7af11-5691-53e1-839f-70dec3c12264")
 	)
-	(label "EPD_SCK"
+	(label "EPD_DC"
 		(at 78.74 167.64 180)
 		(effects
 			(font
@@ -10377,7 +10407,7 @@
 		(uuid "f4685556-9c85-5762-8f8a-32927e412f16")
 	)
 	(label "EPD_MOSI"
-		(at 546.1 99.06 180)
+		(at 546.1 106.68 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10386,15 +10416,15 @@
 		)
 		(uuid "f851b2b2-54e2-5904-bec7-ddd3d8cbe62f")
 	)
-	(label "EPD_PUMP"
-		(at 488.95 83.82 180)
+	(label "EPD_VGH"
+		(at 488.95 53.34 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "ff861fe2-3f0a-52e2-8052-6c630339c55c")
+		(uuid "fc8a021e-51d8-542f-ac45-13a49643d9a3")
 	)
 	(symbol
 		(lib_id "climasense:LED_RGB_19-337")
@@ -11435,6 +11465,107 @@
 		)
 	)
 	(symbol
+		(lib_id "Diode:MBR0530")
+		(at 495.3 53.34 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "0e78bc97-57d7-589d-8f16-fa70300821a5")
+		(property "Reference" "D2"
+			(at 495.3 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "MBR0530"
+			(at 495.3 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 495.3 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "http://www.mccsemi.com/up_pdf/MBR0520~MBR0580(SOD123).pdf"
+			(at 495.3 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "30V 0.5A Schottky Power Rectifier Diode, SOD-123"
+			(at 495.3 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C82046"
+			(at 495.3 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MBR0530T1G"
+			(at 495.3 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "95e48ec4-2e57-5d44-a8e3-609de58078cc")
+		)
+		(pin "2"
+			(uuid "488f5507-fcc2-5fa9-abd8-3bdab9a1857d")
+		)
+		(instances
+			(project "climasense"
+				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
+					(reference "D2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 91.44 68.58 0)
 		(unit 1)
@@ -11711,107 +11842,6 @@
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
 					(reference "SW1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Diode:MBR0530")
-		(at 495.3 68.58 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "0fe1439c-b22b-557a-998e-1097e2fe1c14")
-		(property "Reference" "D3"
-			(at 495.3 66.04 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "MBR0530"
-			(at 495.3 71.12 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 495.3 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "http://www.mccsemi.com/up_pdf/MBR0520~MBR0580(SOD123).pdf"
-			(at 495.3 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "30V 0.5A Schottky Power Rectifier Diode, SOD-123"
-			(at 495.3 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C82046"
-			(at 495.3 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "MBR0530T1G"
-			(at 495.3 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "e13e61f4-08e9-57d4-a126-045df3bf9ebf")
-		)
-		(pin "2"
-			(uuid "95e48ec4-2e57-5d44-a8e3-609de58078cc")
-		)
-		(instances
-			(project "climasense"
-				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
-					(reference "D3")
 					(unit 1)
 				)
 			)
@@ -13295,7 +13325,7 @@
 	)
 	(symbol
 		(lib_id "Diode:MBR0530")
-		(at 495.3 83.82 0)
+		(at 495.3 68.58 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13304,8 +13334,8 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2111379d-9791-53cb-af98-5df7f3b2e0d2")
-		(property "Reference" "D4"
-			(at 495.3 81.28 0)
+		(property "Reference" "D3"
+			(at 495.3 66.04 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13315,7 +13345,7 @@
 			)
 		)
 		(property "Value" "MBR0530"
-			(at 495.3 86.36 0)
+			(at 495.3 71.12 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13325,7 +13355,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 495.3 83.82 0)
+			(at 495.3 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13336,7 +13366,7 @@
 			)
 		)
 		(property "Datasheet" "http://www.mccsemi.com/up_pdf/MBR0520~MBR0580(SOD123).pdf"
-			(at 495.3 83.82 0)
+			(at 495.3 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13347,7 +13377,7 @@
 			)
 		)
 		(property "Description" "30V 0.5A Schottky Power Rectifier Diode, SOD-123"
-			(at 495.3 83.82 0)
+			(at 495.3 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13358,7 +13388,7 @@
 			)
 		)
 		(property "LCSC" "C82046"
-			(at 495.3 83.82 0)
+			(at 495.3 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13369,7 +13399,7 @@
 			)
 		)
 		(property "MPN" "MBR0530T1G"
-			(at 495.3 83.82 0)
+			(at 495.3 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13388,7 +13418,7 @@
 		(instances
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
-					(reference "D4")
+					(reference "D3")
 					(unit 1)
 				)
 			)
@@ -13978,6 +14008,109 @@
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
 					(reference "#PWR001")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 515.62 99.06 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2a6a6106-a86c-56b9-9841-e045f260102e")
+		(property "Reference" "C26"
+			(at 519.43 97.79 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7uF/25V"
+			(at 519.43 100.33 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 515.62 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 515.62 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 515.62 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C1779"
+			(at 515.62 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CL21A475KAQNNNE"
+			(at 515.62 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e98118ac-781d-5661-9c00-04782e89481e")
+		)
+		(pin "2"
+			(uuid "26a8de34-df1c-54b8-86b8-d382903f4be3")
+		)
+		(instances
+			(project "climasense"
+				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
+					(reference "C26")
 					(unit 1)
 				)
 			)
@@ -14941,6 +15074,85 @@
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
 					(reference "#PWR003")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 488.95 68.58 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "3470ff63-b48c-5872-9224-c52c574a223f")
+		(property "Reference" "#PWR099"
+			(at 488.95 68.58 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 484.64 68.58 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 488.95 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 488.95 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 488.95 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d7000021-3e7a-59a6-b3be-99d9149ced68")
+		)
+		(instances
+			(project "climasense"
+				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
+					(reference "#PWR099")
 					(unit 1)
 				)
 			)
@@ -17048,8 +17260,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Diode:MBR0530")
-		(at 495.3 53.34 0)
+		(lib_id "Device:R")
+		(at 482.6 116.84 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17058,28 +17270,30 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "5317a214-7306-5456-8c96-ed010345ef14")
-		(property "Reference" "D2"
-			(at 495.3 50.8 0)
+		(property "Reference" "R21"
+			(at 485.14 114.3 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
-		(property "Value" "MBR0530"
-			(at 495.3 55.88 0)
+		(property "Value" "100k"
+			(at 485.14 116.84 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 495.3 53.34 0)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 482.6 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17089,8 +17303,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://www.mccsemi.com/up_pdf/MBR0520~MBR0580(SOD123).pdf"
-			(at 495.3 53.34 0)
+		(property "Datasheet" ""
+			(at 482.6 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17100,8 +17314,8 @@
 				)
 			)
 		)
-		(property "Description" "30V 0.5A Schottky Power Rectifier Diode, SOD-123"
-			(at 495.3 53.34 0)
+		(property "Description" "Resistor"
+			(at 482.6 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17111,8 +17325,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C82046"
-			(at 495.3 53.34 0)
+		(property "LCSC" "C25741"
+			(at 482.6 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17122,8 +17336,8 @@
 				)
 			)
 		)
-		(property "MPN" "MBR0530T1G"
-			(at 495.3 53.34 0)
+		(property "MPN" "0402WGF1003TCE"
+			(at 482.6 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17142,7 +17356,7 @@
 		(instances
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
-					(reference "D2")
+					(reference "R21")
 					(unit 1)
 				)
 			)
@@ -17863,6 +18077,107 @@
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
 					(reference "R1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Diode:MBR0530")
+		(at 495.3 83.82 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "5fdd2960-26fe-592b-a75e-936ca2c67a36")
+		(property "Reference" "D4"
+			(at 495.3 81.28 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "MBR0530"
+			(at 495.3 86.36 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 495.3 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "http://www.mccsemi.com/up_pdf/MBR0520~MBR0580(SOD123).pdf"
+			(at 495.3 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "30V 0.5A Schottky Power Rectifier Diode, SOD-123"
+			(at 495.3 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C82046"
+			(at 495.3 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MBR0530T1G"
+			(at 495.3 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f330a4a5-0fae-5e42-bf1b-272aebf11b1a")
+		)
+		(pin "2"
+			(uuid "304cae3a-30a0-5e5d-a9b4-8eac919418d0")
+		)
+		(instances
+			(project "climasense"
+				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
+					(reference "D4")
 					(unit 1)
 				)
 			)
@@ -18870,109 +19185,6 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 515.62 99.06 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "731965ff-f15e-553c-b94d-71747a3b56ba")
-		(property "Reference" "C26"
-			(at 519.43 97.79 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "4.7uF/25V"
-			(at 519.43 100.33 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 515.62 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 515.62 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 515.62 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C1779"
-			(at 515.62 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "CL21A475KAQNNNE"
-			(at 515.62 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a251335e-bea3-5787-a81c-029b702aad00")
-		)
-		(pin "2"
-			(uuid "f330a4a5-0fae-5e42-bf1b-272aebf11b1a")
-		)
-		(instances
-			(project "climasense"
-				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
-					(reference "C26")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
 		(at 152.4 46.99 0)
 		(unit 1)
 		(body_style 1)
@@ -19771,85 +19983,6 @@
 			(project "climasense"
 				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
 					(reference "#PWR040")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 488.95 68.58 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "7aaa075b-3af5-5e2d-a9aa-c166f6901f53")
-		(property "Reference" "#PWR098"
-			(at 488.95 68.58 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 484.64 68.58 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 488.95 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 488.95 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 488.95 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "06a70355-7a74-51c8-a431-3c61061f2028")
-		)
-		(instances
-			(project "climasense"
-				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
-					(reference "#PWR098")
 					(unit 1)
 				)
 			)
@@ -20889,7 +21022,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 546.1 96.52 90)
+		(at 546.1 109.22 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20899,7 +21032,7 @@
 		(dnp no)
 		(uuid "88f7fb65-2dfa-5a3b-b304-564a61ac785b")
 		(property "Reference" "#PWR079"
-			(at 546.1 96.52 90)
+			(at 546.1 109.22 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20910,7 +21043,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 542.044 96.52 90)
+			(at 542.044 109.22 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20921,7 +21054,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 546.1 96.52 0)
+			(at 546.1 109.22 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20932,7 +21065,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 546.1 96.52 0)
+			(at 546.1 109.22 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20943,7 +21076,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 546.1 96.52 0)
+			(at 546.1 109.22 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21558,7 +21691,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 546.1 91.44 270)
+		(at 546.1 114.3 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21568,7 +21701,7 @@
 		(dnp no)
 		(uuid "97cce16c-1944-5402-8e4b-d0d674b83930")
 		(property "Reference" "#PWR082"
-			(at 546.1 91.44 90)
+			(at 546.1 114.3 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21579,7 +21712,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 541.79 91.44 90)
+			(at 541.79 114.3 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21591,7 +21724,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 546.1 91.44 0)
+			(at 546.1 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21602,7 +21735,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 546.1 91.44 0)
+			(at 546.1 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21613,7 +21746,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 546.1 91.44 0)
+			(at 546.1 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23715,6 +23848,83 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 482.6 113.03 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c0fa89dc-3585-5033-96c4-7b4763bf47fc")
+		(property "Reference" "#PWR098"
+			(at 482.6 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 482.6 109.474 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 482.6 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 482.6 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 482.6 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "257b2ec6-40c8-530b-b933-175d4860e73f")
+		)
+		(instances
+			(project "climasense"
+				(path "/dfa4d276-a517-5717-a14c-b60cc1522291"
+					(reference "#PWR098")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 449.58 163.83 0)
 		(unit 1)
@@ -24255,7 +24465,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 546.1 114.3 270)
+		(at 546.1 91.44 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -24265,7 +24475,7 @@
 		(dnp no)
 		(uuid "d281ab4d-83f1-59ba-9017-865865597802")
 		(property "Reference" "#PWR081"
-			(at 546.1 114.3 90)
+			(at 546.1 91.44 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24276,7 +24486,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 541.79 114.3 90)
+			(at 541.79 91.44 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24288,7 +24498,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 546.1 114.3 0)
+			(at 546.1 91.44 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24299,7 +24509,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 546.1 114.3 0)
+			(at 546.1 91.44 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24310,7 +24520,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 546.1 114.3 0)
+			(at 546.1 91.44 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25554,7 +25764,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 546.1 93.98 90)
+		(at 546.1 111.76 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -25564,7 +25774,7 @@
 		(dnp no)
 		(uuid "e5dc1cce-3e6e-5b26-8d13-54ecaba77abf")
 		(property "Reference" "#PWR080"
-			(at 546.1 93.98 90)
+			(at 546.1 111.76 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25575,7 +25785,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 542.044 93.98 90)
+			(at 542.044 111.76 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25586,7 +25796,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 546.1 93.98 0)
+			(at 546.1 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25597,7 +25807,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 546.1 93.98 0)
+			(at 546.1 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25608,7 +25818,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 546.1 93.98 0)
+			(at 546.1 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

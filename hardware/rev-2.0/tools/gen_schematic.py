@@ -340,14 +340,19 @@ def build(lib: Library) -> Schematic:
         # deep sleep and be read by the low-power core. IO0/IO1 were kept free for a 32 kHz
         # crystal on 1.0; that option was dropped on 2026-11-22 (no battery variant planned).
         "8": "BMP_INT", "19": "LED_G", "20": "LED_R", "21": "LED_B",
-        # e-paper display (revision 2.0). BUSY is driven by the panel, so it sits on IO3, not
-        # on a start-up configuration pin (IO4, IO5, IO15 are); the ESP32 drives the others only
-        # after start.
-        # RST sits on IO18 (pin 16, upper row, beside CS and BUSY; decided 2026-11-22, swapped
-        # with SENS_EN so that the lower row's corridor routes). IO18 is pulled up while the chip is
-        # in reset, so the panel is simply not held in reset then; the firmware pulses RST at start.
-        "26": "EPD_BUSY", "16": "EPD_RST", "4": "EPD_SCK", "5": "EPD_MOSI", "23": "EPD_CS",
-        "9": "EPD_DC",
+        # e-paper display (revision 2.0). Re-assigned on 2026-11-24 (Norman), when the panel moved
+        # to the component side: that reverses the pin order at J5 (FPC_REVERSED below), and with
+        # these pins the six tracks from the module still reach J5 side by side, uncrossed. Upper
+        # pin row: MOSI on IO3, SCK on IO18, CS on IO15 (unchanged, pull-up R20). Lower row: DC on
+        # IO4, RST on IO5, BUSY on IO1.
+        # BUSY is driven by the panel, so it is not on a start-up configuration pin (IO4, IO5,
+        # IO15 are); the ESP32 drives the others only after start. IO18 is pulled up while the
+        # chip is in reset: an idle-high clock with CS held high does nothing. IO5 floats in reset,
+        # so RST has a pull-up of its own (R21): the panel is not held in reset then, and the
+        # firmware pulses RST at start. (Until 2026-11-24: BUSY IO3, RST IO18, SCK IO4, MOSI IO5,
+        # DC IO1.)
+        "26": "EPD_MOSI", "16": "EPD_SCK", "4": "EPD_DC", "5": "EPD_RST", "23": "EPD_CS",
+        "9": "EPD_BUSY",
         # IO18 to IO23 have a weak pull-up while the chip is in reset (chip datasheet table 2-1),
         # IO10 and IO11 have none. An enable that must stay low in reset (QWIIC_EN, held by
         # a 100 k pull-down) therefore sits on IO11; SENS_EN, which R5 pulls high, sits on IO10
@@ -617,12 +622,16 @@ def build(lib: Library) -> Schematic:
         "11": "EPD_DC", "12": "EPD_CS", "13": "EPD_SCK", "14": "EPD_MOSI", "18": "EPD_VDD",
         "20": "EPD_VSH1", "21": "EPD_VGH", "22": "EPD_VSL", "23": "EPD_VGL", "24": "EPD_VCOM",
     }
-    # The keys above are the panel's pin numbers. On the board the tail makes a U-turn
-    # through its slot into the connector, which puts the panel's pin 1 on the connector's
-    # pin 24 (see gen_pcb.py, "Revision 2.0"). The connector's pins are wired accordingly.
-    # Verified 2026-11-23 against the specification (drawing page 7, block diagram page 28) and
-    # Good Display's photos of the panel, which show the drawing's main view to be the display side.
-    FPC_REVERSED = True
+    # The keys above are the panel's pin numbers. Since 2026-11-24 the panel lies on the component
+    # side, above the parts, with its display towards the room. Its tail has to leave towards the
+    # sensors, which is to the right seen from the room, so the panel is turned by 180 degrees
+    # against the main view of the drawing (specification page 7; that view is the display side,
+    # verified 2026-11-23 against Good Display's photos) and its pin 1 is at the bottom. The tail
+    # folds back under the panel into J5; the fold keeps each contact's height on the board, and
+    # J5, with its opening to the right, has its pin 1 at the bottom too. So the panel's pin N is
+    # the connector's pin N. (Until then the panel lay on the back and the tail came through a
+    # slot: the board between them turned the order round, pin N on pin 25 - N.)
+    FPC_REVERSED = False
 
     def cpin(panel_pin):
         return str(25 - int(panel_pin)) if FPC_REVERSED else panel_pin
@@ -678,6 +687,9 @@ def build(lib: Library) -> Schematic:
     # Panel chip select held high (inactive) while the ESP32 is in reset or IO15 is not yet
     # configured (revision 2.0, R20).
     pullup("100k", 482.6, 96.52, "+3V3", "EPD_CS")
+    # Panel reset held high (not in reset) while the ESP32 is in reset: IO5 floats then
+    # (2026-11-24, R21; RST sat on IO18 before, which the chip pulls up itself).
+    pullup("100k", 482.6, 116.84, "+3V3", "EPD_RST")
 
     diodes = []
     for i, (anode, cathode) in enumerate((("EPD_SW", "EPD_VGH"),      # boost to PREVGH

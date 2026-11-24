@@ -403,15 +403,19 @@ USB_GROUND_AREAS = ((31.0, 22.6, 35.4, 26.0), (28.3, 26.0, 37.8, 28.8))
 
 
 # --------------------------------------------------------------------------
-# Revision 2.0: a longer board with an e-paper panel on the back
+# Revision 2.0: a longer board with an e-paper panel above the parts
 # --------------------------------------------------------------------------
 # Everything above is the 1.0 geometry. Revision 2.0 keeps the controller side as it was,
 # moves the sensor island (everything from the 1.0 slot at x = 48 rightwards) by DX, and
-# puts the display electronics into the gap. Seen from the component side (which faces the
-# wall), the panel lies on the back over x = PANEL[0]..PANEL[2]; its FPC tail leaves the glass
-# towards the sensor side, passes through FPC_SLOT, makes a U-turn back over the slot's edge
-# and enters the connector J5 from the right. The sensor bus runs round the top or bottom end
-# of FPC_SLOT and down to the bridge between FPC_SLOT and the sensor slot.
+# puts the display electronics into the gap.
+# Since 2026-11-24 (Norman) the component side faces the room again, as on 1.0, and the panel
+# lies on that side too: on a printed frame that stands on the board, FRAME_HEIGHT above it, over
+# x = PANEL[0]..PANEL[2]. Its FPC tail leaves the glass towards the sensor side, folds back in a
+# half circle under the panel and enters the connector J5 from the right. No slot goes through
+# the board for it any more. The sensor bus runs along the bottom edge and up the strip in front
+# of the sensor slot to the bridge, as before. (Until then the board was turned round: the parts
+# faced the wall, the panel was stuck to the bare back, and the tail came through a slot,
+# FPC_SLOT, at x 71.8 to 73.0. docs/hardware/rev-2.0.md has both.)
 DX = 28.0
 ISLAND_X = 48.0               # 1.0 coordinates at or right of this belong to the sensor island
 
@@ -447,85 +451,96 @@ def _shift_group(g):
 
 PREROUTED = tuple(_shift_group(g) for g in PREROUTED)
 
-# The panel (GDEY0213B74, 59.2 x 29.2 mm; specification page 7), on the back: x0, y0, x1, y1.
+# The panel (GDEY0213B74, 59.2 x 29.2 mm; specification page 7), above the parts: x0, y0, x1, y1.
 # Its left edge keeps 3.9 mm from the antenna keep-out (x = 6.9). Its tail is centred on the short
 # edge (to 0.2 mm), 12.5 mm wide, 14.3 mm long, the last 6 mm stiffened.
-# PANEL_X0 moved from 11.8 to 10.8 (2026-11-22, Norman): the glass edge sat only 0.8 mm from the
-# FPC slot; it now keeps 1.8 mm, and J5 moved 1 mm towards the slot, so the tail's slack stays.
+# The display faces the room and the tail leaves to the right, so the panel is turned by 180
+# degrees against the drawing's main view: its pin 1, and the 8.15 mm from the long edge to the
+# tail, are at the bottom. The panel sits 0.4 mm higher on the board than it did on the back
+# (y 2.0 to 31.2; before 2.4 to 31.6), so that the tail's centre line stays on y 16.8, J5's.
 PANEL_X0 = 10.8
-PANEL = (PANEL_X0, 2.4, PANEL_X0 + 59.2, 31.6)
-PANEL_TAIL_Y = 2.4 + 8.15 + 12.5 / 2          # centre line of the tail
+PANEL = (PANEL_X0, 2.0, PANEL_X0 + 59.2, 31.2)
+PANEL_TAIL_Y = round(PANEL[3] - 8.15 - 12.5 / 2, 2)   # centre line of the tail: 16.8
+# How high the frame carries the panel: the panel's back, above the board. The parts under it are
+# 3.3 mm at most (the side switches); the tail's fold allows 4.75 mm at most
+# (docs/hardware/next-revision.md, "The tail's fold"): at 4.6 mm 1.1 mm of tail are spare, 0.3 mm
+# with every tolerance against it.
+FRAME_HEIGHT = 4.6
 # Where it leaves the glass the tail is wider than the 12.5 mm of its contact end (specification
-# page 7): a shoulder that starts 6.77 mm below the panel's long edge (dimensioned; 1.38 mm above
-# the tail's edge) and ends about 0.4 mm below the tail's other edge (measured off the drawing),
-# 14.3 mm in all. It runs 4.1 mm out from the glass at that width and has narrowed to 12.5 mm at
-# 4.9 mm. The slot starts 1.8 mm from the glass, so this wide part is what passes through the board.
-# Board y of its two edges:
-FPC_SHOULDER = (2.4 + 6.77, 2.4 + 8.15 + 12.5 + 0.4)
-# Slot for the tail: 1.2 mm wide, 1.8 mm from the glass, and symmetric about the tail's centre
-# line, which is J5's (2026-11-23, Norman): 1.5 mm longer than the shoulder's wider side at BOTH
-# ends, although the shoulder is lopsided (1.38 mm on the pin 1 side, 0.4 mm on the other), so
-# the slot does not depend on which side the wide step is on. (Which side that is, and with it
-# the pin order, is verified: Good Display's photos of the panel show the drawing's main view to
-# be the display side, docs/hardware/rev-2.0.md.) The mill leaves the
-# slot's ends round (0.5 to 0.6 mm radius), and the tail lies against the slot's wall, where the
-# round end takes its whole radius: 0.9 mm stay clear there on the wider side, for the mill's
-# tolerance (0.2 mm), the tail's shape and its play in J5. (Until 2026-11-23 the slot was 13.5 mm
-# long, y 10.05 to 23.55, sized for the 12.5 mm of the contact end: the shoulder would have
-# overlapped its upper end by 0.9 mm.)
-FPC_SLOT_MARGIN = 1.5
-_half = max(PANEL_TAIL_Y - FPC_SHOULDER[0], FPC_SHOULDER[1] - PANEL_TAIL_Y) + FPC_SLOT_MARGIN
-_half = round(round(_half / 0.05 + 0.4999) * 0.05, 2)        # up to the next 0.05 mm: 9.15
-FPC_SLOT = (71.8, round(PANEL_TAIL_Y - _half, 2), 73.0, round(PANEL_TAIL_Y + _half, 2))     # y 7.65 to 25.95
-# Centre line of the 3 mm strip between the FPC slot and the island's slots. The two ground vias
-# in that strip stand on it, one above the other (2026-11-23, Norman): the via of the ground track
-# that crosses the bridge, and the strip's stitching via (STITCH_PREFER).
-STRIP_X = round((FPC_SLOT[2] + SLOT_X[0]) / 2, 2)      # 74.5
+# page 7): a shoulder that starts 6.77 mm from the panel's long edge on the pin 1 side
+# (dimensioned; 1.38 mm outside the tail's edge) and ends about 0.4 mm outside the tail's other
+# edge (measured off the drawing), 14.3 mm in all. It runs 4.1 mm out from the glass at that width
+# and has narrowed to 12.5 mm at 4.9 mm. Board y of its two edges (pin 1 side at the bottom):
+FPC_SHOULDER = (round(PANEL[3] - (8.15 + 12.5 + 0.4), 2), round(PANEL[3] - 6.77, 2))     # 10.15 to 24.43
+# Room the tail's fold needs above the board: from the glass edge to 4.3 mm beyond it (where the
+# half circle stands with every tolerance at its worst), 1.5 mm wider than the shoulder at both
+# ends, from the board up to the panel. Nothing higher than the tracks may stand there; in front
+# of J5, under the tail's stiff end, nothing higher than about 0.5 mm. Drawn on the fabrication
+# layer; the frame is open on this side.
+FOLD_ROOM = (PANEL[2], round(FPC_SHOULDER[0] - 1.5, 2), round(PANEL[2] + 4.3, 2), round(FPC_SHOULDER[1] + 1.5, 2))
+# Centre line of the 3 mm strip in front of the island's slots (it lay between the FPC slot and
+# those slots while the board had one). The two ground vias in that strip stand on it, one above
+# the other (2026-11-23, Norman): the via of the ground track that crosses the bridge, and the
+# strip's stitching via (STITCH_PREFER).
+STRIP_X = 74.5
 
-# Display parts. J5 (24-pin, 0.5 mm, dual contact) turned so that its opening faces the slot.
-# With the U-turn, the tail's pin 1 arrives at the connector's pin 24: the schematic maps the
-# pins accordingly (gen_schematic.py, FPC_REVERSED). The connector's front edge sits about
-# 5.8 mm from the slot, so that the 8 mm of flexible tail reach round the slot's edge and the
-# stiffened end lies flat into the connector. To be checked with a paper print and a real panel.
+# Display parts. J5 (24-pin, 0.5 mm, dual contact) with its opening to the right, towards the
+# tail's fold; pin 1 is then at the bottom, like the panel's pin 1, and the fold keeps each
+# contact's height: panel pin N on connector pin N (gen_schematic.py, FPC_REVERSED false).
 # Footprint: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF (gen_footprints.py), origin in the middle of
-# its 4.90 mm deep housing, opening 2.45 mm in front of it; turned by 90 degrees the opening
-# faces right, towards the slot, and pin 1 is at the bottom.
-# 7.8 mm (decided 2026-11-22): with Kinghelm's insertion depth of 2.1 mm the tail needs about
-# 10.2 mm from the glass edge to full insertion at 5.8 mm and had 4 mm to spare; at 7.8 mm about
-# 2 mm remain for real bend radii and tolerances (too short would be fatal, some slack is fine).
-# 6.8 mm (2026-11-22, Norman), together with the panel 1 mm further from the slot: the same
-# slack, with the tail's run split more evenly between the back and the component side.
-# To be confirmed with a 1:1 paper print and the real panel.
-# 2026-11-23: checked against the specification instead (page 7: the tail's dimensions; page 35:
-# glue up to 1.0 mm onto the tail's back, so the bend, 0.5 mm radius at the slot wall 1.8 mm
-# from the glass, starts clear of it at 1.3 mm). The spare lengths quoted above were about 0.9 mm too generous (the model let the
-# tail cut the board's corners). The tail needs at least 13.1 mm and has 14.3 +/- 0.3: 1.2 mm
-# spare at 6.8 mm (gen_models.py prints it). Each millimetre J5 moves towards the slot adds one.
-J5_FRONT_TO_SLOT = 6.8
-J5_X = round(FPC_SLOT[0] - J5_FRONT_TO_SLOT - 4.90 / 2, 3)
+# its 4.90 mm deep housing, opening 2.45 mm in front of it.
+# Its front edge lies 3.0 mm inside the glass edge (2026-11-24). The tail leaves the glass 0.5 mm
+# above the panel's back and J5 takes it 1.15 mm above the board (measured off Kinghelm's side
+# view): a drop of 3.95 mm, a half circle of 6.2 mm, which begins 1.5 mm from the glass (the glue
+# on the tail's back may reach 1.0 mm) and leaves 0.6 mm of flexible tail before the stiff 6 mm,
+# 2.1 mm of which are in J5. A longer or shorter tail moves the fold, not the connector.
+# (With the panel on the back, J5's front edge was 6.8 mm from the FPC slot, 5.0 mm inside the
+# glass edge.)
+J5_FRONT_INSIDE_GLASS = 3.0
+J5_X = round(PANEL[2] - J5_FRONT_INSIDE_GLASS - 4.90 / 2, 3)        # 64.55
+# Across, J5 sits 0.05 mm above the tail's centre line (2026-11-24, Norman: the tracks entered the
+# pads beside their middle). Its pads are 0.5 mm apart with the connector's middle between two of
+# them, so on the centre line (y 16.8) they lie on quarter millimetres, 0.05 mm off the 0.1 mm grid
+# all tracks are on; at y 16.75 pin p lies on y = 23.0 - 0.5 p, on the grid. The tail has more play
+# in the connector than that. (The USB connector and the BMP580 are placed like this too.)
+J5_Y = round(PANEL_TAIL_Y - 0.05, 2)
 PLACEMENT.update({
-    "J5": (J5_X, PANEL_TAIL_Y, 90),
-    # After the U-turn the panel's pin 1 is at the top: the boost pins (GDR, RESE) face the
-    # upper half, the supply and driving-voltage pins (15-24) the lower half.
-    # Boost converter and charge pump above, left of the connector, away from the antenna
-    # (moved 0.7 mm left with J5 on 2026-11-22; the diodes also 0.8 mm up, so that the lines to
-    # J5's pins 14-16 reach them straight from the left, clear of D4).
-    "L2": (50.3, 4.0, 0),         # 47 uH, 4 x 4 mm
-    "C25": (50.3, 7.6, 0),        # 4.7 uF at the inductor's input
-    "Q1": (54.7, 4.6, 0),         # MOSFET: drain to the switch node, source to the sense resistor
-    # 2.2 ohm sense resistor: below the MOSFET, its first pad under the source pin (2026-11-23; it
-    # stood right of Q1 at 56.9 / 4.6, behind the gate and switch-node tracks, and the source
-    # reached it through 18.6 mm of track and two vias, see BOOST). It takes the place of the gate
-    # pull-down R18, which only has to hold the gate low while the panel does not drive it and can
-    # sit anywhere on the gate line: now beside that line where it runs into J5.
-    "R19": (54.0, 6.6, 0),
-    "R18": (58.2, 9.39, 90),      # 1 Mohm gate pull-down: gate pad below, on a stub from the gate line; clear of J5's courtyard
-    "C26": (50.3, 11.0, 0),       # 4.7 uF charge pump capacitor
-    "D2": (55.1, 8.8, 0),         # switch node to VGH
-    "D3": (55.1, 11.2, 0),        # charge pump to ground
-    "D4": (55.1, 13.6, 0),        # VGL to the charge pump
-    # the eight 1 uF capacitors of the supply and driving voltages in a row below the connector
-    **{f"C{n}": (50.4 + 1.6 * i, 29.4, 270) for i, n in enumerate(range(17, 25))},
+    "J5": (J5_X, J5_Y, 90),
+    # The panel's pin 1 is at the bottom now: the gate-drive pins (GDR, RESE: 2, 3) are at the
+    # lower end of J5, the supply and driving-voltage pins (15-24) at its upper end. So the two
+    # groups of parts changed places (2026-11-24, Norman), the mirror image of the board of
+    # 2026-11-23: the boost converter and the charge pump below the display lines, next to pins 2
+    # and 3, the capacitors of the supply and driving voltages in a row along the top, with the
+    # open area between them and J5's upper pins for their lines. (Tried first, the same day: the
+    # boost converter left at the top and the capacitors beside it. Their lines did not fit into
+    # the 3.8 mm between the diodes and J5's pad row; none of eight router seeds finished.)
+    #
+    # Boost converter, drawn again for its new place (see BOOST): everything on one line, y 25.0.
+    # The inductor on the left, the switch node straight to the right into the MOSFET's drain,
+    # 4.3 mm; the diode to VGH above that line and the charge pump capacitor below it, each a stub
+    # of half a millimetre. The MOSFET is turned by 180 degrees: drain towards the inductor, source
+    # and gate towards J5, the source (to pin 3) above the gate (to pin 2), as the pins lie.
+    "L2": (51.1, 25.0, 0),        # 47 uH, 4 x 4 mm: +3V3 on the left, switch node on the right
+    "C25": (51.1, 21.4, 0),       # 4.7 uF at the inductor's input, above it: supply pad over the inductor's
+    "D2": (54.9, 22.4, 270),      # switch node to VGH, upright: anode down on the switch node, cathode up
+    "C26": (54.9, 27.0, 270),     # 4.7 uF charge pump capacitor, upright: switch node up, pump node down
+    "Q1": (57.8, 25.0, 180),      # MOSFET: drain left, source top right, gate bottom right
+    # 2.2 ohm sense resistor, upright, right of the source pin: sense pad level with that pin,
+    # ground pad and its via above.
+    "R19": (59.9, 23.84, 90),
+    # 1 Mohm gate pull-down, upright, on the gate line below R19: gate pad on the line, ground pad
+    # and its via below. It only holds the gate low while the panel does not drive it.
+    "R18": (59.9, 26.16, 270),
+    "D4": (51.2, 29.0, 180),      # VGL to the charge pump, under the inductor: pump node right, VGL left
+    "D3": (57.2, 28.9, 90),       # charge pump to ground, upright under the MOSFET: pump node up, ground down
+    # The seven 1 uF capacitors of J5's upper pins in a row along the top, 1.6 mm apart, the pad
+    # that carries the voltage towards the pins. From the left in the order of their pins from the
+    # bottom, so that their lines need not cross: +3V3 (pins 15, 16), VDD (18), VSH1 (20), VGH (21),
+    # VSL (22), VGL (23), VCOM (24).
+    **{f"C{n}": (50.4 + 1.6 * i, 4.1, 90) for i, n in enumerate((17, 18, 19, 22, 21, 23, 24))},
+    # VSH2 is the panel's pin 5, among the lower pins: its capacitor lies left of that pin, the
+    # voltage pad towards it.
+    "C20": (59.2, 20.0, 180),
     # The sensor regulator moves to where the sensor bus turns up into the strip to the bridge,
     # below the FPC slot (1.0 had it next to the buck converter, about 30 mm further left): the
     # sensors' supply current then runs a few millimetres to the strip instead of the length of
@@ -535,9 +550,30 @@ PLACEMENT.update({
     "U3": (68.0, 28.4, 270),
     "C3": (68.475, 25.6, 180),    # LDO input: supply pad over the input pin, ground pad over the ground pin
     "C4": (68.475, 31.0, 180),    # LDO output: supply pad under the output pin
-    "TP3": (71.0, 29.0, 0),       # test pad for the sensors' 3.3 V, right of the regulator
+    "TP3": (70.6, 30.6, 0),       # test pad for the sensors' 3.3 V, on the back, on a via beside the output capacitor
     "R5": (65.3, 28.4, 90),       # SENS_EN pull-up, next to the regulator's enable pin (1.0: by the buck converter)
 })
+# Everything that is probed goes to the back (2026-11-24, Norman): the panel on its frame covers
+# the component side. All sixteen test and probe pads are bare copper pads on the bottom layer,
+# with their labels on the back silkscreen. A pad on a hand-drawn line stands on a via of that
+# line (EPD_LINES); the others are reached by the router on the bottom layer; the ground pads lie
+# in the bottom pour.
+BACK_SIDE = {f"TP{n}" for n in range(1, 17)}
+# Where the frame that carries the panel stands on the board (x0, y0, x1, y1): spots kept free of
+# parts (tracks and vias may run under them; the feet stand on the solder mask), drawn on the
+# comments layer. Proposed 2026-11-24, not yet agreed: one under each corner of the panel, as far
+# as the parts allow, one in the open area between the module and the buck converter, one below
+# the display lines, and a small one on the top edge between the LED and the BOOT switch.
+FRAME_FEET = ((8.8, 0.6, 14.6, 5.6),       # top left, beside the antenna end's mounting hole
+              (12.6, 28.6, 18.2, 33.4),    # bottom left
+              (63.8, 0.6, 69.6, 7.4),      # top right, above J5
+              (60.7, 26.4, 64.4, 31.4),    # bottom right, below J5 (the sensor regulator has the corner)
+              (27.0, 9.0, 32.4, 17.0),     # middle, between the module and the buck converter
+              (44.6, 21.2, 48.4, 27.4),    # below the display lines, left of the boost converter
+              (19.8, 0.6, 23.4, 3.9))      # top edge, between the LED and the BOOT switch
+# Two 2.2 mm holes locate the frame, one in the bottom left foot and one in the top right one,
+# far apart and on a diagonal; an M2 screw from the back can also hold the frame down there.
+FRAME_HOLES = ((15.5, 30.8), (66.5, 4.0))
 POWER_NETS = POWER_NETS + ("/EPD_SW", "/EPD_RESE")
 # Bottom-layer ground that no signal may cut. The sensor island's ground reaches the main pours
 # only through the strip between the FPC slot and the sensor slot; the bottom layer of that
@@ -545,9 +581,9 @@ POWER_NETS = POWER_NETS + ("/EPD_SW", "/EPD_RESE")
 # ground, so the sensor bus crosses there on the top layer. In the first generated board the bus
 # ran on the bottom layer there and walled off pockets of the pours. The boost converter gets
 # an unbroken ground under it, like the buck converter.
-DISPLAY_GROUND_AREAS = ((66.7, 0.3, 75.9, 33.7),       # FPC landing area and the strip, full height
-                        (57.8, 7.5, 66.7, 26.0),       # behind J5: its ground pins' vias land here
-                        (48.0, 1.6, 57.6, 8.7),        # under the boost converter's switching loop
+DISPLAY_GROUND_AREAS = ((66.7, 0.3, 75.9, 33.7),       # in front of J5 and the strip, full height
+                        (59.8, 7.5, 66.7, 26.0),       # behind J5: its ground pins' vias land here
+                        (52.0, 23.0, 59.3, 26.3),      # under the boost converter's switching loop
                         # Along the bottom edge below the module, to under the USB connector: tracks
                         # from the module's corner pins ran round the ESP32's capacitors on both layers
                         # and closed in the ground via of the EN capacitor C7.
@@ -609,10 +645,14 @@ SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] not in ("BOOT", "RESET"
     ("BOOT", 28.0, 5.6, 0.8), ("RESET", 36.0, 5.6, 0.8), ("QWIIC", 39.5, 2.6, 0.8, 90))   # upright, between RESET and the Qwiic connector
 
 SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] != "3VS") + (
-    ("DISPLAY", J5_X + 5.5, 20.0, 0.8, 90), ("3VS", 71.2, 27.4, 0.8))
+    ("DISPLAY", J5_X + 4.0, 16.8, 0.8, 90),)
 # The regulator's output joins the bus's supply run straight below it; the router does the rest.
 PREROUTED = PREROUTED + (
     dict(net="+3V3_SENS", pads=("U3.5", "C4.1"), tracks=((0.4, ((68.95, 29.5), (68.95, 31.0))),)),
+    # the sensors' 3.3 V test pad, on the back: a stub from the output capacitor to a via in the pad
+    # (the bottom layer there is kept for ground, so the router cannot reach the pad)
+    dict(net="+3V3_SENS", pads=("TP3.1",), vias=((70.6, 30.6),),
+         tracks=((0.4, ((68.95, 31.0), (70.2, 31.0), (70.6, 30.6))),)),
     # USB supply, as the router drew it on revision 1.0 (25 mOhm from the farther pad): the
     # farther supply pad (A4/B9, left) up past the CC resistor to the protection part's VBUS pin,
     # under the ESD part on the bottom layer to beside the fuse, and the nearer pad (A9/B4)
@@ -631,118 +671,177 @@ PREROUTED = PREROUTED + (
 )
 
 # The six display lines, drawn by hand from the module to J5 (revision 2.0). Their paths are the
-# ones the router found for the clean board of 2026-11-22 (commit e8b8ee3, ROUTE_SEED 5), with the
-# probe pads (1.0 mm, copper only) placed in line on top-layer sections, so that a pad adds no
-# branch. Left to the router, a row of probe pads forced every display line into a detour and the
-# board no longer routed. Left of J5 the three SPI lines run as a staircase (2026-11-22, Norman):
-# CS straight at y 16.5 into its pin, SCK 1.2 mm below it (y 17.7) and SDI (MOSI) 1.2 mm below that
-# (y 18.9), each rising to its pin after its pad; the pads sit on the lines 4.4 mm apart in x
-# (SPI_PAD_X), so that each label fits to the right of its pad before the next pad begins, and SDI's
-# label ends before J5's ground via. (Before, the three lines dipped
-# in nested U shapes 1.5 mm lower, CS with a detour.) BUSY has its pad above the bundle, on its run down
-# past C26; DC on its run down the right of J5's pad row, between two ground vias. RST has no pad. The
-# pull-up R20 on CS sits on CS's run down from its via at x 40, its +3V3 pad towards the feedback divider
-# (the router joins it).
-# The CS, SCK and SDI labels are printed to the right of their pads, centred on the pad's height, in
-# a staircase like the pads; DC's on its right too, BSY's below its pad (the diodes are close on its
-# right).
-SPI_PAD_X = (45.4, 49.8, 54.2)   # CS, SCK, SDI: 4.4 mm apart (2026-11-22, Norman), each label fits before the next pad
-EPD_PADS = {"TP7": (SPI_PAD_X[0], 16.5), "TP5": (SPI_PAD_X[1], 17.7), "TP6": (SPI_PAD_X[2], 18.9), "TP8": (50.2, 13.3),
-            "TP11": (60.9, 6.6)}
+# ones the router found for the clean board of 2026-11-22 (commit e8b8ee3, ROUTE_SEED 5). Left of
+# J5 three of them run as a staircase (2026-11-22, Norman), 1.2 mm apart.
+# 2026-11-24: the panel moved to the component side, which reverses the pin order at J5. The six
+# tracks stayed where they were and changed their signals instead (gen_schematic.py): from the
+# top, the track from the module's pin 26 (IO3) is MOSI, pin 16 (IO18) SCK, pin 23 (IO15) CS,
+# pin 4 (IO4) DC, pin 5 (IO5) RST; they enter J5's pins 14 to 10 from the left, each stepping
+# down to its pin in the last 5 mm. The track from pin 9 (IO1), BUSY, comes along the top edge
+# and down the right of J5's pad row, between the pads and the upper holding pad, into pin 9.
+# The probe pads are on the back, each on a via of its line (a bare 1.0 mm pad with the via in
+# its middle, so that a pad still adds no branch): CS, SCK, DC in the staircase, MOSI on its run
+# down past C26, BUSY above J5. RST has no pad. The pull-up R20 on CS sits on CS's run down from
+# its via at x 40, R21 on RST's run at y 18.9; the router joins their +3V3 pads.
+EPD_PADS = {"TP7": (45.4, 16.5), "TP5": (47.6, 15.5), "TP11": (49.8, 17.7), "TP6": (50.2, 13.3),
+            "TP8": (round(J5_X - 1.65, 2), 6.6)}
 R20_AT = (39.49, 15.0)        # EPD_CS pull-up, horizontal: +3V3 pad at x 38.98, CS pad at x 40.0
+R21_AT = (46.0, 19.41)        # EPD_RST pull-up, upright: RST pad on the line at y 18.9, +3V3 pad below
+_J5 = round(J5_X - 2.65, 2)   # where a line ends on J5's pads: 61.9
+_UP = round(J5_X - 1.65, 2)   # the lane between J5's pad row and its upper holding pad: 62.9
 EPD_LINES = (
-    dict(net="EPD_SCK", pads=("U4.4", "TP5.1", "J5.12"), vias=((11.6, 26.9), (43.7, 17.1)), tracks=(
+    dict(net="EPD_DC", pads=("U4.4", "TP11.1", "J5.11"), vias=((11.6, 26.9), (43.7, 17.1), EPD_PADS["TP11"]), tracks=(
         (0.2, ((11.6, 25.8), (11.6, 26.9))),
         # under the module on the bottom layer, round the switches' boss holes, down to J5's row
         (0.2, ((11.6, 26.9), (15.4, 23.1), (15.4, 14.7), (26.7, 3.4), (29.8, 3.4), (32.3, 0.9), (34.3, 0.9),
                (34.8, 1.4), (34.8, 1.7), (34.9, 1.8), (37.1, 1.8), (37.2, 1.7), (37.2, 1.4), (37.7, 0.9),
                (38.5, 0.9), (38.9, 1.3), (38.9, 1.5), (43.7, 6.3), (43.7, 17.1)), "bottom"),
-        (0.2, ((43.7, 17.1), (44.3, 17.7), (51.2, 17.7), (51.9, 17.0), (59.9, 17.0))),
+        (0.2, ((43.7, 17.1), (44.3, 17.7), EPD_PADS["TP11"])),
+        (0.2, (EPD_PADS["TP11"], (51.2, 17.7), (51.4, 17.5), (_J5, 17.5))),
     )),
-    dict(net="EPD_MOSI", pads=("U4.5", "TP6.1", "J5.11"), vias=((22.4, 27.8), (33.8, 21.2)), tracks=(
+    dict(net="EPD_RST", pads=("U4.5", "R21.2", "J5.10"), vias=((22.4, 27.8), (33.8, 21.2)), tracks=(
+        # (The step up between x 18.2 and 20.3 goes round a resistor's pad, with a wiggle of 0.1 mm
+        # on either side, as the router found it. Drawn as two straight diagonals on 2026-11-24, it
+        # cost the module's lower pin row its way out: with it, and with the BUSY line's bottom run
+        # 0.1 mm lower, none of twelve seeds routed I2C_SDA, I2C_SCL, BMP_INT and QWIIC_EN all at
+        # once; without, five of twelve did. So it stays as it was.)
         (0.2, ((12.9, 25.8), (12.9, 27.8), (13.3, 28.2), (18.2, 28.2), (18.4, 28.0), (18.4, 27.8), (18.6, 27.6),
                (19.8, 27.6), (19.9, 27.7), (19.9, 27.8), (20.3, 28.2), (22.0, 28.2), (22.4, 27.8))),
         (0.2, ((22.4, 27.8), (30.5, 19.7), (32.3, 19.7), (33.8, 21.2)), "bottom"),
-        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (42.7, 18.9), (54.8, 18.9), (56.2, 17.5),
-               (59.9, 17.5))),
+        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (42.7, 18.9), (54.8, 18.9), (55.7, 18.0),
+               (_J5, 18.0))),
     )),
-    dict(net="EPD_CS", pads=("U4.23", "R20.2", "TP7.1", "J5.13"),
-         vias=((16.1, 6.8), (22.4, 6.8), (40.0, 10.4), (40.0, 13.0)), tracks=(
+    dict(net="EPD_CS", pads=("U4.23", "R20.2", "TP7.1", "J5.12"),
+         vias=((16.1, 6.8), (22.4, 6.8), (40.0, 10.4), (40.0, 13.0), EPD_PADS["TP7"]), tracks=(
         (0.2, ((14.1, 8.2), (14.1, 7.4), (14.7, 6.8), (16.1, 6.8))),
         (0.2, ((16.1, 6.8), (22.4, 6.8)), "bottom"),
         (0.2, ((22.4, 6.8), (36.4, 6.8), (40.0, 10.4))),
         (0.2, ((40.0, 10.4), (40.0, 13.0)), "bottom"),
-        (0.2, ((40.0, 13.0), (40.0, 16.0), (40.5, 16.5), (59.9, 16.5))),
+        (0.2, ((40.0, 13.0), (40.0, 16.0), (40.5, 16.5), EPD_PADS["TP7"])),
+        (0.2, (EPD_PADS["TP7"], (56.9, 16.5), (57.4, 17.0), (_J5, 17.0))),
     )),
-    dict(net="EPD_RST", pads=("U4.16", "J5.15"), vias=((40.6, 11.8), (40.9, 13.0)), tracks=(
+    dict(net="EPD_SCK", pads=("U4.16", "TP5.1", "J5.13"), vias=((40.6, 11.8), (40.9, 13.0), EPD_PADS["TP5"]), tracks=(
         (0.2, ((23.0, 8.2), (23.0, 7.4), (23.2, 7.2), (36.0, 7.2), (40.6, 11.8))),
         (0.2, ((40.6, 11.8), (40.9, 12.1), (40.9, 13.0)), "bottom"),
-        (0.2, ((40.9, 13.0), (43.4, 15.5), (59.9, 15.5))),
+        (0.2, ((40.9, 13.0), (43.4, 15.5), EPD_PADS["TP5"])),
+        (0.2, (EPD_PADS["TP5"], (57.9, 15.5), (58.9, 16.5), (_J5, 16.5))),
     )),
-    dict(net="EPD_BUSY", pads=("U4.26", "TP8.1", "J5.16"), tracks=(
+    dict(net="EPD_MOSI", pads=("U4.26", "TP6.1", "J5.14"), vias=(EPD_PADS["TP6"],), tracks=(
         (0.2, ((10.3, 8.2), (10.3, 6.9), (11.4, 5.8), (14.0, 5.8), (16.3, 3.5), (25.7, 3.5), (26.8, 4.6), (37.1, 4.6),
-               (38.4, 3.3), (44.7, 3.3), (45.6, 4.2), (45.6, 5.7), (48.5, 8.6), (48.8, 8.6), (50.2, 10.0), (50.2, 13.4),
-               (51.8, 15.0), (59.9, 15.0))),
+               (38.4, 3.3), (44.7, 3.3), (45.6, 4.2), (45.6, 5.7), (48.5, 8.6), (48.8, 8.6), (50.2, 10.0),
+               EPD_PADS["TP6"])),
+        (0.2, (EPD_PADS["TP6"], (50.2, 13.4), (51.8, 15.0), (58.4, 15.0), (59.4, 16.0), (_J5, 16.0))),
     )),
-    dict(net="EPD_DC", pads=("U4.9", "TP11.1", "J5.14"), vias=((16.7, 27.6), (26.2, 17.3), (32.0, 7.8), (38.8, 2.7)),
-         tracks=(
+    dict(net="EPD_BUSY", pads=("U4.9", "TP8.1", "J5.9"),
+         vias=((16.7, 27.6), (26.2, 17.3), (32.0, 7.8), (38.8, 2.7), EPD_PADS["TP8"]), tracks=(
         (0.2, ((18.0, 25.8), (18.0, 27.2), (17.6, 27.6), (16.7, 27.6))),
         (0.2, ((16.7, 27.6), (16.7, 26.8), (26.2, 17.3)), "bottom"),
         (0.2, ((26.2, 17.3), (32.0, 11.5), (32.0, 7.8))),
         (0.2, ((32.0, 7.8), (32.0, 5.4), (34.8, 2.6), (37.1, 2.6), (37.2, 2.7), (38.8, 2.7)), "bottom"),
-        # along the top edge over the boost converter, then down the right of J5's pad row into pin 14
-        (0.2, ((38.8, 2.7), (47.1, 2.7), (47.2, 2.6), (47.2, 2.5), (47.9, 1.8), (57.8, 1.8), (60.9, 4.9), (60.9, 15.9),
-               (60.8, 16.0), (59.9, 16.0))),
+        # along the top edge over the boost converter and the capacitors, then down the right of
+        # J5's pad row into pin 9
+        (0.2, ((38.8, 2.7), (47.0, 2.7), (47.9, 1.8), (round(_UP - 1.0, 2), 1.8), (_UP, 2.8),
+               EPD_PADS["TP8"])),
+        (0.2, (EPD_PADS["TP8"], (_UP, 18.4), (round(_UP - 0.1, 2), 18.5), (_J5, 18.5))),
     )),
 )
-# The pocket closed in by RST above and CS below (its run down at x 40, its horizontal and its U) is
-# kept ground on the top layer. Otherwise the router threads +3V3 through it between two vias,
-# sandwiched between the two display lines.
+# The pocket closed in by the SCK line above and the CS line below (their runs down at x 40 and
+# 41) is kept ground on the top layer, and so are the gaps between the lines of the staircase,
+# clear of the probe pads' vias. Otherwise the router threads +3V3 through there between two
+# vias, sandwiched between two display lines.
 EPD_POCKETS = ((40.25, 13.4, 41.0, 16.3), (41.0, 14.2, 41.8, 16.3), (41.8, 15.0, 42.6, 16.3),
-               # between RST and CS, either side of CS's pad
-               (42.6, 15.7, SPI_PAD_X[0] - 0.8, 16.3), (SPI_PAD_X[0] + 0.8, 15.7, 58.0, 16.3),
-               # between CS and SCK, round the pads
-               (44.4, 16.7, SPI_PAD_X[0] - 0.8, 17.5), (SPI_PAD_X[0] - 0.8, 17.3, SPI_PAD_X[0] + 0.8, 17.5),
-               (SPI_PAD_X[0] + 0.8, 16.7, SPI_PAD_X[1] - 0.8, 17.5),
-               # between SCK and SDI (MOSI), round the pads
-               (43.2, 17.9, SPI_PAD_X[1] - 0.8, 18.7), (SPI_PAD_X[1] + 0.8, 17.9, SPI_PAD_X[2] - 0.8, 18.7),
-               (52.1, 17.2, SPI_PAD_X[2] + 1.2, 18.1))
+               # between SCK (y 15.5) and CS (16.5)
+               (42.6, 15.7, 44.7, 16.3), (46.1, 15.7, 46.9, 16.3), (48.3, 15.7, 56.7, 16.3),
+               # between CS (16.5) and DC (17.7, then 17.5)
+               (46.1, 16.7, 49.1, 17.5), (51.6, 16.7, 56.7, 17.3),
+               # between DC and RST (18.9)
+               (44.5, 17.9, 45.3, 18.7), (46.7, 17.9, 49.1, 18.7), (51.6, 17.7, 54.6, 18.7))
 PREROUTED = PREROUTED + EPD_LINES
-# The boost converter's switching loop, drawn by hand (2026-11-23), like the buck converter's.
-# The loop that carries the inductor's current is input capacitor C25 -> L2 -> Q1 -> sense
-# resistor R19 -> ground -> C25. Left to the router, the gate and switch-node tracks closed in
-# Q1's source pin, and the source reached R19 (3 mm away) by a detour of 18.6 mm with two vias.
-# Now: the source drops 1.4 mm into R19, whose ground pad has its via right below it, 2.3 mm from
-# the via of C25's ground pad, both into the unbroken bottom ground (DISPLAY_GROUND_AREAS). The
-# switch node is 0.3 mm wide from L2 over Q1's gate pin into the drain and on down to D2; its
-# branch to the charge pump capacitor C26 runs under L2 between C25's pads and ducks under
-# EPD_BUSY on the bottom layer, as the router had it. The gate line passes between Q1's pins as
-# before, then right of R19 and between D2's pads to J5; the gate pull-down R18 hangs on it by a
-# stub just before J5. The sense line to J5 (no current) leaves R19 downwards and follows the
-# path the router had found.
+# The boost converter, drawn by hand like the buck converter (first 2026-11-23, at the top of the
+# board; drawn again on 2026-11-24 for its place below the display lines).
+# Input: C25's supply pad drops straight into the inductor's. Switch node: 0.3 mm wide, straight
+# from the inductor into the MOSFET's drain along y 25.0, with a stub of 0.95 mm up into the
+# diode D2 and one of 1.05 mm down into the charge pump capacitor C26. Source: 1.2 mm into the
+# sense resistor R19, whose ground pad has its via right above it; C25's ground pad has its via
+# beside it. The bottom layer under the switch node, the MOSFET and R19 stays ground
+# (DISPLAY_GROUND_AREAS).
+# Sense line (no current) and gate line run from R19 and from the gate pin to the right, then up
+# side by side, 0.4 mm apart, between R19 and J5's pad row into pins 3 and 2: the sense line on
+# the left, since its pin is the upper one. Nothing crosses them. The gate pull-down R18 sits on
+# the gate line.
+# Charge pump: from C26's lower pad 2.3 mm to the right into D3 and 2.1 mm to the left into D4.
+# VGH (from D2's upper pad) and VGL (from D4's left pad) have their pins and capacitors at the top
+# of J5, beyond the display lines: the router takes them there on the bottom layer, as it did on
+# the board of 2026-11-23.
 BOOST = (
-    dict(net="EPD_RESE", pads=("Q1.2", "R19.1", "J5.22"), tracks=(
-        (0.3, ((53.8, 5.25), (53.5, 5.55), (53.5, 6.6))),
-        (0.2, ((53.5, 6.6), (53.5, 7.3), (52.7, 8.1), (52.7, 9.7), (53.3, 10.3), (54.2, 10.3), (56.0, 12.1), (59.1, 12.1),
-               (59.2, 12.0), (59.9, 12.0))),
+    # with the 3V3 test pad on the back, on a via of this link
+    # (Every point the router may attach to is on the 0.1 mm grid: it attaches on the grid, and its
+    # tidy-up cuts off as a dead end whatever does not end exactly on a track. A diagonal from the
+    # capacitor's pad centre, which is off the grid, cost the board its +3V3 feed here at first.)
+    dict(net="+3V3", pads=("C25.1", "L2.1", "TP2.1"), vias=((49.6, 22.6),), tracks=(
+        (0.4, ((50.15, 21.4), (49.6, 21.4), (49.6, 22.6))),
+        (0.4, ((49.6, 22.6), (49.6, 25.0))),
     )),
-    dict(net="GND", pads=("C25.2",), vias=((52.2, 7.6),), tracks=((0.4, ((51.25, 7.6), (52.2, 7.6))),)),
-    dict(net="GND", pads=("R19.2",), vias=((54.5, 7.5),), tracks=((0.3, ((54.5, 6.6), (54.5, 7.5))),)),
-    dict(net="GND", pads=("R18.2",), vias=((58.2, 8.0),), tracks=((0.3, ((58.2, 8.9), (58.2, 8.0))),)),
-    dict(net="EPD_SW", pads=("L2.2", "Q1.3", "D2.2", "C26.1"), vias=((50.1, 9.1), (49.3, 9.9)), tracks=(
-        (0.3, ((51.8, 4.0), (52.4, 4.0), (52.4, 3.7), (52.7, 3.4), (54.7, 3.4), (55.6, 4.3), (55.6, 4.6))),
-        (0.3, ((55.6, 4.6), (55.6, 5.8), (56.5, 6.7), (56.5, 7.8), (56.8, 8.1), (56.8, 8.8))),
-        (0.2, ((51.8, 4.0), (51.2, 4.0), (50.4, 4.8), (50.4, 8.8), (50.1, 9.1))),
-        (0.2, ((50.1, 9.1), (49.3, 9.9)), "bottom"),
-        (0.2, ((49.3, 9.9), (49.3, 11.0))),
+    dict(net="GND", pads=("C25.2",), vias=((53.0, 21.4),), tracks=((0.4, ((52.05, 21.4), (53.0, 21.4))),)),
+    dict(net="EPD_SW", pads=("L2.2", "Q1.3", "D2.2", "C26.1"), tracks=(
+        (0.3, ((52.6, 25.0), (54.9, 25.0))),
+        (0.3, ((54.9, 25.0), (56.91, 25.0))),
+        (0.3, ((54.9, 25.0), (54.9, 24.05))),
+        (0.3, ((54.9, 25.0), (54.9, 26.05))),
     )),
-    dict(net="EPD_GDR", pads=("Q1.1", "R18.1", "J5.23"), tracks=(
-        (0.2, ((53.8, 3.95), (53.8, 4.2), (54.3, 4.7), (54.6, 4.7), (54.7, 4.8), (54.7, 5.4), (55.1, 5.8), (55.1, 8.8),
-               (56.0, 9.7), (56.9, 9.7), (58.2, 11.0), (58.7, 11.5), (59.9, 11.5))),
-        (0.2, ((58.2, 9.9), (58.2, 11.0))),
+    dict(net="EPD_RESE", pads=("Q1.2", "R19.1", "J5.3"), tracks=(
+        (0.3, ((58.69, 24.35), (59.9, 24.35))),
+        (0.2, ((59.9, 24.35), (60.3, 24.35), (60.5, 24.15), (60.5, 21.8), (60.8, 21.5), (_J5, 21.5))),
     )),
+    dict(net="GND", pads=("R19.2",), vias=((59.9, 22.5),), tracks=((0.3, ((59.9, 23.33), (59.9, 22.5))),)),
+    dict(net="EPD_GDR", pads=("Q1.1", "R18.1", "J5.2"), tracks=(
+        (0.2, ((58.69, 25.65), (59.9, 25.65))),
+        (0.2, ((59.9, 25.65), (60.6, 25.65), (60.9, 25.35), (60.9, 22.3), (61.2, 22.0), (_J5, 22.0))),
+    )),
+    dict(net="GND", pads=("R18.2",), vias=((59.9, 27.6),), tracks=((0.3, ((59.9, 26.67), (59.9, 27.6))),)),
+    dict(net="EPD_PUMP", pads=("C26.2", "D3.2", "D4.1"), tracks=(
+        (0.3, ((54.9, 27.95), (56.2, 27.95), (56.9, 27.25), (57.2, 27.25))),
+        (0.3, ((54.9, 27.95), (54.5, 28.6), (54.1, 29.0), (52.85, 29.0))),
+    )),
+    dict(net="GND", pads=("D3.1",), vias=((58.4, 30.55),), tracks=((0.4, ((57.2, 30.55), (58.4, 30.55))),)),
 )
 PREROUTED = PREROUTED + BOOST
+# The top layer between the MOSFET's drain pad and its source and gate pads is kept for ground:
+# it is the one gap through the converter that the switch node does not close, and the router
+# took a +3V3 track through it, under the MOSFET, on its way to the sensor regulator's pull-up.
+BOOST_KEEP_TOP = ((57.5, 23.6, 58.1, 26.4),)
+# J5's pins 17 (VSS) and 18 (VDD), drawn by hand (2026-11-24). Left to the router, pin 17's
+# ground via stood right beside the pads, 0.4 mm below pin 18's line: pin 18 could not get out
+# in any of sixteen runs. Now both leave to the left side by side, and pin 17's via stands
+# 2.7 mm from the pads, where the lines above have fanned out; the router takes VDD on from
+# the end of its stub.
+J5_UPPER = (
+    dict(net="EPD_VDD", pads=("J5.18",), tracks=((0.2, ((_J5, 14.0), (round(_J5 - 2.0, 2), 14.0))),)),
+    dict(net="GND", pads=("J5.17",), vias=((round(_J5 - 2.7, 2), 14.5),),
+         tracks=((0.2, ((_J5, 14.5), (round(_J5 - 2.7, 2), 14.5))),)),
+)
+PREROUTED = PREROUTED + J5_UPPER
+# Five pads on the back that stood in the bottom layer's busiest stretch, between the USB
+# connector and the buck converter and at the start of the sensor bus, get a short stub on the
+# top layer to a via in the pad instead (2026-11-24): the router no longer has to reach them on
+# the bottom layer, and three of them move to where that layer is quiet.
+#   5V: from the fuse's output pad to the right, clear of the RST line.
+#   3V3: on the link from the boost converter's input capacitor to its inductor (in BOOST).
+#   SDA, SCL: beside their pull-ups, each from its pull-up's signal pad.
+#   INT: straight up from the free end of the BMP_INT run of the sensor bus.
+BACK_PAD_STUBS = (
+    dict(net="+5V", pads=("TP1.1",), vias=((40.0, 19.6),),
+         tracks=((0.4, ((38.9, 20.5), (39.8, 19.6), (40.0, 19.6))),)),
+    dict(net="I2C_SDA", pads=("TP9.1", "R12.2"), vias=((40.3, 29.4),),
+         tracks=((0.2, ((41.6, 30.1), (41.2, 30.1), (40.5, 29.4), (40.3, 29.4))),)),
+    dict(net="I2C_SCL", pads=("TP10.1", "R13.2"), vias=((44.6, 30.5),),
+         tracks=((0.2, ((43.2, 30.1), (43.5, 30.1), (43.9, 30.5), (44.6, 30.5))),)),
+    # (1.2 mm clear of the USB connector's shell leg, a plated hole at x 37.4)
+    dict(net="BMP_INT", pads=("TP12.1",), vias=((39.1, 31.6),),
+         tracks=((0.2, ((38.4, 33.2), (38.4, 32.3), (39.1, 31.6))),)),
+)
+PREROUTED = PREROUTED + BACK_PAD_STUBS
+PLACEMENT.update({"TP1": (40.0, 19.6, 0), "TP2": (49.6, 22.6, 0)})
 # The buck converter's two ground connections get two vias each, drawn by hand (2026-11-23): the
 # converter's ground pin with the input capacitor C1, and the output capacitor C2. On revision
 # 1.0 each of the two patches of top pour they sit in had two vias; on revision 2.0's denser
@@ -761,19 +860,29 @@ BUCK_GND = (
     )),
 )
 PREROUTED = tuple(g for g in PREROUTED if not (g["net"] == "GND" and g["pads"] == ("U2.1", "C1.2"))) + BUCK_GND
-# Three ground test pads get their way into the pours drawn by hand, so that their via does not sit
-# against the pad or under its label (2026-11-22, Norman): the router puts it right beside the pad.
-# TP4 (middle) moves 0.8 mm down, its via 1 mm above its edge; TP13 (top, by the boost converter)
-# keeps its place, its via 1 mm to its right; TP14 (UART GND) has its via midway to the TX pad.
-# R15's ground pad (the Qwiic switch's gate pull-down) gets its via below it: with the SPI lines
-# in their staircase the router put it to the left, where I2C_SDA and the RST and CS vias closed it in.
-GND_PAD_VIAS = {"TP4.1": ((44.6, 24.2), (44.6, 22.4)), "TP13.1": ((60.0, 2.4), (61.8, 2.4)),
-                "TP14.1": ((9.06, 4.0), (10.3, 4.0)), "R15.2": ((42.3, 12.52), (42.3, 13.5))}
+# R15, the pull-down on QWIIC_EN, stands right of the Qwiic regulator U9, beside the enable pin it
+# holds low (2026-11-24; it stood left of U9 at 42.3 / 12.0). Its ground pad has its via drawn by
+# hand, to the right, in the open bottom pour. Where it stood, its via was in the channel between
+# the CS and SCK lines' vias and the DC line's run on the bottom layer, down which the router
+# takes I2C_SDA and I2C_SCL: in ten of twelve seeds those two closed the via in on both layers,
+# and R15 had no ground. A strip of the bottom layer kept for ground beside the via cured that
+# and cost the two bus lines their way. (The ground test pads TP4, TP13 and TP14 had hand-drawn
+# stubs while they were on the component side; on the back they lie in the bottom pour.)
+PLACEMENT["R15"] = (47.6, 13.4, 270)       # QWIIC_EN pad up, level with U9's enable pin; ground pad down
+# The enable line still comes through under U9, between its pads, as on 1.0, and now runs on from
+# the enable pin to R15 on the right; its free end on the left is where the router joins it.
+PREROUTED = tuple(
+    dict(net="QWIIC_EN", pads=("R15.1", "U9.3"), tracks=(
+        (0.2, ((43.0, 11.5), (45.9, 11.5), (45.9, 12.6))),
+        (0.2, ((45.9, 12.6), (46.6, 12.6), (46.9, 12.9), (47.6, 12.9))),
+    )) if g["net"] == "QWIIC_EN" and "R15.1" in g["pads"] else g for g in PREROUTED)
+GND_PAD_VIAS = {"R15.2": ((47.6, 13.9), (48.4, 13.9))}
 PREROUTED = PREROUTED + tuple(dict(net="GND", pads=(pad_name,), vias=(via,), tracks=((0.4, (pad, via)),))
                               for pad_name, (pad, via) in GND_PAD_VIAS.items())
 PLACEMENT.update({ref: (x, y, 0) for ref, (x, y) in EPD_PADS.items()})
 PLACEMENT["R20"] = (*R20_AT, 0)
-PLACEMENT["TP4"] = (*GND_PAD_VIAS["TP4.1"][0], 0)
+PLACEMENT["R21"] = (*R21_AT, 90)
+PLACEMENT["TP4"] = (44.6, 24.2, 0)
 SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[:3] != ("GND", 44.6, 25.1)) + (("GND", 44.6, 25.9, 0.8),)
 # The I2C pull-ups move to where the hand-drawn bus starts at the bottom edge (in 1.0 they sat
 # on the bus's straight run to the bridge, which revision 2.0 no longer passes): each signal pad
@@ -783,9 +892,9 @@ PLACEMENT.pop("J3")
 PLACEMENT.update({
     "R12": (41.6, 29.6, 270),    # SDA pull-up: above the free end of the SDA run (x 40.8-42.4)
     "R13": (43.2, 29.6, 270),    # SCL pull-up: above the free end of the SCL run (x 42.4-44.0)
-    "TP9": (39.9, 30.4, 0),      # SDA probe, left of its pull-up
-    "TP10": (44.7, 30.4, 0),     # SCL probe, right of its pull-up
-    "TP12": (39.6, 27.6, 0),     # BMP_INT probe, above the SDA probe; its track drops past it to the free end of the BMP_INT run
+    "TP9": (40.3, 29.4, 0),      # SDA probe, left of its pull-up (on the back, see BACK_PAD_STUBS)
+    "TP10": (44.6, 30.5, 0),     # SCL probe, right of its pull-up
+    "TP12": (39.1, 31.6, 0),     # BMP_INT probe, above the free end of the BMP_INT run
     # a second ground pad for a scope's ground clip, by the boost converter
     "TP13": (60.0, 2.4, 0),
     # the fallback serial port on three standard test pads where 1.0's header J3 was: GND, TX, RX
@@ -813,19 +922,13 @@ SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] != "ClimaSense Rev 2.0"
 TP_LABEL_GAP = 0.4
 TP_LABELS = {
     "TP1": ("5V", "below"), "TP2": ("3V3", "above"), "TP3": ("3VS", "right"), "TP4": ("GND", "below"),
-    "TP5": ("SCK", "right"), "TP6": ("SDI", "right"), "TP7": ("CS", "right"), "TP8": ("BSY", "left"),
-    "TP9": ("SDA", "below"), "TP10": ("SCL", "below"), "TP11": ("DC", "right"), "TP12": ("INT", "right"),
+    "TP5": ("SCK", "above"), "TP6": ("SDI", "right"), "TP7": ("CS", "below"), "TP8": ("BSY", "right"),
+    "TP9": ("SDA", "above"), "TP10": ("SCL", "below"), "TP11": ("DC", "below"), "TP12": ("INT", "right"),
     "TP13": ("GND", "below"), "TP14": ("GND", "above"), "TP15": ("TX", "above"), "TP16": ("RX", "above"),
 }
-# their hand-placed labels from before go
-SILK_LABELS = tuple(lab for lab in SILK_LABELS
-                    if not any(lab[0] == text and abs(lab[1] - PLACEMENT[ref][0]) < 2.6 and abs(lab[2] - PLACEMENT[ref][1]) < 2.6
-                               for ref, (text, _) in TP_LABELS.items() if ref in PLACEMENT))
-# The display's driving voltages are measured on their capacitors' pads: a name above each,
-# turned upright so that it fits the 1.6 mm pitch.
-SILK_LABELS = SILK_LABELS + tuple((name, round(50.4 + 1.6 * i, 2), 26.62, 0.8, 90) for i, name in enumerate(
-    ("", "VDD", "VSH1", "VSH2", "VSL", "VGH", "VGL", "")) if name)   # VCOM: no room between C24 and J5
-
+# their hand-placed labels from before go: every test pad is on the back now, so no label on the
+# component side names one (the 3V3 and 5V pads moved, and their old labels had stayed behind)
+SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] not in {text for text, _ in TP_LABELS.values()})
 # SENS_EN (IO10, lower pin row) runs with the sensor bus to the regulator's pull-up R5 by U3:
 # drawn by hand on the bottom layer under the bus along the bottom edge, from right of the USB
 # connector to below R5; the router joins its ends. Left to the router it found no way through.
@@ -849,8 +952,7 @@ STITCH_CLEAR = 2.0            # from every other ground via
 STITCH_APART = 3.5            # between a via off its grid point and any other stitching via
 STITCH_EXTRA = ()             # no extra rows any more
 # Spots tried first for the cell they lie in when the cell's own grid point is blocked. One: the
-# grid point (72.7, 11.0) lies in the FPC slot, and the nearest free spot is 0.7 mm beside the slot,
-# off the middle of the strip and out of line with the bridge's ground via below it.
+# strip's stitching via, on the strip's centre line above the bridge's ground via.
 STITCH_PREFER = ((STRIP_X, 11.0),)
 # Stitching vias also stand under the ESP32 module, between its pad rows (2026-11-23, Norman):
 # the router keeps tracks and its own vias out from under the module, but the top layer there
@@ -874,7 +976,7 @@ PATCH_VIA_SPACING = 0.9       # between the centres of a patch via and any other
 PATCH_VIA_PAD = 0.5           # from the via's edge to any pad, as for the stitching vias
 # Start order of the router (route_board.py, `seed`): 0 = shortest connection first. Found by
 # trying several with --seed=N; the one kept routes this board completely.
-ROUTE_SEED = 7
+ROUTE_SEED = 1
 
 
 def P(x, y):
@@ -941,7 +1043,8 @@ def pad_label_position(board, ref, label, side):
     fp = board.FindFootprintByReference(ref)
     cx, cy = (pcbnew.ToMM(v) - o for v, o in ((fp.GetPosition().x, ORIGIN[0]), (fp.GetPosition().y, ORIGIN[1])))
     ring = max(pcbnew.ToMM(g.GetRadius()) + pcbnew.ToMM(g.GetWidth()) / 2 for g in fp.GraphicalItems()
-               if g.GetClass() == "PCB_SHAPE" and g.GetLayer() == pcbnew.F_SilkS and g.GetShape() == pcbnew.SHAPE_T_CIRCLE)
+               if g.GetClass() == "PCB_SHAPE" and g.GetLayer() in (pcbnew.F_SilkS, pcbnew.B_SilkS)
+               and g.GetShape() == pcbnew.SHAPE_T_CIRCLE)
     label.SetPosition(P(cx, cy))
     x0, y0, x1, y1 = text_box(label)
     reach = ring + TP_LABEL_GAP
@@ -1209,6 +1312,16 @@ def fill_pours(board_file):
     return removed
 
 
+def kicad_open(board_file):
+    """Open connections of a filled board as KiCad counts them. The router's own count has been
+    wrong in both directions: it reports a pocket of pour that tie_patches() ties afterwards, and
+    it has missed connections that its tidy-up cut off."""
+    report = HW / "build" / (Path(board_file).stem + ".open.json")
+    subprocess.run([KICAD_CLI, "pcb", "drc", "--severity-all", "--format", "json", "-o", str(report), str(board_file)],
+                   check=True, capture_output=True)
+    return len(json.loads(report.read_text(encoding="utf-8")).get("unconnected_items", []))
+
+
 def option(name):
     """Value of --name=value, "" for a bare --name, None if absent."""
     for x in sys.argv[1:]:
@@ -1226,10 +1339,10 @@ def state_file(board_file):
 
 def bundle_supply_length(board):
     """Length (mm) of +3V3 track on the top layer inside the display bundle: the strip that the
-    hand-drawn SPI and reset lines span on the top layer from x 41 to where SDI rises to its pin
-    (beyond it +3V3 leaves J5's supply pins below the lines)."""
-    x0, x1 = 41.0, SPI_PAD_X[2] + 0.6
-    pts = [pt for g in EPD_LINES if g["net"] in ("EPD_SCK", "EPD_MOSI", "EPD_CS", "EPD_RST")
+    hand-drawn lines of the staircase (SCK, CS, DC, RST) span on the top layer from x 41 to where
+    the RST line steps up to its pin."""
+    x0, x1 = 41.0, 54.8
+    pts = [pt for g in EPD_LINES if g["net"] in ("EPD_SCK", "EPD_CS", "EPD_DC", "EPD_RST")
            for width, line, *side in g["tracks"] if not side for pt in line if x0 <= pt[0] <= x1]
     y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
     total = 0.0
@@ -1292,26 +1405,31 @@ def seed_batch(spec):
                 print(f"  seed {n}: failed (see build/seed_{n}.log)", flush=True)
     if not results:
         raise SystemExit("no seed produced a board")
-    # the clean ones must also pass audit_pcb.py (a net crossing itself or with a loop fails it)
+    # KiCad has the last word on what is open (2026-11-24): the eight boards the router rates best
+    # get their pours filled and are counted by KiCad. The clean ones must also pass audit_pcb.py
+    # (a net crossing itself or with a loop fails it).
+    t_fill = time.time()
     for r in results:
-        r["audit_ok"] = r["open"] == 0 and subprocess.run(
+        r["kicad_open"], r["audit_ok"] = 999, False
+    for r in sorted(results, key=lambda r: (r["open"], r["vias"]))[:8]:
+        fill_pours(r["out"])
+        r["kicad_open"] = kicad_open(r["out"])
+        r["audit_ok"] = r["kicad_open"] == 0 and subprocess.run(
             [sys.executable, str(HW / "tools" / "audit_pcb.py"), r["out"]], capture_output=True).returncode == 0
-        if r["open"] == 0:
-            print(f"  seed {r['seed']}: audit {'passed' if r['audit_ok'] else 'FAILED'}", flush=True)
-    best = min(results, key=lambda r: (r["open"], not r["audit_ok"], r["bundle_supply_mm"] > 0.05, r["vias"], r["track_mm"]))
+        print(f"  seed {r['seed']}: KiCad counts {r['kicad_open']} open (the router {r['open']})"
+              + (f", audit {'passed' if r['audit_ok'] else 'FAILED'}" if r["kicad_open"] == 0 else ""), flush=True)
+    best = min(results, key=lambda r: (r["kicad_open"], not r["audit_ok"], r["bundle_supply_mm"] > 0.05, r["vias"], r["track_mm"]))
     shutil.copy(best["out"], BOARD_FILE)
     shutil.copy(state_file(best["out"]), state_file(BOARD_FILE))
     for r in results:
         for ext in (".kicad_pcb", ".kicad_pro", ".kicad_prl"):
             Path(r["out"]).with_suffix(ext).unlink(missing_ok=True)
-    t_fill = time.time()
-    fill_pours(BOARD_FILE)
-    print(f"kept seed {best['seed']} ({best['open']} open, {best['vias']} vias, {best['track_mm']} mm) -> "
-          f"{BOARD_FILE.name}; pours filled in {time.time() - t_fill:.0f} s; {time.time() - t0:.0f} s in total"
+    print(f"kept seed {best['seed']} ({best['kicad_open']} open, {best['vias']} vias, {best['track_mm']} mm) -> "
+          f"{BOARD_FILE.name}; pours filled and counted in {time.time() - t_fill:.0f} s; {time.time() - t0:.0f} s in total"
           + ("" if best["seed"] == ROUTE_SEED or keep is not None
              else f"; set ROUTE_SEED = {best['seed']} to get it from a single run"))
-    if best["open"]:
-        raise SystemExit(f"no seed routed the board completely (best: {best['open']} open)")
+    if best["kicad_open"]:
+        raise SystemExit(f"no seed routed the board completely (best: {best['kicad_open']} open)")
 
 
 def main():
@@ -1323,6 +1441,14 @@ def main():
             add_fpc_tail(board)
             pcbnew.SaveBoard(str(BOARD_FILE), board)
         print("FPC tail model added")
+        return
+    if option("--without-panel"):
+        # a copy of the board without the panel and its tail, for a picture of the parts under them
+        board = pcbnew.LoadBoard(str(BOARD_FILE))
+        for fp in list(board.GetFootprints()):
+            if fp.GetReference() in ("PNL1", "PNL2"):
+                board.Remove(fp)
+        pcbnew.SaveBoard(option("--without-panel"), board)
         return
     if not NETLIST.exists():
         raise SystemExit("build/netlist.net missing - run check_schematic.py first")
@@ -1386,8 +1512,6 @@ def main():
     edge(board, [(0, 0), (W, 0), *TONGUE_OUTLINE, (W, H), (0, H)])
     for y1, y2 in SLOTS_Y:
         edge(board, [(SLOT_X[0], y1), (SLOT_X[1], y1), (SLOT_X[1], y2), (SLOT_X[0], y2)])
-    fx0, fy0, fx1, fy1 = FPC_SLOT
-    edge(board, [(fx0, fy0), (fx1, fy0), (fx1, fy1), (fx0, fy1)])
     # --- nets --------------------------------------------------------------
     nets = {}
     pad_net = {}
@@ -1430,6 +1554,8 @@ def main():
         if ref in INTERNALLY_JOINED:
             fp.SetDuplicatePadNumbersAreJumpers(True)
         board.Add(fp)
+        if ref in BACK_SIDE:
+            fp.Flip(fp.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
         placed += 1
     missing = set(PLACEMENT) - {first(c, "ref")[1] for c in find(first(net, "components"), "comp")}
     if missing:
@@ -1445,7 +1571,20 @@ def main():
         fp.Reference().SetVisible(False)
         board.Add(fp)
 
+    # --- the frame's locating holes (board only) ------------------------------------------------
+    for i, (x, y) in enumerate(FRAME_HOLES, 1):
+        fp = load_footprint("MountingHole:MountingHole_2.2mm_M2")
+        fp.SetReference(f"FH{i}")
+        fp.SetValue("frame")
+        fp.SetPosition(P(x, y))
+        fp.SetAttributes(pcbnew.FP_BOARD_ONLY | pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_EXCLUDE_FROM_POS_FILES)
+        fp.Reference().SetVisible(False)
+        board.Add(fp)
+
     # --- the panel itself, for the 3D view only (board only: no BOM, no placement) ---------
+    # On the component side, FRAME_HEIGHT above the board, where its frame carries it.
+    # --no-panel leaves it and its tail out, for a picture of the parts under it.
+    show_panel = "--no-panel" not in sys.argv[1:]
     panel = pcbnew.FOOTPRINT(board)
     panel.SetReference("PNL1")
     panel.SetValue("GDEY0213B74")
@@ -1454,28 +1593,21 @@ def main():
     panel.SetAttributes(pcbnew.FP_BOARD_ONLY | pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_EXCLUDE_FROM_POS_FILES)
     model = pcbnew.FP_3DMODEL()
     model.m_Filename = "${KIPRJMOD}/lib/climasense.3dshapes/GDEY0213B74.wrl"
+    model.m_Offset.z = FRAME_HEIGHT
     panel.Add3DModel(model)
     panel.SetPosition(P((PANEL[0] + PANEL[2]) / 2, (PANEL[1] + PANEL[3]) / 2))
-    board.Add(panel)
-    panel.Flip(panel.GetPosition(), pcbnew.FLIP_DIRECTION_TOP_BOTTOM)
-    add_fpc_tail(board)
+    if show_panel:
+        board.Add(panel)
+        add_fpc_tail(board)
 
-    # --- where the panel goes, on the back ------------------------------------
-    # Outline on the back fabrication layer, and on the back silkscreen with gaps where it
-    # would run over a through-hole pad (the fab leaves silkscreen off copper anyway; the gaps
-    # keep DRC quiet). Two ticks and "FPC" mark the edge the tail leaves from, so that the
-    # panel cannot be stuck on the wrong way round.
+    # --- where the panel goes, above the parts -----------------------------------
+    # Its outline, with two ticks at the edge the tail leaves from, the room the tail's fold needs
+    # and the frame's feet, all on the comments layer. Nothing of this is printed on the board:
+    # the frame positions the panel.
     px0, py0, px1, py1 = PANEL
     sides = (((px0, py0), (px1, py0)), ((px1, py0), (px1, py1)), ((px0, py1), (px1, py1)),
              ((px0, py0), (px0, py1)))
-    tail_y = FPC_SHOULDER                    # the tail's edges where it leaves the glass (its wide part)
-    ticks = tuple(((px1 - 1.2, y), (px1, y)) for y in tail_y)
-    back_pads = []
-    for fp in board.GetFootprints():
-        for pad in fp.Pads():
-            if pad.IsOnLayer(pcbnew.B_Cu):
-                bb = pad.GetBoundingBox()
-                back_pads.append(tuple(pcbnew.ToMM(v) for v in (bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom())))
+    ticks = tuple(((px1 - 1.2, y), (px1, y)) for y in FPC_SHOULDER)   # the tail's edges where it leaves the glass
 
     def segment(layer, a, b):
         line = pcbnew.PCB_SHAPE(board)
@@ -1486,45 +1618,15 @@ def main():
         line.SetWidth(FromMM(0.15))
         board.Add(line)
 
-    def clear_of_pads(a, b, margin=0.25):
-        """Pieces of the axis-parallel line a-b that keep `margin` from every back pad."""
-        horizontal = a[1] == b[1]
-        lo, hi = (a[0], b[0]) if horizontal else (a[1], b[1])
-        cuts = []
-        for x0, y0, x1, y1 in back_pads:
-            x0, y0, x1, y1 = (x0 - ORIGIN[0] - margin, y0 - ORIGIN[1] - margin,
-                              x1 - ORIGIN[0] + margin, y1 - ORIGIN[1] + margin)
-            if horizontal and y0 <= a[1] <= y1:
-                cuts.append((x0, x1))
-            elif not horizontal and x0 <= a[0] <= x1:
-                cuts.append((y0, y1))
-        pieces, start = [], lo
-        for c0, c1 in sorted(cuts):
-            if c1 < start or c0 > hi:
-                continue
-            if c0 > start:
-                pieces.append((start, c0))
-            start = max(start, c1)
-        if start < hi:
-            pieces.append((start, hi))
-        return [((u, a[1]), (v, a[1])) if horizontal else ((a[0], u), (a[0], v))
-                for u, v in pieces if v - u > 0.3]
+    def box(layer, x0, y0, x1, y1):
+        for a, b in (((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))):
+            segment(layer, a, b)
 
     for a, b in sides + ticks:
-        segment(pcbnew.B_Fab, a, b)
-        for piece in clear_of_pads(a, b):
-            segment(pcbnew.B_SilkS, *piece)
-    for text, x, y, angle in (("DISPLAY", (px0 + px1) / 2, (py0 + py1) / 2, 0),
-                              ("FPC", px1 - 2.2, PANEL_TAIL_Y, 90)):
-        label = pcbnew.PCB_TEXT(board)
-        label.SetText(text)
-        label.SetLayer(pcbnew.B_SilkS)
-        label.SetMirrored(True)
-        label.SetTextAngleDegrees(angle)
-        label.SetPosition(P(x, y))
-        label.SetTextSize(VECTOR2I(FromMM(1.0), FromMM(1.0)))
-        label.SetTextThickness(FromMM(0.15))
-        board.Add(label)
+        segment(pcbnew.Cmts_User, a, b)
+    box(pcbnew.Cmts_User, *FOLD_ROOM)
+    for x0, y0, x1, y1 in FRAME_FEET:
+        box(pcbnew.Cmts_User, x0, y0, x1, y1)
 
     # --- silkscreen labels ---------------------------------------------------
     # Reference designators are not printed (see above); these few labels are.
@@ -1542,7 +1644,9 @@ def main():
     for ref, (text, side) in TP_LABELS.items():
         label = pcbnew.PCB_TEXT(board)
         label.SetText(text)
-        label.SetLayer(pcbnew.F_SilkS)
+        # the pads are on the back: their labels too, mirrored so that they read from there
+        label.SetLayer(pcbnew.B_SilkS if ref in BACK_SIDE else pcbnew.F_SilkS)
+        label.SetMirrored(ref in BACK_SIDE)
         label.SetTextSize(VECTOR2I(FromMM(0.8), FromMM(0.8)))
         label.SetTextThickness(FromMM(0.15))
         board.Add(label)
@@ -1610,7 +1714,7 @@ def main():
         timing["placement"] = time.time() - t0 - timing.get("read previous board", 0.0)
         geo = dict(
             W=W, H=H,
-            cutouts=[(SLOT_X[0], y1, SLOT_X[1], y2) for y1, y2 in SLOTS_Y] + list(TONGUE_CUTOUTS) + [FPC_SLOT],
+            cutouts=[(SLOT_X[0], y1, SLOT_X[1], y2) for y1, y2 in SLOTS_Y] + list(TONGUE_CUTOUTS),
             antenna_x=6.9,
             module_inner=(MODULE[0] - 12.75, ROW_TOP + 1.05, MODULE[0] + 12.75, ROW_BOTTOM - 1.05),
             module_ref="U4", module_epad="29",
@@ -1629,7 +1733,7 @@ def main():
             fixed_only=[(SLOT_X[0] - 0.3, 0, SLOT_X[1] + 0.3, H), (TONGUE_NECK_X[0], 21.5, TONGUE_NECK_X[1], 25.5)],
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1", "J5", "Q1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
-            reserve_top=[("GND", area) for area in EPD_POCKETS],
+            reserve_top=[("GND", area) for area in (*EPD_POCKETS, *BOOST_KEEP_TOP)],
             trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS,
                                                                                *DISPLAY_GROUND_AREAS)],
             internally_joined=INTERNALLY_JOINED,

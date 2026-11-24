@@ -63,10 +63,14 @@ SUPPLY_PATHS = (
 )
 
 
+PAD_LAYERS = {}      # pad name -> the copper layers it is on (the test pads are on the back)
+
+
 def load():
     board = pcbnew.LoadBoard(str(PCB))
     pt = lambda v: (v.x * MM - ORIGIN[0], v.y * MM - ORIGIN[1])
     tracks, vias, pads, boxes = defaultdict(list), defaultdict(list), defaultdict(list), {}
+    PAD_LAYERS.clear()
     for t in board.GetTracks():
         if t.GetClass() == "PCB_VIA":
             vias[t.GetNetname()].append(pt(t.GetPosition()))
@@ -83,6 +87,7 @@ def load():
             bb = p.GetBoundingBox()
             boxes[name] = (*pt(pcbnew.VECTOR2I(bb.GetLeft(), bb.GetTop())),
                            *pt(pcbnew.VECTOR2I(bb.GetRight(), bb.GetBottom())))
+            PAD_LAYERS[name] = {layer for layer, kicad in (("F.Cu", pcbnew.F_Cu), ("B.Cu", pcbnew.B_Cu)) if p.IsOnLayer(kicad)}
     return tracks, vias, pads, boxes
 
 
@@ -244,7 +249,7 @@ def tidiness(tracks, vias, pads, boxes):
     for net, segs in tracks.items():
         for a, b, width, layer in segs:
             for name, centre in pads[net]:
-                if name.startswith("U5.") or layer != "F.Cu":
+                if name.startswith("U5.") or layer != "F.Cu" or layer not in PAD_LAYERS.get(name, {"F.Cu"}):
                     continue
                 x0, y0, x1, y1 = boxes[name]
                 inside = [p for p in (a, b) if x0 <= p[0] <= x1 and y0 <= p[1] <= y1]
@@ -271,6 +276,38 @@ def tidiness(tracks, vias, pads, boxes):
                 corners.append(f"   {net} on {layer} at ({v[0]:.1f}, {v[1]:.1f})")
     out.append(f"Right-angle or sharper corners outside pads: {len(corners) or 'none'}")
     out += corners
+
+    # 5. jogs: a piece of 0.25 mm or less between two pieces that meet at 45 degrees or run
+    #    parallel shows as a bump at the turn (2026-11-24, Norman). A short piece between two at
+    #    a right angle is a cut corner and does not count. route_board.py removes them (dejog);
+    #    what is listed here it could not remove without coming too close to other copper.
+    def plain(v, layer, net):
+        return len(ends[(v, layer, net)]) == 2 and v not in via_points and not pad_at(net, v, layer)
+
+    width_of = {}
+    for net, segs in tracks.items():
+        for a, b, width, layer in segs:
+            width_of[(key(a), key(b), layer, net)] = width_of[(key(b), key(a), layer, net)] = width
+    jogs = []
+    for net, segs in tracks.items():
+        for a, b, width, layer in segs:
+            a, b = key(a), key(b)
+            if not 1e-6 < math.dist(a, b) <= 0.25 or not plain(a, layer, net) or not plain(b, layer, net):
+                continue
+            p = next((q for q in ends[(a, layer, net)] if q != b), None)
+            q = next((r for r in ends[(b, layer, net)] if r != a), None)
+            if p is None or q is None or math.dist(p, a) < 1e-6 or math.dist(q, b) < 1e-6:
+                continue
+            # where the track changes its width the short piece is the change (the SCD41's supply
+            # link is thin for 0.8 mm past the sensor's vent hole)
+            if abs(width_of[(p, a, layer, net)] - width) > 1e-6 or abs(width_of[(b, q, layer, net)] - width) > 1e-6:
+                continue
+            d1 = ((a[0] - p[0]) / math.dist(p, a), (a[1] - p[1]) / math.dist(p, a))
+            d2 = ((q[0] - b[0]) / math.dist(q, b), (q[1] - b[1]) / math.dist(q, b))
+            if d1[0] * d2[0] + d1[1] * d2[1] > 0.5:
+                jogs.append(f"   {net} on {layer} at ({a[0]:.1f}, {a[1]:.1f}): {math.dist(a, b):.2f} mm")
+    out.append(f"Jogs (a short piece between two that meet at 45 degrees or run parallel): {len(jogs) or 'none'}")
+    out += jogs
     return out, defects
 
 
