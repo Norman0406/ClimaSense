@@ -184,7 +184,7 @@ A 0.91" OLED breakout with a Qwiic connector (for example SparkFun's 128 × 32) 
 
 ## 7. Parts on the room side of the board
 
-Raised on 2026-11-24 (Norman). **Not decided.** On revision 2.0 every part faces the wall and only the panel faces the room ([`rev-2.0.md`](rev-2.0.md)). The idea: put the buttons and the LED, and perhaps the sensors, on the room side as well. **Short answer: for buttons and LED the gain is small and the board has to grow; for the sensors the gain may be real but is not measured, and it ends assembly on a hot plate. Measure on a 1.0 board first** (measurement 7 below).
+Raised on 2026-11-24 (Norman). **Not decided.** On revision 2.0 every part faces the wall and only the panel faces the room ([`rev-2.0.md`](rev-2.0.md)). The idea: put the buttons and the LED, and perhaps the sensors, on the room side as well. **Short answer: for buttons and LED the gain is small and the board has to grow; for the sensors the gain may be real but is not measured, and it ends assembly on a hot plate, unless the whole board is turned round and the panel sits above the parts ([variant](#variant-the-board-turned-round-the-panel-above-the-parts)). Measure on a 1.0 board first** (measurement 7 below).
 
 What holds for any part on the room side:
 
@@ -208,6 +208,31 @@ What holds for any part on the room side:
 - **Light.** The SGP41 must not sit in bright light. Facing the wall it is shaded for free; facing the room the case needs a front grille that lets air through and no light.
 - **Depth.** The SCD41 is 6.5 mm high, the panel 1.0 mm. The case's front is stepped, or the display sits about 5 mm behind it.
 - **Route B of [section 5](#5-should-the-board-be-more-modular)** gets to the same place another way: a separate sensor board can face the room whatever the controller board does.
+
+### Variant: the board turned round, the panel above the parts
+
+Raised on 2026-11-24 (Norman). **Not decided.** The parts face the room again, as on revision 1.0, and the panel sits on the same side, above the parts of the controller side. Of the ways to get the sensors facing the room this is the one that keeps the board one-sided. No note was found that it was considered when the flip was chosen on 2026-11-22.
+
+What it solves:
+
+- **The sensors face the room, and the island stays exactly as on 1.0**, so the 1.0 boards still prove its layout.
+- **One-sided assembly stays**: a bare, flat back, one stencil, the hot plate.
+- **No FPC slot through the board.** The slot and the strip where the sensor bus runs round its end are not needed; the board gets a few millimetres shorter.
+- **The antenna faces the room**, not a wall a centimetre away.
+- **Depth.** The panel's face ends up about 4.5 mm above the board, 2 mm below the top of the SCD41 (6.5 mm), not 5.5 mm below it. The sensors need no gap to the wall, so the device gets thinner.
+- The question whether the USB connector's shell legs stand proud under the panel goes away.
+
+What it costs:
+
+- **The panel needs a carrier.** The tallest parts under it are about 3.3 mm high (USB connector 3.26 mm, switches 3.3 mm, the ESP32 module and the boost inductor about 3 mm), so the panel's back is about 3.5 mm above the board. A printed frame on the board, or the case's front, has to hold the 1 mm glass over its whole area; on 2.0 it is taped to the bare back.
+- **The tail's path is new.** It would fold back under the panel into a connector below the panel's edge, on the same side. First estimate, **not checked against the specification**: about 3 mm of drop between the tail and the connector allow a bend of about 1.5 mm radius, gentler than the 0.5 mm bends round the slot's edges, and leave about 8 mm of the 14.3 mm for the straight run into the connector (6 mm of it stiffened). It needs the same check as 2.0's path ([`rev-2.0.md`](rev-2.0.md), FPC slot and connector): the fold has to begin beyond the glue, the panel's rotation and the pin order have to be derived again, and the panel has to be put on after the tail is plugged in.
+- **Buttons and LED gain nothing.** They are under or beside the panel, so the buttons stay side-push parts on the top edge with a plunger in the case.
+- **The test pads are under the panel.** They would move to the back as bare pads, which need no assembly.
+- **Warm air under the panel.** The ESP32 and the buck converter sit in a pocket behind the glass. The carrier has to let that air out upwards, away from the sensors. The panel is rated to 50 °C; not measured.
+- **The SGP41 needs shade**, as on revision 1.0 and as under [Sensors](#sensors) above.
+- **Revision 2.0 is reworked**: the display zone placed and routed again, the check before ordering repeated.
+
+Measurement 7 below comes first here too: if the sensors read as well facing the wall, revision 2.0 as it stands needs none of this.
 
 ## Smaller items noticed along the way
 
