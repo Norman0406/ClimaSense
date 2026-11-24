@@ -463,9 +463,10 @@ PANEL = (PANEL_X0, 2.0, PANEL_X0 + 59.2, 31.2)
 PANEL_TAIL_Y = round(PANEL[3] - 8.15 - 12.5 / 2, 2)   # centre line of the tail: 16.8
 # How high the frame carries the panel: the panel's back, above the board. The parts under it are
 # 3.3 mm at most (the side switches); the tail's fold allows 4.75 mm at most
-# (docs/hardware/next-revision.md, "The tail's fold"): at 4.6 mm 1.1 mm of tail are spare, 0.3 mm
-# with every tolerance against it.
-FRAME_HEIGHT = 4.6
+# (docs/hardware/next-revision.md, "The tail's fold"). 4.75 mm since 2026-11-24 (Norman: raise
+# the panel a bit, for a shallower bezel; 4.6 mm before): 0.9 mm of tail are spare, 0.1 mm with
+# every tolerance against it. The fold hangs free, so the height changes nothing on the board.
+FRAME_HEIGHT = 4.75
 # Where it leaves the glass the tail is wider than the 12.5 mm of its contact end (specification
 # page 7): a shoulder that starts 6.77 mm from the panel's long edge on the pin 1 side
 # (dimensioned; 1.38 mm outside the tail's edge) and ends about 0.4 mm outside the tail's other
@@ -491,8 +492,8 @@ STRIP_X = 74.5
 # its 4.90 mm deep housing, opening 2.45 mm in front of it.
 # Its front edge lies 3.0 mm inside the glass edge (2026-11-24). The tail leaves the glass 0.5 mm
 # above the panel's back and J5 takes it 1.15 mm above the board (measured off Kinghelm's side
-# view): a drop of 3.95 mm, a half circle of 6.2 mm, which begins 1.5 mm from the glass (the glue
-# on the tail's back may reach 1.0 mm) and leaves 0.6 mm of flexible tail before the stiff 6 mm,
+# view): a drop of 4.10 mm, a half circle of 6.4 mm, which begins 1.4 mm from the glass (the glue
+# on the tail's back may reach 1.0 mm) and leaves 0.5 mm of flexible tail before the stiff 6 mm,
 # 2.1 mm of which are in J5. A longer or shorter tail moves the fold, not the connector.
 # (With the panel on the back, J5's front edge was 6.8 mm from the FPC slot, 5.0 mm inside the
 # glass edge.)
@@ -922,7 +923,8 @@ SILK_LABELS = tuple(lab for lab in SILK_LABELS if lab[0] != "ClimaSense Rev 2.0"
 TP_LABEL_GAP = 0.4
 TP_LABELS = {
     "TP1": ("5V", "below"), "TP2": ("3V3", "above"), "TP3": ("3VS", "right"), "TP4": ("GND", "below"),
-    "TP5": ("SCK", "above"), "TP6": ("SDI", "right"), "TP7": ("CS", "below"), "TP8": ("BSY", "right"),
+    # (SCK's label below its pad: above it, it lay over the ground via of R15)
+    "TP5": ("SCK", "below"), "TP6": ("SDI", "right"), "TP7": ("CS", "below"), "TP8": ("BSY", "right"),
     "TP9": ("SDA", "above"), "TP10": ("SCL", "below"), "TP11": ("DC", "below"), "TP12": ("INT", "right"),
     "TP13": ("GND", "below"), "TP14": ("GND", "above"), "TP15": ("TX", "above"), "TP16": ("RX", "above"),
 }

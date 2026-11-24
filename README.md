@@ -25,7 +25,11 @@ How the board is laid out and why: [`docs/hardware/layout.md`](docs/hardware/lay
 
 Revision 2.0 adds a 2.13" black-and-white e-paper panel and is 103 × 34 mm. **It is still being designed and has not been built or ordered.** Its notes: [`docs/hardware/rev-2.0.md`](docs/hardware/rev-2.0.md).
 
-The parts face the room, as on revision 1.0. The panel lies above them, on a printed frame 4.6 mm above the board that is not designed yet; its flexible tail folds back under it into a connector. The picture at the top of this page shows the panel in place; the pictures below show the board without it.
+The parts face the room, as on revision 1.0. The panel lies above them, on a printed frame 4.75 mm above the board that is not designed yet; its flexible tail folds back under it into a connector. The picture at the top of this page shows the panel in place; the pictures below show the board without it.
+
+From the side, with the USB connector towards the viewer: the panel above the parts, its tail folding back under it on the right, and the SCD41, the tallest part, beside it:
+
+![Revision 2.0 from the side](docs/images/rev-2.0/board-side.png)
 
 The panel covers everything from the module to the display connector. The buttons and the status LED are on the top edge, and the sensors keep their arrangement behind the slot:
 

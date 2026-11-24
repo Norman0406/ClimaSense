@@ -15,14 +15,14 @@ Decided (2026-11-24, Norman):
 | Topic | Choice |
 | --- | --- |
 | Orientation | **Turned round again.** The component side faces the room, as on 1.0. The sensors, the antenna and the display all face the room. |
-| Panel | On the component side, **on a printed frame that stands on the board**, its back 4.6 mm above the board (the parts under it are 3.3 mm at most; the tail allows 4.75 mm at most). x 10.8 to 70.0 as before, y 2.0 to 31.2 (0.4 mm higher, so that the tail stays on J5's centre line: the panel is turned by 180° against before). |
+| Panel | On the component side, **on a printed frame that stands on the board**, its back **4.75 mm** above the board (the parts under it are 3.3 mm at most; the tail allows 4.75 mm at most; 4.6 mm at first, raised the same day by Norman for a shallower bezel). x 10.8 to 70.0 as before, y 2.0 to 31.2 (0.4 mm higher, so that the tail stays on J5's centre line: the panel is turned by 180° against before). |
 | Tail | Folds back under the panel in a half circle into J5. **No slot through the board.** J5's front edge 3.0 mm inside the glass edge (was 5.0 mm), its opening still towards the sensors. |
 | Pin order at J5 | **Panel pin N on connector pin N** (`FPC_REVERSED` false in `gen_schematic.py`; was 25 − N). |
 | Display GPIOs | **Re-assigned**, so that the six hand-drawn tracks stay where they are and only change their signal: `EPD_MOSI` IO3, `EPD_SCK` IO18, `EPD_CS` IO15 (unchanged), `EPD_DC` IO4, `EPD_RST` IO5, `EPD_BUSY` IO1. Before: BUSY IO3, RST IO18, SCK IO4, MOSI IO5, DC IO1. |
 | `EPD_RST` pull-up | **R21, 100 kΩ to +3V3** (new, C25741 like R20): IO5 floats while the chip is in reset; IO18, where RST was, is pulled up by the chip. |
 | Boost circuit | **Below the display lines**, next to J5's pins 2 and 3, drawn again by hand: inductor, switch node, MOSFET and sense resistor on one line at y 25, the MOSFET turned so that its drain faces the inductor and its source and gate face J5. **The seven capacitors of J5's upper pins in a row along the top**, with the open area between them and the pins; VSH2's capacitor below, at pin 5. This is the mirror image of the board of 2026-11-23. (First choice the same day: the boost circuit left at the top with the capacitors beside it. It did not route, see below.) |
 | Test and probe pads | **All sixteen on the back**, as bare pads with their labels on the back silkscreen; a pad on a hand-drawn line stands on a via of that line. |
-| Case | Flat front; the display behind a bezel about 1.6 mm deep; a wall round the sensor area. Not designed yet. |
+| Case | Flat front; the display behind a bezel about 1.45 mm deep; a wall round the sensor area. Not designed yet. |
 
 Notes on the pins, for the firmware and the next check:
 

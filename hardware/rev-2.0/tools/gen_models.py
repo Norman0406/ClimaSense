@@ -300,7 +300,7 @@ TAIL = dict(length=14.30, stiff=6.00, width=12.50, flex_t=0.1, stiff_t=0.3,
             bend_r=0.5,          # smallest bend, inside radius (Good Display's usage guidelines)
             ledge=0.5,           # how far above the panel's back the tail leaves the glass
             glue=1.0,            # silicone glue may reach this far onto the tail's back: no bend there
-            frame=4.6,           # the panel's back above the board (FRAME_HEIGHT in gen_pcb.py)
+            frame=4.75,          # the panel's back above the board (FRAME_HEIGHT in gen_pcb.py)
             zj=1.15,             # where J5 takes the tail, above the board (Kinghelm drawing 8.01A0-C, side view)
             j5_front=-3.0,       # J5's front edge, 3.0 mm inside the glass edge (J5_FRONT_INSIDE_GLASS in gen_pcb.py)
             insert=2.1,
@@ -367,7 +367,7 @@ def main():
     _, _, a, spare = tail_path()
     t = TAIL
     drop = t["frame"] + t["ledge"] - t["zj"]
-    print(f"FPC tail: {t['length']:.2f} mm long, {t['stiff']:.2f} mm of it stiff; panel {t['frame']:.1f} mm above the board, "
+    print(f"FPC tail: {t['length']:.2f} mm long, {t['stiff']:.2f} mm of it stiff; panel {t['frame']:g} mm above the board, "
           f"drop {drop:.2f} mm, half circle of {math.pi * drop / 2:.2f} mm with an inside radius of {drop / 2 - t['flex_t'] / 2:.2f} mm; "
           f"the fold begins {a:.2f} mm from the glass (glue up to {t['glue']:.1f} mm, specification page 35) and stands "
           f"{a + drop / 2:.2f} mm beyond it; {spare:+.2f} mm spare")

@@ -1,12 +1,14 @@
 """Write the pictures of the board that the README and the layout notes show, into docs/images/:
 
   board-angle.png     3D view from the front left, the display panel on its frame's height
+  board-side.png      3D view from the side, the bottom edge with the USB connector towards the viewer:
+                      the parts, the panel above them, its tail's fold and the SCD41
   board-top.png       3D view straight from above, without the panel: the parts under it
   board-bottom.png    3D view of the back, with the test pads
   board-fpc.png       close-up of the panel's FPC tail folding back under the panel into its connector
 
-Only the angled view and the close-up show the panel (2026-11-24, Norman): it covers the whole
-controller side, so the views from above and from the back are of the board alone.
+Only the angled view, the side view and the close-up show the panel (2026-11-24, Norman): it
+covers the whole controller side, so the views from above and from the back are of the board alone.
   copper-top.svg      top copper layer with the board outline
   copper-bottom.svg   bottom copper layer, seen from above through the board (not mirrored)
 
@@ -86,6 +88,8 @@ def main():
     # round (a camera light washes the whole board out), so that view keeps the default lights.
     render("board-angle.png", 1600, 800, "--perspective", "--rotate", "-35,0,-20", "--zoom", "1.3", "--pan", "-0.3,0.3,0",
            "--light-side", "0", "--light-camera", "1")
+    # from the side, level with the board: how high everything stands (2026-11-24, Norman)
+    render("board-side.png", 1600, 360, "--side", "front", "--zoom", "3.9", "--light-side", "0", "--light-camera", "1")
     # close-up of the FPC tail: out of the glass, down in a half circle and back under the panel into J5
     render("board-fpc.png", 1600, 900, "--rotate", "-70,0,-20", "--zoom", "2.6", "--pan", "-6,0,0",
            "--light-side", "0", "--light-camera", "1")
