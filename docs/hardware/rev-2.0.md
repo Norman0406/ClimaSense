@@ -208,7 +208,7 @@ From the review, in its numbering; everything not listed here is done or was a n
 | 18 | Green and blue LED may be dim on 3.3 V | see on a 1.0 board |
 | 19 | BMP580 land size (Bosch's two documents disagree) | see on a 1.0 board |
 | 20 | Switch boss holes 0.20 mm from the switch's own pads; USB shell slots with a 0.20 mm ring | known, at JLCPCB's limit |
-| 21 | C2's part number is not recommended for new designs; J5 has one maker and low stock | at the next order |
+| 21 | J5 has one maker and low stock (981 on 2026-11-24). C2's part number (C45783) is not recommended for new designs; kept, because it is a basic part at JLCPCB with 4.5 million in stock and its replacement (CL21A226MAYNNNE, C602037) an extended one | check at ordering |
 
 Only real parts can show: the J5 and switch footprints, the antenna behind the panel, the temperature under the panel (rated to 50 °C), and how the case presses the buttons, which reach only 0.2 mm past the edge.
 

@@ -17,7 +17,7 @@ The review below describes the design as it was at commit `8b32dfd` and is left 
 | 11. VGH and VGL capacitors far from their diodes | **Fixed 2026-11-25** | A second capacitor at each diode: C27 beside D2, C28 beside D4 (same 0603 part), each on a 0.3 mm link with its own ground via. The first ones stay at J5. |
 | 13. −20 V line under the boost inductor | **Fixed 2026-11-25** | The top layer between L2's pads is kept for ground (`BOOST_KEEP_TOP`); VGL no longer runs there. Other minimum spacings of the ±20 V nets were not changed. |
 | 15. Silkscreen below JLCPCB's minimums | **Fixed 2026-11-25** | Letters 1.0 mm, lines 0.15 mm. Two short outlines (the SGP41's and C11's) stay 0.12 mm, because wider they come too close to each other. |
-| 16. Documents against the design | **Fixed 2026-11-25**, one point open | `rev-2.0.md` rewritten as the description of the current board with a complete pin table and a test pad table; the old text kept as `rev-2.0-history.md`. `ordering.md` has a revision 2.0 section; `hardware/rev-2.0/README.md`, `schematic.md` (pointer to the 2.0 pin map; Qwiic current 150 mA), `footprints.md` and `CLAUDE.md` corrected. Assembly decided: JLCPCB. Open: `next-revision.md`, section 7, still speaks of revision 2.0 as it was before 2026-11-24. |
+| 16. Documents against the design | **Fixed 2026-11-25** | `rev-2.0.md` rewritten as the description of the current board with a complete pin table and a test pad table; the old text kept as `rev-2.0-history.md`. `ordering.md` has a revision 2.0 section; `hardware/rev-2.0/README.md`, `schematic.md` (pointer to the 2.0 pin map; Qwiic current 150 mA), `footprints.md` and `CLAUDE.md` corrected. Assembly decided: JLCPCB. `next-revision.md`, section 7, now says that its question is settled and which board it means by "2.0". |
 | 17. Debug access with the panel mounted | **Mostly 2026-11-25** | Six new pads on the back: VGH, VGL, VSH1, VSL, VCOM and `EPD_RST` (TP17–TP22). Still none on VBUS and the Qwiic supply, and no way to isolate a rail. |
 | 22. Home assembly | Not applicable | Assembly is by JLCPCB (decided 2026-11-25). |
 | 2. Assembly rails at the overhanging parts | Open | The order remark is written down in `ordering.md`; to be used at ordering time. |
@@ -25,7 +25,8 @@ The review below describes the design as it was at commit `8b32dfd` and is left 
 | 4. Fold margin at a frame height of 4.75 mm | Open | Decision before the frame is printed. |
 | 10. Driving-voltage capacitors keep 15–20 % of their value | Not planned | 0805 parts do not fit the capacitor row at 1.6 mm pitch; C27 and C28 add capacitance on VGH and VGL where it matters most. |
 | 12. Bottom tracks under the boost circuit | Open | `rev-2.0.md` now says what is and is not reserved. |
-| 6, 8, 14, 18, 19, 20, 21 | Open | To be judged on a revision 1.0 board or at the next order. |
+| 21. Parts | Kept as it is (decided 2026-11-25) | C2 stays CL21A226MAQNNNE (C45783): a basic part at JLCPCB with 4.5 million in stock; the replacement Samsung names (C602037) is an extended part and would add a loading fee per order for no functional gain. J5 (one maker, low stock): check at ordering. |
+| 6, 8, 14, 18, 19, 20 | Open | To be judged on a revision 1.0 board or at the next order. |
 
 Board after these changes: `ROUTE_SEED` 2 (five of twelve seeds route it), 71 placed parts, 22 test pads, 241 vias; KiCad's check without violation, difference or open connection; the audit passed. `gen_fab.py` now exports with `--check-zones`.
 

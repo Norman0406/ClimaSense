@@ -184,7 +184,9 @@ A 0.91" OLED breakout with a Qwiic connector (for example SparkFun's 128 × 32) 
 
 ## 7. Parts on the room side of the board
 
-Raised on 2026-11-24 (Norman). **Not decided.** On revision 2.0 every part faces the wall and only the panel faces the room ([`rev-2.0.md`](rev-2.0.md)). The idea: put the buttons and the LED, and perhaps the sensors, on the room side as well. **Short answer: for buttons and LED the gain is small and the board has to grow; for the sensors the gain may be real but is not measured, and it ends assembly on a hot plate, unless the whole board is turned round and the panel sits above the parts ([variant](#variant-the-board-turned-round-the-panel-above-the-parts)). Measure on a 1.0 board first** (measurement 7 below).
+**Status (2026-11-25): this question is settled, and this section is kept as the record of how.** The [variant](#variant-the-board-turned-round-the-panel-above-the-parts) below was chosen on 2026-11-24 and revision 2.0 was reworked for it the same day: the component side faces the room again, and the panel lies above the parts on a frame. The board as it is now is described in [`rev-2.0.md`](rev-2.0.md). Where this section says "revision 2.0" or "2.0", it means the board as it was until 2026-11-23: every part towards the wall, the panel on the bare back, its tail through a slot. Still open from here: the frame's height and design, the case, the wall round the sensors, and a conductive layer behind the panel.
+
+Raised on 2026-11-24 (Norman). On the board of 2026-11-23 every part faced the wall and only the panel faced the room ([`rev-2.0-history.md`](rev-2.0-history.md)). The idea: put the buttons and the LED, and perhaps the sensors, on the room side as well. **Short answer: for buttons and LED the gain is small and the board has to grow; for the sensors the gain may be real but is not measured, and it ends assembly on a hot plate, unless the whole board is turned round and the panel sits above the parts ([variant](#variant-the-board-turned-round-the-panel-above-the-parts)). Measure on a 1.0 board first** (measurement 7 below).
 
 What holds for any part on the room side:
 
@@ -211,7 +213,7 @@ What holds for any part on the room side:
 
 ### Variant: the board turned round, the panel above the parts
 
-Raised on 2026-11-24 (Norman), who wants to go this way and have the board changed for it. **The board is not changed yet**; how the panel is carried is open, see [Case concept](#case-concept-frame-flat-front-bezel-2026-11-24). The parts face the room again, as on revision 1.0, and the panel sits on the same side, above the parts of the controller side. Of the ways to get the sensors facing the room this is the one that keeps the board one-sided. No note was found that it was considered when the flip was chosen on 2026-11-22.
+Raised on 2026-11-24 (Norman), who wanted to go this way and have the board changed for it. **Done the same day: this is revision 2.0 as it is now** ([`rev-2.0.md`](rev-2.0.md)); the panel is carried by a printed frame that stands on the board, which is not designed yet, see [Case concept](#case-concept-frame-flat-front-bezel-2026-11-24). The parts face the room again, as on revision 1.0, and the panel sits on the same side, above the parts of the controller side. Of the ways to get the sensors facing the room this is the one that keeps the board one-sided. No note was found that it was considered when the flip was chosen on 2026-11-22.
 
 What it solves:
 
@@ -230,7 +232,7 @@ What it costs:
 - **The test pads are under the panel.** They would move to the back as bare pads, which need no assembly.
 - **Warm air under the panel.** The ESP32 and the buck converter sit in a pocket behind the glass. The carrier has to let that air out upwards, away from the sensors. The panel is rated to 50 °C; not measured.
 - **The SGP41 needs shade**, as on revision 1.0 and as under [Sensors](#sensors) above.
-- **Revision 2.0 is reworked**: the display zone placed and routed again, the check before ordering repeated.
+- **Revision 2.0 is reworked**: the display zone placed and routed again, the check before ordering repeated (done: the rework on 2026-11-24, the check as the review of the same day, [`../../REVIEW.md`](../../REVIEW.md)).
 
 Measurement 7 below still shows what the sensors gain by facing the room. It is no longer the only reason: a flat front with the display and the sensors behind it needs this arrangement whatever the measurement says.
 

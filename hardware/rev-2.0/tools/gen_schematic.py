@@ -59,6 +59,10 @@ CAP = {  # value -> (footprint, LCSC, MPN)
     "1uF": (C0402, "C52923", "CL05A105KA5NQNC"),
     "2.2uF": (C0402, "C12530", "CL05A225MQ5NSNC"),
     "10uF": (C0805, "C15850", "CL21A106KAYNNNE"),
+    # (Samsung lists this 22 uF part as not recommended for new designs and names CL21A226MAYNNNE,
+    # C602037, as its replacement: same value, 25 V, X5R, 0805. Not changed (2026-11-25, Norman):
+    # this one is a basic part at JLCPCB with 4.5 million in stock, the replacement an extended
+    # part, which costs a loading fee per order. Swap when JLCPCB's stock of this one runs down.)
     "22uF": (C0805, "C45783", "CL21A226MAQNNNE"),
     # Display supply (revision 2.0). The panel's driving voltages reach about +/-20 V, and
     # Good Display asks for 0603/0805, X5R/X7R, >= 25 V: a 0402 part keeps too little of its
