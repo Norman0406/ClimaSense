@@ -425,6 +425,10 @@ def run(board, origin, geo, log=print):
     for rect in geo.get("fixed_only", ()):
         R.block_rect(*rect)
 
+    # areas of the top layer that carry no copper at all (under the buck inductor)
+    for rect in geo.get("copper_free_top", ()):
+        R.block_rect(*rect, layers=(TOP,))
+
     # keep-out areas that footprints bring along (antenna, underside of the SHT45)
     for fp in board.GetFootprints():
         for z in fp.Zones():
@@ -1787,6 +1791,11 @@ def run(board, origin, geo, log=print):
 
     ax = geo["antenna_x"]
     zone([(0, 0), (ax, 0), (ax, H), (0, H)], name="Antenna keep-out")
+    for x0, y0, x1, y1 in geo.get("copper_free_top", ()):
+        z = zone([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], name="No copper under the inductor")
+        top_only = pcbnew.LSET()
+        top_only.AddLayer(pcbnew.F_Cu)
+        z.SetLayerSet(top_only)
     px0, px1 = ax + 0.2, bx0 - 0.1
     for layer, label in ((pcbnew.F_Cu, "GND top"), (pcbnew.B_Cu, "GND bottom")):
         zone([(px0, 0), (px1, 0), (px1, H), (px0, H)], layer=layer, net=kicad_net["GND"], name=label)

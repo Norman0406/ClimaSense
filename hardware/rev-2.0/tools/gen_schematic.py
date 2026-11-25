@@ -64,7 +64,10 @@ CAP = {  # value -> (footprint, LCSC, MPN)
     # Good Display asks for 0603/0805, X5R/X7R, >= 25 V: a 0402 part keeps too little of its
     # capacitance at that voltage. LCSC numbers checked at LCSC on 2026-11-22; the 1 uF part is
     # rated 50 V (the 25 V version was not found there).
-    "1uF/25V": (C0603, "C15849", "CL10A105KB8NNNC"),
+    # The same part is the input capacitor of the two linear regulators (C3, C15; 2026-11-24):
+    # the 0402 1 uF keeps 0.55 uF at 5 V, 0.50 uF at the low end of its tolerance, and the
+    # TLV755P wants more than 0.47 uF at its pin. This one keeps 0.66 uF at 5 V.
+    "1uF/50V": (C0603, "C15849", "CL10A105KB8NNNC"),
     "4.7uF/25V": (C0805, "C1779", "CL21A475KAQNNNE"),
 }
 
@@ -311,7 +314,7 @@ def build(lib: Library) -> Schematic:
     lin = u_ldo.pos(1)
     sch.wire(lin, (279.4, lin[1]))
     sch.power_at(279.4, lin[1], "+5V", (0, -1))
-    c_lin = cap("1uF", 279.4, lin[1] + 3.81)
+    c_lin = cap("1uF/50V", 279.4, lin[1] + 3.81)
     sch.power_at(*c_lin.pos(2), "GND", (0, 1))
     sch.label(u_ldo, "3", "SENS_EN")
     sch.power(u_ldo, "2", "GND")
@@ -563,7 +566,7 @@ def build(lib: Library) -> Schematic:
     qin = u_q.pos(1)
     sch.wire(qin, (218.44, qin[1]))
     sch.power_at(218.44, qin[1], "+5V", (0, -1))
-    c_qin = cap("1uF", 218.44, qin[1] + 3.81)
+    c_qin = cap("1uF/50V", 218.44, qin[1] + 3.81)
     sch.power_at(*c_qin.pos(2), "GND", (0, 1))
     sch.label(u_q, "3", "QWIIC_EN")
     sch.power(u_q, "2", "GND")
@@ -651,9 +654,9 @@ def build(lib: Library) -> Schematic:
                              "EPD_VGH", "EPD_VGL", "EPD_VCOM")):
         x = 439.42 + i * 10.16
         if net == "+3V3":
-            cap_between("1uF/25V", x, 160.02, "+3V3")
+            cap_between("1uF/50V", x, 160.02, "+3V3")
         else:
-            cap_net("1uF/25V", x, 160.02, net)
+            cap_net("1uF/50V", x, 160.02, net)
 
     # boost converter
     l2 = sch.add("Device:L", "L2", "47uH", 457.2, 53.34, 90,

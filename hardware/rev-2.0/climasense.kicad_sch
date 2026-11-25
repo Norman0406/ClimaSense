@@ -10715,7 +10715,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 453.39 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13088,7 +13088,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 473.71 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13625,7 +13625,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "1uF/50V"
 			(at 222.25 226.06 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13636,7 +13636,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 218.44 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -13669,7 +13669,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C52923"
+		(property "LCSC" "C15849"
 			(at 218.44 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -13680,7 +13680,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05A105KA5NQNC"
+		(property "MPN" "CL10A105KB8NNNC"
 			(at 218.44 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -14468,7 +14468,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 494.03 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15566,7 +15566,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 483.87 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16055,7 +16055,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "1uF/50V"
 			(at 283.21 48.26 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16066,7 +16066,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 279.4 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -16099,7 +16099,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C52923"
+		(property "LCSC" "C15849"
 			(at 279.4 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -16110,7 +16110,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05A105KA5NQNC"
+		(property "MPN" "CL10A105KB8NNNC"
 			(at 279.4 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -19496,7 +19496,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 443.23 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21274,7 +21274,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 514.35 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26119,7 +26119,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 463.55 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26402,7 +26402,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF/25V"
+		(property "Value" "1uF/50V"
 			(at 504.19 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)

@@ -179,7 +179,7 @@ PLACEMENT = {
     "R16": (43.5, 7.3, 180),     # SDA pull-up: between the SDA pad and the supply pad
     "C16": (44.48, 8.6, 0),      # regulator output, on the supply line
     "U9": (44.95, 11.5, 90),     # Qwiic regulator, output pin on the supply line
-    "C15": (44.48, 14.45, 0),    # regulator input, below the input and ground pins
+    "C15": (44.775, 14.45, 0),   # regulator input (0603 since 2026-11-24): supply pad below the input pin
     "R15": (42.3, 12.01, 270),   # enable pull-down, left of the regulator, its signal pad on the enable track
     # Both pull-ups hang from the sensor supply where it runs to the bridge (y = 16.1):
     # supply pad on that line, signal pad below it. (Revision 2.0 moves them, see below.)
@@ -384,13 +384,14 @@ PREROUTED = (
 TRUNKS = (("L1.2", "R8.1"), ("R8.1", "R6.1"), ("R6.1", "C5.1"))
 # No tracks on the bottom layer under the buck converter: its ground stays unbroken.
 BUCK_AREA = (33.0, 8.2, 38.6, 18.2)
-# The top layer under the buck inductor L1, between its two pads, is NOT reserved: on revision
-# 2.0 the router takes one signal through there (BMP_INT on the board of 2026-11-22), 0.35 mm
-# from the pad of the switch node. Keeping that strip for ground was tried on 2026-11-23
-# (reserve_top, x 34.6-37.4, y 12.1-12.9): none of twelve seeds routed the board any more. The
-# lines from the module's lower pin row have to pass between the USB connector and the buck
-# converter, and this is one of their lanes. What couples into a line there is a few tens of
-# millivolts at most (docs/hardware/rev-2.0.md, "Check before ordering").
+# The top layer under the buck inductor L1, between its two pads, carries no copper at all
+# (2026-11-24): no track, no via, no pour. Murata's specification for the DFE252012F
+# (J(E)TE243A-0017D-01, notice 2) forbids copper under the coil other than the pattern to its
+# electrodes, because the core has a low insulation resistance. Until then the router took one
+# signal through there (QWIIC_EN on the board of 2026-11-24, held only by its 100 k pull-down,
+# 0.45 mm from the pad of the switch node). Keeping the strip free had been tried on the board
+# of 2026-11-23 and no seed routed; see docs/hardware/rev-2.0.md for how it went this time.
+L1_UNDER = (34.9, 12.05, 37.1, 12.95)
 # The same behind the USB connector. The ground vias of the protection part U1 and of the
 # two configuration resistors sit in a pocket walled in by USB and supply tracks on the top
 # layer. On the bottom layer the strip from those vias down past the connector's pads to its
@@ -549,7 +550,7 @@ PLACEMENT.update({
     # ground and enable along the top, output at the bottom right above the bus's supply run.
     # Its capacitors stand in line with its pins as before: input above, output below.
     "U3": (68.0, 28.4, 270),
-    "C3": (68.475, 25.6, 180),    # LDO input: supply pad over the input pin, ground pad over the ground pin
+    "C3": (68.775, 25.5, 180),    # LDO input (0603 since 2026-11-24): ground pad over the ground pin, clear of J5
     "C4": (68.475, 31.0, 180),    # LDO output: supply pad under the output pin
     "TP3": (70.6, 30.6, 0),       # test pad for the sensors' 3.3 V, on the back, on a via beside the output capacitor
     "R5": (65.3, 28.4, 90),       # SENS_EN pull-up, next to the regulator's enable pin (1.0: by the buck converter)
@@ -872,9 +873,18 @@ PREROUTED = tuple(g for g in PREROUTED if not (g["net"] == "GND" and g["pads"] =
 PLACEMENT["R15"] = (47.6, 13.4, 270)       # QWIIC_EN pad up, level with U9's enable pin; ground pad down
 # The enable line still comes through under U9, between its pads, as on 1.0, and now runs on from
 # the enable pin to R15 on the right; its free end on the left is where the router joins it.
+# Left of U9 the line passes the buck inductor L1 on the bottom layer (2026-11-24, Norman): a via
+# on either side of L1, 3.5 mm on the bottom between them, under the gap between L1's pads. On the
+# top layer nothing may lie under the coil (L1_UNDER), and with that strip simply closed no seed
+# routed the board: the line needs this way through. It costs the bottom ground under the buck
+# converter (BUCK_AREA) a slit under the inductor, 5 mm from the input loop at C1 and U2. The
+# left via's place is fixed by the 3.3 V trunk that runs down beside it and by L1's pad; from
+# there the router takes the line on to the module.
+L1_HOP = ((34.2, 13.1), (37.7, 12.5))
 PREROUTED = tuple(
-    dict(net="QWIIC_EN", pads=("R15.1", "U9.3"), tracks=(
-        (0.2, ((43.0, 11.5), (45.9, 11.5), (45.9, 12.6))),
+    dict(net="QWIIC_EN", pads=("R15.1", "U9.3"), vias=L1_HOP, tracks=(
+        (0.2, (L1_HOP[0], (34.8, 12.5), L1_HOP[1]), "bottom"),
+        (0.2, (L1_HOP[1], (37.8, 12.4), (42.1, 12.4), (43.0, 11.5), (45.9, 11.5), (45.9, 12.6))),
         (0.2, ((45.9, 12.6), (46.6, 12.6), (46.9, 12.9), (47.6, 12.9))),
     )) if g["net"] == "QWIIC_EN" and "R15.1" in g["pads"] else g for g in PREROUTED)
 GND_PAD_VIAS = {"R15.2": ((47.6, 13.9), (48.4, 13.9))}
@@ -1736,6 +1746,7 @@ def main():
             fanout={"U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "J1", "J2", "D1", "J5", "Q1"},
             prerouted=[{**g, "net": "/" + g["net"] if "/" + g["net"] in nets else g["net"]} for g in PREROUTED],
             reserve_top=[("GND", area) for area in (*EPD_POCKETS, *BOOST_KEEP_TOP)],
+            copper_free_top=[L1_UNDER],
             trunks=TRUNKS, reserve_bottom=[("GND", area) for area in (BUCK_AREA, *USB_GROUND_AREAS,
                                                                                *DISPLAY_GROUND_AREAS)],
             internally_joined=INTERNALLY_JOINED,
