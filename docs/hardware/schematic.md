@@ -1,5 +1,7 @@
 # Schematic notes — revision 1.0
 
+**This page describes revision 1.0.** Revision 2.0 has a different pin map (`SENS_EN` on IO10, `BMP_INT` on IO0, six display lines) and more parts; its complete pin table is in [`rev-2.0.md`](rev-2.0.md#pin-map).
+
 Status: **first draft, laid out, not yet reviewed by a person.** KiCad's electrical rules check passes with zero violations and KiCad's exported netlist matches the intended netlist pin for pin (see [Verification](#verification)). That proves the drawing is self-consistent; it does not prove the design is right.
 
 Files: [`hardware/rev-1.0/climasense.kicad_sch`](../../hardware/rev-1.0/climasense.kicad_sch), project symbols in [`hardware/rev-1.0/lib/climasense.kicad_sym`](../../hardware/rev-1.0/lib/climasense.kicad_sym).
@@ -168,7 +170,7 @@ JLCPCB part numbers verified against the JLCPCB parts library on 2026-11-19. "Ba
 - Keep the SCD41's "do not connect" pads on isolated pads, as its datasheet requires.
 - LED resistor values were calculated on 2026-11-19 from the curves in the Everlight datasheet (typical part, 3.3 V supply, about 20 Ω assumed for the ESP32 pin): green 100 Ω → 3.7 mA, about 21 mcd; blue 100 Ω → 4.7 mA, about 8 mcd; red 330 Ω → 4.2 mA, about 13 mcd (with the earlier 1 kΩ: 1.5 mA, about 3 mcd). Read off small log-scale graphs, so ±30 %. Each colour is made about as bright as its supply headroom reasonably allows; the firmware evens them out and dims them with PWM, which can only reduce brightness. Shown one colour at a time at equal brightness, the limit is blue, about 8 mcd. What the datasheet cannot settle: green and blue are specified at 2.7–3.8 V forward voltage with no typical value and no voltage classes. A part 0.3 V above the typical curve still gives about 7 mcd green and 4 mcd blue; at the 3.8 V limit green is practically dark. Only feeding those two LEDs from 5 V would remove that case.
 - The Qwiic connector must not be used with a device that has its own supply: with USB unplugged, 3.3 V on the connector would flow backwards through the Qwiic regulator into the 5 V rail, which the regulator's datasheet warns against. Ordinary Qwiic sensor boards are powered from the connector and are fine.
-- The Qwiic supply is good for about 200 mA continuously (the regulator dissipates the drop from 5 V in a small package); it limits at about 0.5 A and shuts down when too hot.
+- The Qwiic supply is good for about 150 mA continuously in a warm case (corrected 2026-11-25; this said 200 mA): the regulator dissipates the drop from 5 V in a small package, 231 °C/W, so 200 mA at 5.25 V in is 0.39 W and a junction 90 °C above its surroundings. It limits at about 0.5 A and shuts down when too hot.
 - The 4.7 Ω resistor is the only passive with a loading fee. A basic-library value such as 10 Ω would likely work as well for the SGP41 supply filter, but the datasheet specifies 4.7 Ω, so it is kept for now.
 
 ## How the schematic is produced

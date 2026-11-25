@@ -89,7 +89,7 @@ def main():
 
     # --- board: Gerbers and drill files, zipped ------------------------------
     cli("pcb", "export", "gerbers", "--output", str(gerbers) + "/", "--layers", LAYERS,
-        "--subtract-soldermask", "--no-x2", "--no-netlist", PCB)
+        "--subtract-soldermask", "--check-zones", "--no-x2", "--no-netlist", PCB)
     cli("pcb", "export", "drill", "--output", str(gerbers) + "/", "--format", "excellon", "--drill-origin", "absolute",
         "--excellon-units", "mm", "--excellon-zeros-format", "decimal", "--excellon-oval-format", "alternate",
         "--excellon-separate-th", PCB)

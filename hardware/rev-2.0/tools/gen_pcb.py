@@ -2,7 +2,7 @@
 """Create the ClimaSense revision 2.0 board: outline, slots, part placement, nets.
 
 Revision 2.0 is revision 1.0 with the sensor island moved right by DX and an e-paper
-display added on the back (see the block "Revision 2.0" below and docs/hardware/rev-2.0.md).
+display added above the components (see the block "Revision 2.0" below and docs/hardware/rev-2.0.md).
 
 This must run with the Python that ships with KiCad (it needs the `pcbnew`
 module):
@@ -212,7 +212,14 @@ PLACEMENT = {
 UP_ARROW = (43.5, 28.0, 0.9, 30.4)
 
 # the board name and the "Up" under the arrow stand on one line, in one size
-NAME_Y, NAME_SIZE = 32.2, 0.8
+NAME_Y, NAME_SIZE = 32.2, 1.0
+# JLCPCB's smallest silkscreen (capabilities page, read 2026-11-24): letters 1.0 mm high, lines
+# 0.15 mm wide. Labels are drawn at least that high, and the outlines that library footprints
+# bring along (0.12 mm) are widened when a part is placed.
+SILK_TEXT_MIN, SILK_LINE_MIN = 1.0, 0.15
+# C11 and the SGP41 beside it (U7) keep their 0.12 mm outlines: at 0.15 mm the two come within
+# 0.08 mm of each other, and KiCad wants 0.1 mm between silkscreen items.
+SILK_KEEP_THIN = {"C11", "U7"}
 # text, x, y, height - each button label sits directly below its button
 SILK_LABELS = (
     # numbering: see "Revision naming" in docs/decisions.md. In the strip below the module.
@@ -560,7 +567,7 @@ PLACEMENT.update({
 # with their labels on the back silkscreen. A pad on a hand-drawn line stands on a via of that
 # line (EPD_LINES); the others are reached by the router on the bottom layer; the ground pads lie
 # in the bottom pour.
-BACK_SIDE = {f"TP{n}" for n in range(1, 17)}
+BACK_SIDE = {f"TP{n}" for n in range(1, 23)}
 # Where the frame that carries the panel stands on the board (x0, y0, x1, y1): spots kept free of
 # parts (tracks and vias may run under them; the feet stand on the solder mask), drawn on the
 # comments layer. Proposed 2026-11-24, not yet agreed: one under each corner of the panel, as far
@@ -685,6 +692,11 @@ PREROUTED = PREROUTED + (
 # its middle, so that a pad still adds no branch): CS, SCK, DC in the staircase, MOSI on its run
 # down past C26, BUSY above J5. RST has no pad. The pull-up R20 on CS sits on CS's run down from
 # its via at x 40, R21 on RST's run at y 18.9; the router joins their +3V3 pads.
+# RST's pad (TP22, 2026-11-25) stands on a via of its own on the line's straight run below the
+# bundle. On the line's second via, at 33.8 / 21.2, a 1 mm pad took a lane of the bottom layer
+# between the USB connector and the buck converter, and I2C_SCL or BMP_INT stayed open in every
+# one of twelve seeds.
+RST_PAD = (52.5, 18.9)
 EPD_PADS = {"TP7": (45.4, 16.5), "TP5": (47.6, 15.5), "TP11": (49.8, 17.7), "TP6": (50.2, 13.3),
             "TP8": (round(J5_X - 1.65, 2), 6.6)}
 R20_AT = (39.49, 15.0)        # EPD_CS pull-up, horizontal: +3V3 pad at x 38.98, CS pad at x 40.0
@@ -701,7 +713,7 @@ EPD_LINES = (
         (0.2, ((43.7, 17.1), (44.3, 17.7), EPD_PADS["TP11"])),
         (0.2, (EPD_PADS["TP11"], (51.2, 17.7), (51.4, 17.5), (_J5, 17.5))),
     )),
-    dict(net="EPD_RST", pads=("U4.5", "R21.2", "J5.10"), vias=((22.4, 27.8), (33.8, 21.2)), tracks=(
+    dict(net="EPD_RST", pads=("U4.5", "R21.2", "TP22.1", "J5.10"), vias=((22.4, 27.8), (33.8, 21.2), RST_PAD), tracks=(
         # (The step up between x 18.2 and 20.3 goes round a resistor's pad, with a wiggle of 0.1 mm
         # on either side, as the router found it. Drawn as two straight diagonals on 2026-11-24, it
         # cost the module's lower pin row its way out: with it, and with the BUSY line's bottom run
@@ -710,8 +722,8 @@ EPD_LINES = (
         (0.2, ((12.9, 25.8), (12.9, 27.8), (13.3, 28.2), (18.2, 28.2), (18.4, 28.0), (18.4, 27.8), (18.6, 27.6),
                (19.8, 27.6), (19.9, 27.7), (19.9, 27.8), (20.3, 28.2), (22.0, 28.2), (22.4, 27.8))),
         (0.2, ((22.4, 27.8), (30.5, 19.7), (32.3, 19.7), (33.8, 21.2)), "bottom"),
-        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (42.7, 18.9), (54.8, 18.9), (55.7, 18.0),
-               (_J5, 18.0))),
+        (0.2, ((33.8, 21.2), (33.9, 21.2), (34.2, 21.5), (40.1, 21.5), (42.7, 18.9), RST_PAD)),
+        (0.2, (RST_PAD, (54.8, 18.9), (55.7, 18.0), (_J5, 18.0))),
     )),
     dict(net="EPD_CS", pads=("U4.23", "R20.2", "TP7.1", "J5.12"),
          vias=((16.1, 6.8), (22.4, 6.8), (40.0, 10.4), (40.0, 13.0), EPD_PADS["TP7"]), tracks=(
@@ -843,6 +855,35 @@ BACK_PAD_STUBS = (
          tracks=((0.2, ((38.4, 33.2), (38.4, 32.3), (39.1, 31.6))),)),
 )
 PREROUTED = PREROUTED + BACK_PAD_STUBS
+# Back pads for five of the display's driving voltages (2026-11-25, Norman): with the panel above
+# the parts, the capacitors they were measured on are covered. Each stands on a via below its
+# capacitor's signal pad, in two rows (1.0 and 2.6 mm below the pads), since the capacitors stand
+# at 1.6 mm pitch and two pads side by side need 2 mm; the router takes each line on to J5 from
+# its via. VDD and VSH2 have none (1.8 V and 5 V, not needed to find a fault in the boost
+# circuit). RST's pad stands on a via of its hand-drawn line (RST_PAD).
+DRIVE_PADS = {"TP17": ("EPD_VSH1", "C19", 53.6, 5.9), "TP18": ("EPD_VGH", "C22", 55.2, 7.5),
+              "TP19": ("EPD_VSL", "C21", 56.8, 5.9), "TP20": ("EPD_VGL", "C23", 58.4, 7.5),
+              "TP21": ("EPD_VCOM", "C24", 60.0, 5.9)}
+PREROUTED = PREROUTED + tuple(
+    dict(net=name, pads=(f"{cap}.1", f"{ref}.1"), vias=((x, y),), tracks=((0.2, ((x, 4.875), (x, y))),))
+    for ref, (name, cap, x, y) in DRIVE_PADS.items())
+PLACEMENT.update({ref: (x, y, 0) for ref, (name, cap, x, y) in DRIVE_PADS.items()})
+PLACEMENT["TP22"] = (*RST_PAD, 0)
+# A second capacitor on VGH and on VGL, at the diodes (2026-11-25, Norman), as the reference circuit
+# draws the one on VGH: C27 upright beside D2, its VGH pad level with D2's cathode, 2 mm away;
+# C28 left of D4's anode, 1.5 mm away. Each on a 0.3 mm link, each with its own ground via. The
+# first ones stay at J5.
+PLACEMENT["C27"] = (56.9, 21.525, 270)    # VGH pad at the top, level with D2's cathode; ground pad below
+PLACEMENT["C28"] = (47.3, 29.0, 180)      # VGL pad on the right, towards D4
+PREROUTED = PREROUTED + (
+    dict(net="EPD_VGH", pads=("D2.1", "C27.1"), tracks=((0.3, ((54.9, 20.75), (56.9, 20.75))),)),
+    dict(net="GND", pads=("C27.2",), vias=((57.9, 22.3),), tracks=((0.3, ((56.9, 22.3), (57.9, 22.3))),)),
+    dict(net="EPD_VGL", pads=("D4.2", "C28.1"), tracks=((0.3, ((49.55, 29.0), (48.075, 29.0))),)),
+    dict(net="GND", pads=("C28.2",), vias=((45.6, 29.0),), tracks=((0.3, ((46.525, 29.0), (45.6, 29.0))),)),
+)
+# The top layer between the boost inductor's pads is kept for ground too (2026-11-25): the router
+# took VGL (-20 V) through there, 0.25 mm from the pad of the switch node.
+BOOST_KEEP_TOP = BOOST_KEEP_TOP + ((50.3, 23.3, 51.9, 26.7),)
 PLACEMENT.update({"TP1": (40.0, 19.6, 0), "TP2": (49.6, 22.6, 0)})
 # The buck converter's two ground connections get two vias each, drawn by hand (2026-11-23): the
 # converter's ground pin with the input capacitor C1, and the output capacitor C2. On revision
@@ -936,7 +977,10 @@ TP_LABELS = {
     # (SCK's label below its pad: above it, it lay over the ground via of R15)
     "TP5": ("SCK", "below"), "TP6": ("SDI", "right"), "TP7": ("CS", "below"), "TP8": ("BSY", "right"),
     "TP9": ("SDA", "above"), "TP10": ("SCL", "below"), "TP11": ("DC", "below"), "TP12": ("INT", "right"),
-    "TP13": ("GND", "below"), "TP14": ("GND", "above"), "TP15": ("TX", "above"), "TP16": ("RX", "above"),
+    "TP13": ("GND", "right"), "TP14": ("GND", "above"), "TP15": ("TX", "above"), "TP16": ("RX", "above"),
+    # the driving voltages, in two rows: names above the upper row and below the lower one
+    "TP17": ("SH1", "above"), "TP18": ("VGH", "below"), "TP19": ("VSL", "above"), "TP20": ("VGL", "below"),
+    "TP21": ("COM", "above"), "TP22": ("RST", "below"),
 }
 # their hand-placed labels from before go: every test pad is on the back now, so no label on the
 # component side names one (the 3V3 and 5V pads moved, and their old labels had stayed behind)
@@ -988,7 +1032,7 @@ PATCH_VIA_SPACING = 0.9       # between the centres of a patch via and any other
 PATCH_VIA_PAD = 0.5           # from the via's edge to any pad, as for the stitching vias
 # Start order of the router (route_board.py, `seed`): 0 = shortest connection first. Found by
 # trying several with --seed=N; the one kept routes this board completely.
-ROUTE_SEED = 1
+ROUTE_SEED = 2
 
 
 def P(x, y):
@@ -1565,6 +1609,19 @@ def main():
                 pad.SetNet(item)
         if ref in INTERNALLY_JOINED:
             fp.SetDuplicatePadNumbersAreJumpers(True)
+        for g in fp.GraphicalItems():
+            on_silk = g.GetClass() == "PCB_SHAPE" and g.GetLayer() in (pcbnew.F_SilkS, pcbnew.B_SilkS)
+            if on_silk and ref not in SILK_KEEP_THIN and 0 < g.GetWidth() < FromMM(SILK_LINE_MIN):
+                g.SetWidth(FromMM(SILK_LINE_MIN))
+        if ref == "U6":
+            # SCD41: KiCad's footprint prints paste over the whole of its 1.9 x 0.85 mm lands, 2.35
+            # times what Sensirion's aperture of 1.25 x 0.55 mm gives (SCD4x datasheet v1.7, figure
+            # 4), and within 0.31 mm of the vent hole's centre, round which 0.3 mm must stay free
+            # of solder. Pulled in by 0.15 mm all round: 1.6 x 0.55 mm, 0.46 mm from that centre.
+            # The copper stays as it is, and with it the island's layout that revision 1.0 proves.
+            for pad in fp.Pads():
+                if pad.GetNumber().isdigit() and 1 <= int(pad.GetNumber()) <= 20:
+                    pad.SetLocalSolderPasteMargin(FromMM(-0.15))
         board.Add(fp)
         if ref in BACK_SIDE:
             fp.Flip(fp.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
@@ -1643,6 +1700,7 @@ def main():
     # --- silkscreen labels ---------------------------------------------------
     # Reference designators are not printed (see above); these few labels are.
     for text, x, y, size, *angle in SILK_LABELS:
+        size = max(size, SILK_TEXT_MIN)
         label = pcbnew.PCB_TEXT(board)
         label.SetText(text)
         if angle:
@@ -1659,7 +1717,7 @@ def main():
         # the pads are on the back: their labels too, mirrored so that they read from there
         label.SetLayer(pcbnew.B_SilkS if ref in BACK_SIDE else pcbnew.F_SilkS)
         label.SetMirrored(ref in BACK_SIDE)
-        label.SetTextSize(VECTOR2I(FromMM(0.8), FromMM(0.8)))
+        label.SetTextSize(VECTOR2I(FromMM(SILK_TEXT_MIN), FromMM(SILK_TEXT_MIN)))
         label.SetTextThickness(FromMM(0.15))
         board.Add(label)
         pad_label_position(board, ref, label, side)

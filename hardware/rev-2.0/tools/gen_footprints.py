@@ -411,6 +411,11 @@ def kinghelm_fpc_24() -> Footprint:
 # face, the three terminal pads lie behind that line (y < 0) and the two holding pads in front of
 # it (y > 0); the button pushes from the front (+y), between the holding pads.
 # Terminals 1 and 3 are joined inside the switch (circuit diagram), so both carry pad number 1.
+# The two lands of the metal frame are pad SH and go to ground (2026-11-25), so that a discharge
+# from a finger or a plunger onto the frame goes to ground and not into the signal beside it.
+# (Tried the same day and dropped: the signal on the middle terminal and ground on the outer ones.
+# The signal then has to leave the middle pad on the bottom layer right below the switch, where the
+# lines from the module's lower pin row pass; one of them stayed open in every seed of three runs.)
 # --------------------------------------------------------------------------
 def alps_skrtlae010() -> Footprint:
     BOSS_PITCH, HOLE = 4.25, 0.9          # land: 2 x 0.9 mm holes, 4.25 apart
@@ -446,7 +451,7 @@ def alps_skrtlae010() -> Footprint:
     hx = (HOLD_SPAN - HOLD_W) / 2
     hy, hl = round((HOLD_FRONT + HOLD_BACK) / 2, 4), round(HOLD_FRONT - HOLD_BACK, 4)
     for sx in (-1, 1):
-        fp.items.append(S("pad", "", Sym("smd"), Sym("rect"), S("at", round(sx * hx, 4), hy), S("size", HOLD_W, hl),
+        fp.items.append(S("pad", "SH", Sym("smd"), Sym("rect"), S("at", round(sx * hx, 4), hy), S("size", HOLD_W, hl),
                           S("layers", "F.Cu", "F.Mask", "F.Paste"), S("uuid", fp._uid())))
         fp.npth(round(sx * BOSS_PITCH / 2, 4), 0, HOLE)
     k = KEEP_W / 2

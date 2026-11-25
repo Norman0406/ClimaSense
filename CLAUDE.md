@@ -21,7 +21,7 @@ docs/       Design notes, research, decisions
 ## Hardware ground rules
 
 - EDA tool: **KiCad** (all design files live in `hardware/`, versioned as text).
-- **One folder per revision** (decided 2026-11-22): `hardware/rev-1.0/`, `hardware/rev-2.0/`, each with its own copy of the scripts in `tools/`. A revision whose boards have been ordered is frozen: never change its files (rev-1.0 is frozen; ordered 2026-11-20). Commands below use `hardware/rev-<N>/` for the revision being worked on. Revision 2.0 (e-paper display) is in progress: `docs/hardware/rev-2.0.md`.
+- **One folder per revision** (decided 2026-11-22): `hardware/rev-1.0/`, `hardware/rev-2.0/`, each with its own copy of the scripts in `tools/`. A revision whose boards have been ordered is frozen: never change its files (rev-1.0 is frozen; ordered 2026-11-20). Commands below use `hardware/rev-<N>/` for the revision being worked on. Revision 2.0 (e-paper display) is designed and reviewed, not ordered: `docs/hardware/rev-2.0.md` describes the board, `docs/hardware/rev-2.0-history.md` is the log of how it got there, `REVIEW.md` the review of 2026-11-24 with the status of its findings.
 - The board is **fully manufactured and assembled by a fab** (PCBA, e.g. JLCPCB / PCBWay). The user does not hand-solder.
   - Prefer parts that are stocked by the assembler's parts library (LCSC for JLCPCB). Record the LCSC / manufacturer part number for every BOM line.
   - SMD only where possible; avoid parts that need manual or through-hole assembly unless the fab offers it.
@@ -41,7 +41,7 @@ docs/       Design notes, research, decisions
 
 ## Working on the schematic
 
-The notes in `docs/hardware/schematic.md`, `layout.md`, `footprints.md` and `ordering.md` describe revision 1.0; revision 2.0's differences are in `docs/hardware/rev-2.0.md`.
+The notes in `docs/hardware/schematic.md`, `layout.md`, `footprints.md` and `ordering.md` describe revision 1.0; revision 2.0's differences, its complete pin table and its test pads are in `docs/hardware/rev-2.0.md`, its ordering steps in the last section of `ordering.md`.
 
 - KiCad 10 is installed at `C:\Program Files\KiCad\10.0` (`bin\kicad-cli.exe` for rule checks, netlist and PDF export).
 - `python hardware/rev-<N>/tools/check_schematic.py` — runs ERC, compares KiCad's netlist with the intended one, plots `hardware/rev-<N>/build/climasense.pdf`. Run it after any schematic change.

@@ -1,4 +1,6 @@
-# Ordering revision 1.0 at JLCPCB
+# Ordering at JLCPCB
+
+This page was written for revision 1.0 (ordered 2026-11-20) and describes that order. What differs for revision 2.0 is in [its own section](#revision-20) at the end; everything else carries over.
 
 The three files JLCPCB asks for are written by one script:
 
@@ -95,3 +97,52 @@ Another order of revision 1.0 from the same files will come back with the same t
 **Ordered on 2026-11-20** with the settings on this page: 187.64 USD paid, which is the quote below plus shipping, less a 30 USD coupon. The order then waits for JLCPCB's file review and for the placement drawing to be approved in the order history.
 
 Quote of 2026-11-20 for 5 boards with ENIG, 2 of them assembled: boards 21.20 USD (17.20 of it the ENIG finish), assembly 173.04 USD (parts 86.42, feeder loading 43.40, setup 25.75, stencil 8.27, X-ray 6.60, the rest small), together 194.24 USD; DHL Express about 23.40 USD on top, before any coupon, Swiss VAT (8.1 %) and the carrier's clearance fee. JLCPCB may add a charge after its review for the assembly remark and for the four sensors, which it marks as difficult to process. The customs description chosen on the order page is "Temperature Sensor" (HS code 902590).
+
+## Revision 2.0
+
+Not ordered yet. Assembled by JLCPCB like revision 1.0 (decided 2026-11-25). Everything above holds, with `rev-2.0` and `climasense-2.0-…` in the paths and names, except for what follows. The conditions for ordering at all are in [`rev-2.0.md`](rev-2.0.md#open-points) and in the review ([`../../REVIEW.md`](../../REVIEW.md), section 5).
+
+```
+python hardware/rev-2.0/tools/gen_fab.py
+```
+
+**Before exporting:** a full run of `gen_pcb.py` without `--keep`, then `check_pcb.py --require-routed` and `audit_pcb.py`. Check the stock of the display connector (C3249999: 981 on 2026-11-24, one maker), the SCD41 (C3659294: 411 on 2026-11-24), the SGP41, the module and the buck converter on the day.
+
+**What the files hold:** 103 × 34 mm; plated holes of 0.3 mm (one per via; the count changes with every routing run), 4 plated slots (USB shell), 12 unplated holes (2 × 0.65, 4 × 0.9, 2 × 2.2, 4 × 3.2 mm); 36 part types; all parts on the top. The 22 test pads on the back, the mounting and frame holes and the panel are in neither the parts list nor the placement file.
+
+### Board options
+
+- 2 layers, 103 × 34 mm, 1.6 mm, **ENIG**, quantity 5.
+- **Via covering: Tented**, not plugged. Most of the test pads on the back stand on a via that has to stay open inside the pad.
+- **Confirm production file: yes.**
+- **PCB remark** (replaces revision 1.0's): "J1 overhangs the bottom edge by 0.5 mm and the buttons SW1/SW2 overhang the top edge by 0.25 mm (board x 25–39 mm). Please attach the edge rails with routed gaps and mouse bites (no V-cut), or cut the rails back at these parts. Copper is 0.3 mm from the board edge. The milled slots inside the board are intentional."
+
+Why: JLCPCB adds its assembly rails to the two long edges, and on revision 2.0 parts stick out over both. The buttons' tips are 0.22 mm past the top edge and travel 0.2 mm; a rail joined flush to that edge would hold them pressed. Copper 0.3 mm from the edge is enough for a routed edge (0.2 mm) and too little for a V-cut (0.4 mm). How JLCPCB handles overhanging parts is not written on any of its pages (read 2026-11-24): **look at the rails in the production file before releasing it.**
+
+### Assembly options
+
+- Standard, top side, 2 of 5, "Confirm parts placement" with "do not confirm automatically".
+- **Remark:** "Do not wash or clean the boards after soldering: humidity and gas sensors on board. Do not open the lid of FPC connector J5."
+- No board cleaning, no conformal coating. No substitutes for the sensors, the regulators, the module or J5.
+- Expect the hold for the SCD41's reflow temperature again.
+
+### Placement preview: what is new
+
+In addition to the table above (J3 and J4 do not exist on 2.0):
+
+| Part | What to look for |
+| --- | --- |
+| J5, display connector | Opening towards the sensors (right), pin 1 at the triangle at the lower end of its pad row |
+| SW1, SW2 | Buttons over the top edge |
+| Q1 (3 pins) | The single pin towards the inductor L2 on its left |
+| D2, D3, D4 | Cathode at the bar on the silkscreen |
+| L2, C17–C28, R18–R21 | Sitting on their pads; direction does not matter |
+| TP1–TP22, H1–H4, FH1, FH2 | **Empty**, and not in the parts list |
+
+The placement file corrects J1, J2, U1, U3, U4, U9 as before and Q1, J5, SW1, SW2 in addition (`CORRECTIONS` in `gen_fab.py`); all ten were confirmed against JLCPCB's own footprints in the review. **Q1 may come back from JLCPCB's review turned by a quarter turn in the numbers**, like U3 and U9 on revision 1.0: JLCPCB has two drawings of such parts. If the pin-1 dot is still on the triangle, it is the other drawing and right; take the value over into `CORRECTIONS`. Anything else is an error.
+
+### In the Gerber viewer
+
+- The outline with two closed slots and the cut round the SHT45 tongue.
+- Exactly 22 round pads open on the back, plus holes; no via open on the front; no paste on the test pads.
+- The four USB shell slots plated; pegs, switch bosses, 2.2 mm and 3.2 mm holes not plated.

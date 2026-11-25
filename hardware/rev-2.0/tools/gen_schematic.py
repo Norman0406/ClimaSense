@@ -383,24 +383,28 @@ def build(lib: Library) -> Schematic:
     n_en = r_en.pos(2)
     c_en = cap("1uF", n_en[0], n_en[1] + 3.81)
     sch.power_at(*c_en.pos(2), "GND", (0, 1))
-    sw_rst = sch.add("Switch:SW_Push", "SW1", "RESET", 48.26, n_en[1],
+    sw_rst = sch.add("Switch:SW_Push_Shielded", "SW1", "RESET", 48.26, n_en[1],
                      footprint="climasense:Alps_SKRTLAE010_SidePush",
                      fields={"LCSC": "C110293", "MPN": "SKRTLAE010"})
     sch.wire(n_en, (n_en[0] + 7.62, n_en[1]))
     sch.wire((n_en[0] + 7.62, n_en[1]), sw_rst.pos(1))
     sch.label_at(n_en[0] + 7.62, n_en[1], "EN", 0)
     sch.power(sw_rst, "2", "GND")
+    # The switch's metal frame is on ground (2026-11-25): a discharge from a finger or a plunger
+    # lands on the frame.
+    sch.power(sw_rst, "SH", "GND")
 
     # boot / user button
     r_boot = res("10k", 27.94, 149.86)
     sch.power_at(*r_boot.pos(1), "+3V3", (0, -1))
     n_boot = r_boot.pos(2)
-    sw_boot = sch.add("Switch:SW_Push", "SW2", "BOOT / USER", 48.26, n_boot[1],
+    sw_boot = sch.add("Switch:SW_Push_Shielded", "SW2", "BOOT / USER", 48.26, n_boot[1],
                       footprint="climasense:Alps_SKRTLAE010_SidePush",
                       fields={"LCSC": "C110293", "MPN": "SKRTLAE010"})
     sch.wire(n_boot, (n_boot[0] + 7.62, n_boot[1]))
     sch.wire((n_boot[0] + 7.62, n_boot[1]), sw_boot.pos(1))
     sch.label_at(n_boot[0] + 7.62, n_boot[1], "BOOT", 0)
+    sch.power(sw_boot, "SH", "GND")
     sch.power(sw_boot, "2", "GND")
 
     # Fallback serial port. If USB does not work there is otherwise no way to flash the board
@@ -446,6 +450,12 @@ def build(lib: Library) -> Schematic:
     tp = sch.add("Connector:TestPoint", "TP13", "GND", 157.48 + 8 * 7.62, 119.38,
                  footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
     sch.power(tp, "1", "GND")
+    # The display's driving voltages and its reset line (2026-11-25): with the panel above the
+    # parts, the capacitors they used to be measured on are covered.
+    for i, net in enumerate(("EPD_VSH1", "EPD_VGH", "EPD_VSL", "EPD_VGL", "EPD_VCOM", "EPD_RST")):
+        tp = sch.add("Connector:TestPoint", f"TP{17 + i}", net, 157.48 + i * 7.62, 106.68,
+                     footprint="TestPoint:TestPoint_Pad_D1.0mm", in_bom=False)
+        sch.label(tp, "1", net)
 
     # strapping: GPIO8 must be high to enter download mode
     pullup("10k", 27.94, 172.72, "+3V3", "IO8")
@@ -717,12 +727,16 @@ def build(lib: Library) -> Schematic:
     bot = c_pump.pos(2)
     sch.wire(bot, (bot[0], bot[1] + 2.54))
     sch.label_at(bot[0], bot[1] + 2.54, "EPD_PUMP", 270)
+    # A second capacitor on VGH and on VGL, at the diodes (2026-11-25, C27 and C28): the reference
+    # circuit draws the VGH capacitor at its diode, and the first ones stand at J5, 16 and 26 mm away.
+    cap_net("1uF/50V", 439.42 + 8 * 10.16, 160.02, "EPD_VGH")
+    cap_net("1uF/50V", 439.42 + 9 * 10.16, 160.02, "EPD_VGL")
 
     sch.text(431.8, 182.88,
              "Values from the GDEY0213B74 specification, reference circuit (page 29).\\n"
-             "Capacitors 0603/0805, X5R/X7R, 25 V. PREVGH/PREVGL reach about +/-20 V.\\n"
-             "The panel sits on the back of the board; its FPC passes through a slot and turns\\n"
-             "back into J5, so panel pin N is connector pin 25 - N.", size=1.27)
+             "Capacitors 0603/0805, X5R/X7R, 25 V or more. PREVGH/PREVGL reach about +/-20 V.\\n"
+             "The panel lies above the parts on a frame; its FPC folds back under it into J5,\\n"
+             "so panel pin N is connector pin N. C27 and C28 stand at the diodes.", size=1.27)
     return sch
 
 

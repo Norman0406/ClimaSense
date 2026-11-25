@@ -6,19 +6,30 @@ Reviewed on 2026-11-24, at commit `8b32dfd`. Subject: `hardware/rev-2.0/` (schem
 
 ## Status since the review (last updated 2026-11-25)
 
-The review below describes the design as it was at commit `8b32dfd` and is left as written. This table says what has happened to each finding since. Not committed yet at the time of writing: the changes are in the working tree.
+The review below describes the design as it was at commit `8b32dfd` and is left as written. This table says what has happened to each finding since. The board's current description is [`docs/hardware/rev-2.0.md`](docs/hardware/rev-2.0.md).
 
 | Finding | Status | What was done |
 | --- | --- | --- |
-| 1. `QWIIC_EN` under the buck inductor L1 | **Fixed 2026-11-25** | The top layer under L1 is a keep-out for tracks, vias and pour (`L1_UNDER` in `gen_pcb.py`). Closing the strip alone did not route (none of twelve seeds), so `QWIIC_EN` now passes L1 on the bottom layer, drawn by hand (`L1_HOP`: vias at (34.2, 13.1) and (37.7, 12.5), 3.5 mm between them). Price: a 0.6 mm slit in the bottom ground under the inductor, 5 mm from the buck converter's input loop. Seven of twelve seeds route the board; KiCad's check and the audit pass. The note in `rev-2.0.md` that named `BMP_INT` is corrected. |
-| 5. Regulator input capacitors C3, C15 | **Fixed 2026-11-25** | Both are now CL10A105KB8NNNC (0603, C15849, 0.66 µF at 5 V). C15 moved to (44.775, 14.45), C3 to (68.775, 25.5). `+5V` now carries the same 12 µF nominal as before (note 27 unchanged). |
-| 16. Documents against the design | **Partly** | Corrected: the net under L1; the schematic value of C17–C24 ("1uF/50V"); `rev-2.0.md` has a dated section on the two fixes and now gives 228 vias. Still open: the stale lower sections of `rev-2.0.md`, `hardware/rev-2.0/README.md`, the 2.0 pin table, `schematic.md`, `ordering.md`, fab or home assembly. |
-| 2. Assembly rails at the overhanging parts | Open | Order remark, at ordering time |
+| 1. `QWIIC_EN` under the buck inductor L1 | **Fixed** (commit `6b9197a`) | The top layer under L1 is a keep-out for tracks, vias and pour (`L1_UNDER`). Closing the strip alone did not route, so `QWIIC_EN` passes L1 on the bottom layer, drawn by hand (`L1_HOP`). Price: a 0.6 mm slit in the bottom ground under the inductor, 5 mm from the buck converter's input loop. |
+| 5. Regulator input capacitors C3, C15 | **Fixed** (commit `6b9197a`) | Both are CL10A105KB8NNNC (0603, C15849, 0.66 µF at 5 V). |
+| 7. SCD41 solder paste | **Fixed 2026-11-25** | Paste openings of its twenty outer pads pulled in by 0.15 mm all round (1.6 × 0.55 mm): 1.28 times Sensirion's volume instead of 2.35 times, 0.46 mm from the vent hole's centre instead of 0.31 mm. Copper unchanged, so revision 1.0 still proves the island. Not Sensirion's exact aperture (1.25 × 0.55 mm). |
+| 9. Buttons | **Partly 2026-11-25** | The metal frame's two lands are on ground (pad SH). The signal stays on the outer terminals: with it on the middle terminal, as proposed, one line from the module's lower pin row stayed open in every seed of three routing runs. No capacitor on `BOOT`. |
+| 11. VGH and VGL capacitors far from their diodes | **Fixed 2026-11-25** | A second capacitor at each diode: C27 beside D2, C28 beside D4 (same 0603 part), each on a 0.3 mm link with its own ground via. The first ones stay at J5. |
+| 13. −20 V line under the boost inductor | **Fixed 2026-11-25** | The top layer between L2's pads is kept for ground (`BOOST_KEEP_TOP`); VGL no longer runs there. Other minimum spacings of the ±20 V nets were not changed. |
+| 15. Silkscreen below JLCPCB's minimums | **Fixed 2026-11-25** | Letters 1.0 mm, lines 0.15 mm. Two short outlines (the SGP41's and C11's) stay 0.12 mm, because wider they come too close to each other. |
+| 16. Documents against the design | **Fixed 2026-11-25**, one point open | `rev-2.0.md` rewritten as the description of the current board with a complete pin table and a test pad table; the old text kept as `rev-2.0-history.md`. `ordering.md` has a revision 2.0 section; `hardware/rev-2.0/README.md`, `schematic.md` (pointer to the 2.0 pin map; Qwiic current 150 mA), `footprints.md` and `CLAUDE.md` corrected. Assembly decided: JLCPCB. Open: `next-revision.md`, section 7, still speaks of revision 2.0 as it was before 2026-11-24. |
+| 17. Debug access with the panel mounted | **Mostly 2026-11-25** | Six new pads on the back: VGH, VGL, VSH1, VSL, VCOM and `EPD_RST` (TP17–TP22). Still none on VBUS and the Qwiic supply, and no way to isolate a rail. |
+| 22. Home assembly | Not applicable | Assembly is by JLCPCB (decided 2026-11-25). |
+| 2. Assembly rails at the overhanging parts | Open | The order remark is written down in `ordering.md`; to be used at ordering time. |
 | 3. Revision 1.0 not powered yet; no 2.0 firmware | Open | |
-| 4. Fold margin at a frame height of 4.75 mm | Open | Decision before the frame is printed |
-| 6 to 15, 17 to 22 | Open | None of them was a condition for ordering |
+| 4. Fold margin at a frame height of 4.75 mm | Open | Decision before the frame is printed. |
+| 10. Driving-voltage capacitors keep 15–20 % of their value | Not planned | 0805 parts do not fit the capacitor row at 1.6 mm pitch; C27 and C28 add capacitance on VGH and VGL where it matters most. |
+| 12. Bottom tracks under the boost circuit | Open | `rev-2.0.md` now says what is and is not reserved. |
+| 6, 8, 14, 18, 19, 20, 21 | Open | To be judged on a revision 1.0 board or at the next order. |
 
-Of the five conditions in the verdict, 1 and 4 are met by these changes; 2, 3 and 5 remain.
+Board after these changes: `ROUTE_SEED` 2 (five of twelve seeds route it), 71 placed parts, 22 test pads, 241 vias; KiCad's check without violation, difference or open connection; the audit passed. `gen_fab.py` now exports with `--check-zones`.
+
+Of the five conditions in the verdict, 1 and 4 are met; 2 (the rails remark), 3 (revision 1.0 brought up, a 2.0 pin map in the firmware) and 5 (frame height) remain.
 
 How the review was done: the project was copied to a temporary folder outside the repository and all tools ran there; nothing in the repository was changed except this file. Six independent passes were made: five by scope (microcontroller, power and USB, sensors and small parts, display, manufacturing and parts), each reading the manufacturers' datasheets, and a sixth that re-checked every Major finding and every pinout marked "verified" from the primary sources without seeing the first passes' reasoning. Where the passes disagreed on severity, this report says so.
 

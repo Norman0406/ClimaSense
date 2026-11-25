@@ -186,18 +186,6 @@
 		(layers "*.Cu" "*.Mask")
 		(uuid "69eeacf9-26cb-5c73-98c3-e553a0c11115")
 	)
-	(pad "" smd rect
-		(at -1.85 1.075)
-		(size 1.3 0.85)
-		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "653fb7da-f78a-5532-80ff-e03604a01c9d")
-	)
-	(pad "" smd rect
-		(at 1.85 1.075)
-		(size 1.3 0.85)
-		(layers "F.Cu" "F.Mask" "F.Paste")
-		(uuid "f5d9a261-ee60-5e00-a745-b6e42e11daf9")
-	)
 	(pad "" np_thru_hole circle
 		(at 2.125 0)
 		(size 0.9 0.9)
@@ -222,6 +210,18 @@
 		(size 0.6 1.73)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "5fd6c3bd-7864-5d58-880f-786799125e3a")
+	)
+	(pad "SH" smd rect
+		(at -1.85 1.075)
+		(size 1.3 0.85)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "653fb7da-f78a-5532-80ff-e03604a01c9d")
+	)
+	(pad "SH" smd rect
+		(at 1.85 1.075)
+		(size 1.3 0.85)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "f5d9a261-ee60-5e00-a745-b6e42e11daf9")
 	)
 	(zone
 		(layers "F.Cu" "B.Cu" "In1.Cu" "In2.Cu" "In3.Cu" "In4.Cu" "In5.Cu" "In6.Cu"

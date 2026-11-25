@@ -1,306 +1,220 @@
-# Revision 2.0 — e-paper display (draft)
+# Revision 2.0 — e-paper display
 
-Status: **reworked on 2026-11-24, see [the next section](#being-reworked-the-panel-moves-to-the-component-side-2026-11-24): the panel is on the component side, on a frame. The board in `hardware/rev-2.0/` is the reworked one, fully routed and clean in KiCad's check; the check before ordering has not been repeated for it, and the sections after the next one still describe the board of 2026-11-23.** Until 2026-11-23: **schematic and board generated and checked with KiCad (2026-11-22): fully routed, no rule violations, display lines drawn by hand with their probe pads in line; footprints of the display connector and the side-push buttons drawn from the makers' land patterns. Checked once more before ordering on 2026-11-23, with eight things found and fixed (the FPC slot was too short for the tail; see [Check before ordering](#check-before-ordering-2026-11-23)). Not yet built.** Started 2026-11-22. Every point marked **Assumption** or **Open** still needs a decision or a check against a datasheet. Revision 1.0 stays as ordered on 2026-11-20 (commit `8c89155` is the design that was sent to JLCPCB); its documents ([`schematic.md`](schematic.md), [`layout.md`](layout.md)) describe 1.0 until the 2.0 board is drawn.
+Revision 1.0 plus a 2.13" e-paper panel. **Designed, reviewed, not ordered, not built.** This page describes the board as it is in [`hardware/rev-2.0/`](../../hardware/rev-2.0/). How it got here, including two earlier arrangements that no longer exist (panel on the back with its tail through a slot), is in [`rev-2.0-history.md`](rev-2.0-history.md). The design review of 2026-11-24 with its findings and their status is [`../../REVIEW.md`](../../REVIEW.md).
 
-Background: section 6 of [`next-revision.md`](next-revision.md).
+Revision 1.0's documents ([`schematic.md`](schematic.md), [`layout.md`](layout.md), [`footprints.md`](footprints.md), [`ordering.md`](ordering.md)) still hold for everything this page does not mention: supply, USB, sensors, the sensor island.
 
-## Being reworked: the panel moves to the component side (2026-11-24)
+## State
 
-**Everything below this section still describes the board as it was checked on 2026-11-23: parts towards the wall, panel on the bare back, tail through a slot. That board was changed on 2026-11-24 (Norman). This section is what was decided and what came of it; the rest of this document has still to be rewritten.**
+As of 2026-11-25:
 
-**State (2026-11-24, evening):** schematic changed, no ERC violation, netlist as intended. Board placed and routed by `gen_pcb.py` with `ROUTE_SEED` 1 (five of twelve seeds route it completely; a plain run from scratch gives the same copper as the batch did: 210 vias). `check_pcb.py --require-routed`: no DRC violation, no difference to the schematic, no open connection. `audit_pcb.py`: no net crosses itself or has a loop, no track meets a pad off its centre lines; four right-angle corners and twelve jogs remain (listed in its output). Pictures in [`../images/rev-2.0/`](../images/rev-2.0/) are of this board; only the angled view and the close-up of the tail show the panel, the views from above and from the back are of the board alone (Norman, 2026-11-24). **Not done:** the check before ordering (parts, footprints, pins against the datasheets, ground, the new boost layout); `gen_fab.py` for the pads on the back and the new resistor; the frame, the case; the firmware's pin map. Why and how it was worked out: section 7 of [`next-revision.md`](next-revision.md) (the variant, the tail's fold, the case concept).
+- Schematic: no ERC violation, the netlist as intended (93 parts with the 22 test pads; 71 are placed, 36 part types).
+- Board: placed and routed by `gen_pcb.py` with `ROUTE_SEED` 2; five of twelve seeds route it completely. `check_pcb.py --require-routed`: no DRC violation, no difference to the schematic, no open connection. `audit_pcb.py` passed: no net crosses itself or has a loop, no track meets a pad off its centre lines; seven right-angle corners and eight jogs are listed. 241 vias.
+- A plain run from scratch gives the same tracks as the batch of twelve seeds did (one to three of the ground patch vias land a few tenths of a millimetre elsewhere). The board in the repository is that plain run, with two silkscreen details changed afterwards with `--keep`, which leaves the copper alone.
+- The pictures in [`../images/rev-2.0/`](../images/rev-2.0/) are of this board.
+- Reviewed on 2026-11-24 ([`../../REVIEW.md`](../../REVIEW.md)): no error that stops the board from working. Of its findings, 1, 5, 7, 11, 13, 15 and most of 9, 16 and 17 are in this board; what is open is listed [below](#open-points).
 
-**Reviewed on 2026-11-24, two findings fixed on 2026-11-25.** The check before ordering named above was made as a full design review: [`../../REVIEW.md`](../../REVIEW.md) (no error that stops the board from working; its status table says what is done and what is open). Two of its findings are in the board since 2026-11-25 (Norman):
+Not done:
 
-- **Nothing lies under the buck inductor L1 on the top layer any more** (finding 1). `QWIIC_EN` ran there, between L1's pads, 0.45 mm from the pad of the switch node; Murata's specification for the DFE252012F forbids copper under the coil other than the pattern to its electrodes, and the line is held only by R15 while the ESP32 is in reset. The strip is now a keep-out for tracks, vias and pour (`L1_UNDER` in `gen_pcb.py`, `copper_free_top` in `route_board.py`). With the strip closed and nothing else changed, none of twelve seeds routed the board (2 to 7 connections open), as on the board of 2026-11-23. So `QWIIC_EN` passes L1 on the bottom layer, drawn by hand (`L1_HOP`): a via at (34.2, 13.1), 3.5 mm on the bottom under the gap between L1's pads, a via at (37.7, 12.5), then on the top layer to U9 as before. With that, seven of twelve seeds route the board completely. **The price:** the bottom ground under the buck converter (`BUCK_AREA`) has a slit 0.6 mm wide and 3.5 mm long under the inductor, 5 mm from the input loop at C1 and U2, which is untouched.
-- **C3 and C15, the input capacitors of the two linear regulators, are the 0603 part of the display supply** (finding 5; CL10A105KB8NNNC, C15849, 50 V). The 0402 part kept 0.55 µF at 5 V, 0.50 µF at the low end of its tolerance, against the more than 0.47 µF the TLV755P asks for at its pin; this one keeps 0.66 µF. Both moved a little for their size: C15 to (44.775, 14.45), its supply pad still below U9's input pin; C3 to (68.775, 25.5), its ground pad over U3's ground pin, 0.6 mm further right to keep clear of J5. The schematic value of all ten capacitors of this type now reads "1uF/50V" (it read "1uF/25V" for a 50 V part). The number of part types stays at 36: the 0402 part is still used for C4, C7, C11 and C12.
+- **Revision 1.0 has not been powered yet.** Revision 2.0 reuses its USB circuit, both supplies, the module and the whole sensor island unchanged. Ordering 2.0 before 1.0 has run means ordering it with all of 1.0's open questions (review, finding 3).
+- **Firmware:** `pins.h` is still the revision 1.0 pin map; there is no display driver and no way to tell the board revisions apart. **Revision 1.0 firmware must not be flashed onto a 2.0 board:** it would make IO10, which is `SENS_EN` here, an input with pull-down and hold the sensor regulator's enable pin at its threshold.
+- **The frame and the case** are not designed; the frame's height is not settled (see [Panel, tail and frame](#panel-tail-and-frame)).
+- **Order files:** `tools/gen_fab.py` is ready and writes them when they are needed; nothing is in `fab/` yet.
 
-State of this board: `ROUTE_SEED` 1, 228 vias. It is the board of one plain run from scratch (five and a half minutes); the batch of twelve seeds gave the same tracks and two of the ground patch vias 0.2 to 0.3 mm elsewhere. `check_pcb.py --require-routed`: no DRC violation, no difference to the schematic, no open connection; `audit_pcb.py` passed (seven right-angle corners and thirteen jogs listed). The pictures are of this board.
+## Decisions
 
-Decided (2026-11-24, Norman):
-
-| Topic | Choice |
-| --- | --- |
-| Orientation | **Turned round again.** The component side faces the room, as on 1.0. The sensors, the antenna and the display all face the room. |
-| Panel | On the component side, **on a printed frame that stands on the board**, its back **4.75 mm** above the board (the parts under it are 3.3 mm at most; the tail allows 4.75 mm at most; 4.6 mm at first, raised the same day by Norman for a shallower bezel). x 10.8 to 70.0 as before, y 2.0 to 31.2 (0.4 mm higher, so that the tail stays on J5's centre line: the panel is turned by 180° against before). |
-| Tail | Folds back under the panel in a half circle into J5. **No slot through the board.** J5's front edge 3.0 mm inside the glass edge (was 5.0 mm), its opening still towards the sensors. |
-| Pin order at J5 | **Panel pin N on connector pin N** (`FPC_REVERSED` false in `gen_schematic.py`; was 25 − N). |
-| Display GPIOs | **Re-assigned**, so that the six hand-drawn tracks stay where they are and only change their signal: `EPD_MOSI` IO3, `EPD_SCK` IO18, `EPD_CS` IO15 (unchanged), `EPD_DC` IO4, `EPD_RST` IO5, `EPD_BUSY` IO1. Before: BUSY IO3, RST IO18, SCK IO4, MOSI IO5, DC IO1. |
-| `EPD_RST` pull-up | **R21, 100 kΩ to +3V3** (new, C25741 like R20): IO5 floats while the chip is in reset; IO18, where RST was, is pulled up by the chip. |
-| Boost circuit | **Below the display lines**, next to J5's pins 2 and 3, drawn again by hand: inductor, switch node, MOSFET and sense resistor on one line at y 25, the MOSFET turned so that its drain faces the inductor and its source and gate face J5. **The seven capacitors of J5's upper pins in a row along the top**, with the open area between them and the pins; VSH2's capacitor below, at pin 5. This is the mirror image of the board of 2026-11-23. (First choice the same day: the boost circuit left at the top with the capacitors beside it. It did not route, see below.) |
-| Test and probe pads | **All sixteen on the back**, as bare pads with their labels on the back silkscreen; a pad on a hand-drawn line stands on a via of that line. |
-| Case | Flat front; the display behind a bezel about 1.45 mm deep; a wall round the sensor area. Not designed yet. |
-
-Notes on the pins, for the firmware and the next check:
-
-- `EPD_BUSY`, the only line the panel drives, is on IO1: not a start-up configuration pin, and one of the pins that can wake the chip from deep sleep.
-- `EPD_DC` and `EPD_RST` are on IO4 and IO5, start-up configuration pins that the panel does not drive; they only matter for an SDIO host or an external JTAG adapter ([`schematic.md`](schematic.md)). **To be confirmed against the ESP32-C6 datasheet in the check before ordering.**
-- `EPD_SCK` on IO18 is high while the chip is in reset; with `EPD_CS` held high by R20 that does nothing.
-- The firmware turns the picture by 180°.
-
-Open:
-
-- **Where the frame stands.** Proposed: seven spots kept free of parts (`FRAME_FEET` in `gen_pcb.py`) and two 2.2 mm holes that locate it (`FRAME_HOLES`; an M2 screw from the back can hold it there). The spots are not fixed: they follow the parts (Norman, 2026-11-24). The holes are a proposal.
-- **The capacitors did not fit beside the boost circuit (found 2026-11-24; the boost circuit has moved since, see the table).** With the boost circuit at the top, only a strip 3.8 mm wide is left between its diodes and J5's pad row for seven 0603 capacitors and their lines to ten pins at 0.5 mm pitch, and the lines of the three display signals shut it off below. Routed with seeds 1 to 8 (`--seeds=1-8`, about 18 minutes each): every seed left 4 to 6 connections open, in every one `EPD_VDD` from J5's pin 18 to its capacitor and one of `EPD_VSH1` and `EPD_VSL`. The ground via of pin 17 takes the room pin 18's line needs, and the lines from the capacitors above cannot get past each other. So the boost circuit went below the display lines (Norman, the same day).
-- **The pads on the back take room on the bottom layer.** The other connections that stayed open differed from seed to seed (`USB_DN`, `SENS_EN`, `BMP_INT`, `I2C_SCL` at the module): the board of 2026-11-23 routed with one seed in eight, and sixteen pads now stood in the bottom layer's way where they used to stand on the top. **Done about it (2026-11-24):** the pads the router had to reach on the bottom layer in its busiest stretch now have a short stub on the top layer and a via in the pad instead (`BACK_PAD_STUBS` in `gen_pcb.py`): 5V beside the fuse, 3V3 on the boost circuit's input link, SDA and SCL beside their pull-ups, INT above the free end of its bus run (1.2 mm from the USB connector's shell leg, a plated hole). 3VS has one beside the regulator's output capacitor, and the five display pads stand on vias of their lines. The three ground pads lie in the bottom pour; the two UART pads are reached by the router.
-- **What routing the new board brought up (2026-11-24), all fixed in the scripts:**
-  - **J5's pads were 0.05 mm off the grid** (Norman, looking at a plot: the tracks entered the pads beside their middle). J5 is 0.5 mm pitch with its middle between two pads, so on the tail's centre line (y 16.8) its pads lie on quarter millimetres. It now sits at y 16.75 (`J5_Y`), 0.05 mm off the centre line, and pin p is on y = 23.0 − 0.5 p. The board of 2026-11-23 had the same offset.
-  - **Pin 18 (VDD) could not leave J5**: the router put the ground via of pin 17 beside the pads, 0.4 mm below pin 18's line. Both pins' exits are drawn by hand now (`J5_UPPER`), pin 17's via 2.7 mm from the pads.
-  - **The router's tidy-up removed the vias under the back pads** as dead ends, since only a pad hangs on them. It now counts a pad of the via's net that the via stands in as copper on that layer (`route_board.py`).
-  - **Points off the 0.1 mm grid in hand-drawn tracks** let the router attach to a track on the grid, 0.035 mm beside it, and the tidy-up then cut that attachment off: the boost circuit's input link had a diagonal from a pad centre that is off the grid, and the board lost its +3V3 feed to the boost circuit without the router noticing. Every point the router may attach to is on the grid now.
-  - **A +3V3 track ran under the MOSFET**, between its drain pad and its source and gate pads, on the way to the sensor regulator's pull-up. That gap is kept for ground on the top layer (`BOOST_KEEP_TOP`).
-  - **The same on the sensor island, where nothing had been changed**: the SCD41's supply link follows the pins' centre lines, 0.05 mm off the grid, and the track from the SGP41's supply joined it on the grid; the tidy-up cut it off, in every one of twelve seeds. The board of 2026-11-23 had escaped this with the one seed that worked. The tidy-up now counts a track end within 0.055 mm of another track's centre line as attached (`near()` in `route_board.py`): the copper overlaps, and KiCad counts the two as joined.
-  - **The ground via of R15** (the Qwiic switch's gate pull-down) was closed in on both layers in ten of twelve seeds, by two of the router's tracks running side by side down the channel between the CS and SCK lines' vias and the DC line's run on the bottom layer. Keeping a strip of the bottom layer beside the via for ground cured that and cost the two bus lines their way (tried: signals stayed open instead). **R15 now stands right of the Qwiic regulator U9**, at 47.6 / 13.4, beside the enable pin it holds low, with its ground via in the open pour; the enable line still comes through under U9 and runs on to it.
-  - **Jogs** (Norman, looking at a plot of the bottom layer: a bump at a turn of the I2C clock line). The line ran down, 0.1 mm sideways, then on at 45°. The router's tidy-up took out runs of two or more such short pieces, not single ones. It now does (`dejog()` in `route_board.py`): where the two longer pieces meet at 45° they run on to where their lines cross, and where they are parallel, 0.1 mm apart, one moves onto the other's line. Every piece that moves is measured against the other nets' copper first; the hand-drawn tracks are treated the same. `audit_pcb.py` lists the jogs that remain (25 on the board before this step).
-  - **How little room the module's lower pin row has**: three wiggles in hand-drawn display lines (the router's own, from 2026-11-22) were drawn straight by hand. One, the BUSY line's diagonal up to the top edge, is harmless and stayed. The other two, the RST line's step round a resistor's pad below the module and the BUSY line's run on the bottom layer moved 0.1 mm to line up with its via, left `I2C_SDA`, `I2C_SCL`, `BMP_INT` or `QWIIC_EN` open in every one of twelve seeds, where five of twelve had routed the board without them. They are back as they were, and the audit lists them as jogs.
-  - **`--seeds` judges by KiCad's count now**: the router's count was wrong in both directions (it counts a pocket of pour that is tied with a via afterwards, and it missed the two cases above). The eight boards the router rates best get their pours filled and are counted by KiCad.
-- **Measuring the driving voltages.** They were measured on the capacitors' pads, which the panel now covers. Back pads for them would be new parts.
-- The frame itself, the wall round the sensors, a conductive layer behind the panel ([`next-revision.md`](next-revision.md)).
-- **The twelve jogs the audit still lists.** Seven are a change of lane by 0.1 mm (a 0.14 mm diagonal between two parallel pieces) that cannot be taken out without moving a track against other copper; two are the wiggles kept in the hand-drawn RST and BUSY lines (see below); two are where `EPD_VGL` enters J5's pin 23; one is on the sensor island (`SGP_VDD`).
-
-## What is already settled
-
-From the display research of 2026-11-22, agreed with Norman:
-
-| Topic | Choice |
-| --- | --- |
-| Display | **Good Display GDEY0213B74**: 2.13", 250 × 122, black and white e-paper, SSD1680 controller, SPI, 24-pin FPC with 0.5 mm pitch. Outline 59.2 × 29.2 × 1.0 mm, active area 48.55 × 23.70 mm, 0 to 50 °C. Fallback if the board gets too long: a 1.54" 200 × 200 SSD1681 panel. |
-| Driving voltages | Made on the board from the panel's own gate driver (`GDR`) and current sense (`RESE`) pins with the maker's boost circuit; no extra chip. |
-| Board orientation | **Flipped.** All parts stay on one side, which now faces the wall; the panel is stuck to the bare back side, which faces the room. |
-| Panel position | **Over the controller side only**: never over the sensor island or the SHT45 tongue (it would hold their heat and block air), and clear of the antenna. |
-| FPC | Through a **milled slot in the controller side** to a connector on the component side, not round a board edge. |
-| Assembly of test revisions | **At home**: bare boards and a stencil from JLCPCB, tin-bismuth low-temperature paste on a hot plate. Populated boards are ordered only once a revision works. The panel is plugged in by hand. |
-| Cost | Hobby project: one-sided, hand-placeable parts, common LCSC parts, no part that is not needed. |
-
-What the flip means elsewhere:
-
-- **The sensors face the wall.** The case needs a gap to the wall and vents at its top and bottom edges, so that air rises past the sensors like in a chimney. The SGP41 is then also out of direct light, which its datasheet asks for.
-- **The antenna faces the wall too.** A wall a centimetre away costs some Wi-Fi range; a brick or concrete wall more than plasterboard. To be measured on the first board.
-- **BOOT/USER and the status LED have to be reachable from the room**: see [Buttons and LED](#buttons-and-led).
-- **The one-sided board suits a hot plate**: the bare back side lies flat on the plate.
+| Topic | Choice | Decided |
+| --- | --- | --- |
+| Display | Good Display GDEY0213B74: 2.13", 250 × 122, black and white, SSD1680, SPI, 24-pin tail at 0.5 mm pitch; 59.2 × 29.2 × 1.0 mm, 0 to 50 °C | 2026-11-22 |
+| Driving voltages | Made on the board with the panel maker's boost circuit and charge pump; no extra chip | 2026-11-22 |
+| Orientation | Component side faces the room, as on 1.0: sensors, antenna and display all face the room | 2026-11-24 |
+| Panel | On the component side, on a printed frame that stands on the board, above the parts of the controller side | 2026-11-24 |
+| Tail | Folds back under the panel in a half circle into J5. No slot through the board | 2026-11-24 |
+| Pin order at J5 | Panel pin N on connector pin N | 2026-11-24 |
+| Buttons | Two Alps SKRTLAE010 side-push switches on the top edge, pressed by plungers in the case | 2026-11-22 |
+| Status LED | The LED of 1.0, 1.4 mm from the top edge; the case carries its light | 2026-11-22 |
+| 32 kHz crystal | Dropped (no battery variant of this board): IO0 and IO1 are free for signals | 2026-11-22 |
+| Sensor header J4, serial header J3 | Gone; test pads take over | 2026-11-22 |
+| Test pads | All on the back, bare 1.0 mm pads with their names on the back silkscreen | 2026-11-24 |
+| Assembly | **By JLCPCB**, as revision 1.0 (Norman, 2026-11-25). The earlier plan to assemble test revisions at home on a hot plate is dropped | 2026-11-25 |
+| Case | Flat front, display behind a shallow bezel, a wall round the sensor area. Concept only: [`next-revision.md`](next-revision.md), section 7 | 2026-11-24 |
 
 ## Board
 
-Seen from the component side (the side that faces the wall), with the same left-to-right order as 1.0:
+103 × 34 mm, two layers, 1.6 mm, all parts on one side. Seen from the component side as it hangs on the wall:
 
 | Zone (x, mm) | Contents |
 | --- | --- |
-| 0 – 26 | ESP32-C6 module, antenna at the left edge (unchanged) |
-| 26 – 48 | USB-C, protection, fuse, buck converter, Qwiic, as in 1.0; the two side-push buttons on the top edge; the I2C pull-ups at the start of the sensor bus |
-| 48 – 67 | **New**: boost circuit (top), FPC connector J5 (opening towards the slot), the eight 1 µF capacitors (bottom). The panel lies on the other side of 10.8 – 70.0 |
-| 64 – 72, below the slot | The sensor regulator U3 with C3, C4, its pull-up R5 and its test pad TP3 ("3VS"), where the sensor bus turns up into the strip |
-| 71.8 – 73.0 | FPC slot, 18.3 mm long, y = 7.65 – 25.95, centred on J5, 1.8 mm beyond the panel's edge (until 2026-11-23: 13.5 mm, too short for the tail's shoulder, see [FPC slot and connector](#fpc-slot-and-connector)) |
-| 73.0 – 76.0 | Strip where the sensor bus runs round the end of the FPC slot to the bridge |
-| 76.0 – 77.5 | Milled slot to the sensor island (as 1.0) |
-| 77.5 – 103 | Sensor island and SHT45 tongue, exactly as in 1.0, moved right by 28 mm |
+| 0 – 26 | ESP32-C6 module, antenna at the left edge; UART pads on the back |
+| 26 – 48 | USB-C on the bottom edge, protection, fuse, buck converter, Qwiic connector and its regulator; the two buttons and the LED on the top edge; the I2C pull-ups at the start of the sensor bus |
+| 48 – 62 | Display supply: seven capacitors in a row along the top, the six display lines in the middle, the boost circuit below them |
+| 62 – 67 | Display connector J5, opening to the right |
+| 67 – 76 | Room for the tail's fold; below it the sensor regulator U3 |
+| 76 – 77.5 | Milled slot to the sensor island, with three bridges |
+| 77.5 – 103 | Sensor island and SHT45 tongue, exactly as on 1.0 |
 
-- **Size: 103 × 34 mm** (1.0: 75 × 34). The height stays: the panel is 29.2 mm high. It came out 2 mm longer than first estimated: the FPC slot lies right in front of the bridge that carries the sensor bus across the sensor slot, so the bus has to run round the slot's end, and that needs a strip of about 3 mm between the two slots.
-- **Assumption**: the panel's left edge keeps a gap from the end of the antenna keep-out (x = 6.9 mm in 1.0). Espressif asks for no metal near the antenna; the panel has thin metal tracks on glass. Less gap gives a shorter board. First 5 mm (x = 11.8 to 71.0); **since 2026-11-22 the panel sits 1 mm further left, x = 10.8 to 70.0, 3.9 mm from the keep-out** (Norman's observation: the glass edge was only 0.8 mm from the FPC slot; it now keeps 1.8 mm). It stays 5.7 mm clear of the left mounting holes' edge, and no back-side pad lies in the added strip. `PANEL_X0` in `gen_pcb.py`; to be verified with the real panel and a 1:1 print.
-- The generator (`hardware/rev-2.0/tools/gen_pcb.py`) builds this from the 1.0 placement: everything from x = 48 rightwards moves by 28 mm, nothing else of 1.0 moves, and the new parts go into the gap. The panel's outline is printed on the back silkscreen.
-- The component side under the panel is free for parts, since the panel is on the other side. Only the FPC slot has to lie beyond the panel's edge.
-- Seen from the room the board is mirrored: the antenna end is on the right, the sensors on the left. Up stays up, so the arrangement of the sensors for rising heat is unchanged.
-- **Mounting holes**: the two at the antenna end are outside the panel; the two on the sensor island stay where they are.
-- **Under the panel** (on the back side): no parts, as everywhere on the back. Vias are covered by solder mask. The panel is held by the case or by double-sided tape; the tape must not cover the FPC slot.
-- **The serial port** (1.0's header J3) lies under the panel. **Decided 2026-11-22 (Norman): three of KiCad's standard 1.0 mm test pads on the component side instead of the holes** (TP14–TP16: UART0 GND, TX, RX, in a row 2.54 mm apart, so a 3-pin pogo adapter still fits); nothing reaches the panel side.
+- The panel lies over x 10.8 to 70.0, y 2.0 to 31.2, its back `FRAME_HEIGHT` above the board. It starts 3.9 mm behind the antenna keep-out (x 6.9).
+- Four M3 holes in the corners; two 2.2 mm holes (FH1 at 15.5 / 30.8, FH2 at 66.5 / 4.0) and seven spots free of parts for the frame (`FRAME_HOLES`, `FRAME_FEET` in `gen_pcb.py`). The spots and holes are a proposal until the frame is designed.
+- The board name, the revision and the "Up" arrow are on the sensor island.
 
-## FPC slot and connector
+## Panel, tail and frame
 
-From Good Display's drawing (GDEY0213B74 specification, page 7, initial version 2021-03-17):
+From Good Display's specification ([`../datasheets/`](../datasheets/README.md), pages 7, 8, 28, 35) and their usage guidelines:
 
-- The tail leaves the middle of a short edge: 12.50 mm wide, its edge 8.15 ± 0.3 mm from the panel's long edge, so it is centred to within 0.2 mm.
-- **Where it leaves the glass the tail is wider (found 2026-11-23).** The drawing shows a shoulder: the tail's edge on the pin 1 side starts 6.77 mm from the panel's long edge (dimensioned), 1.38 mm outside the 12.5 mm part, and on the pin 24 side about 0.4 mm outside it (measured off the drawing, which resolves 0.1 mm). That is 14.3 mm in all, from 6.77 to about 21.05 mm below the panel's long edge. It keeps this width for 4.1 mm from the glass and has narrowed to 12.5 mm at 4.9 mm. The block diagram on page 28 shows the same shape. The slot begins 1.8 mm from the glass, and Good Display wants the bend 1.0 to 1.5 mm from the glass, so **the wide part is what passes through the board**. The slot was sized for the 12.5 mm part (13.5 mm long); the shoulder would have overlapped its upper end by 0.9 mm and the tail would not have gone through. It is now 18.3 mm long (`FPC_SHOULDER`, `FPC_SLOT` in `gen_pcb.py`) and **symmetric about J5's centre line (2026-11-23, Norman)**: 1.5 mm beyond the shoulder's wider side at both ends, so 2.5 mm beyond its narrower side at the lower end. The shoulder is lopsided, so a slot fitted to it alone would sit 0.5 mm above J5's centre; the symmetric one does not depend on which side the wide step is on. The mill leaves the slot's ends round (0.5 to 0.6 mm radius) and the tail lies against the slot's wall, where a round end takes its whole radius, so 0.9 mm stay clear there on the wider side, for the mill's tolerance (0.2 mm), the tail's shape and its play in J5. On the board the shoulder spans y 9.17 to 23.45; the two ticks on the back silkscreen mark these edges.
-- It reaches 14.30 ± 0.3 mm beyond the glass. The last 6.00 mm carry a stiffener; contacts are 0.30 mm thick, 24 at 0.5 mm pitch over 11.5 mm.
-- The contacts are on the display side of the tail; the stiffener is behind them. **Verified 2026-11-23** against Good Display's photos of the panel (product page, <https://www.good-display.com/product/391.html>): seen from the display side the gold contacts are visible, seen from the back the black stiffener covers them. The front photo shows what the drawing's main view shows, feature for feature: the round mark in the corner above the tail, the driver chip on the glass ledge, and the tail's larger step on that same side. So the main view is the display side (the note here used to call that an assumption).
+- The tail leaves the middle of a short edge, 12.5 mm wide (14.3 mm at its shoulder near the glass), 14.30 ± 0.30 mm long; its last 6.00 ± 0.5 mm are stiffened. Contacts are on the display side, the stiffener behind them.
+- **Pin order.** The panel lies display up with its tail to the right, towards the sensors. That is the drawing's main view turned by 180°, so pin 1 is at the bottom. The fold runs parallel to the board's short edge and keeps each contact's height; J5, with its opening to the right, has its pin 1 at the bottom too. Panel pin N is connector pin N. After the fold the contacts face the board; J5 has contacts on both sides. Checked three times independently in the review.
+- **J5** (Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF) sits with its front edge 3.0 mm inside the glass edge, 0.05 mm off the tail's centre line so that its pads fall on the 0.1 mm grid. Its flip lock is under the panel: the tail is plugged in and locked with the panel swung open, and the panel folded down onto the frame afterwards. Swinging it open again is also the only way to reach the parts under it.
+- **Room for the fold** (`FOLD_ROOM`): from the glass edge to 4.3 mm beyond it, 1.5 mm wider than the tail's shoulder at both ends. Only tracks lie there; in front of J5, under the tail's stiff end, nothing stands higher than the board.
+- **Frame height: not settled** (review, finding 4). The scripts draw the panel's back 4.75 mm above the board. With the tail entering J5 1.15 mm above the board and leaving the glass 0.5 mm above the panel's back (assumed; not dimensioned), the half circle has a radius of 2.05 mm and uses 6.44 mm of tail: nominally 0.48 mm of flexible tail are left before the stiffener, and with the tail at its shortest and the stiffener at its longest there are −0.17 mm, so the fold is tighter than a half circle. At about 4.3 mm there are 0.83 mm nominally and 0.18 mm at worst. The tallest parts under the panel are 3.3 mm (the switches). The height changes nothing on the board. **Decide before a frame is printed, with a real panel in hand.**
+- **The fold bends once.** Plug in, close the lock, fold the panel down, leave it. Unplug USB first: the panel is always powered, and Good Display forbids plugging it in with power on.
 
-The tail leaves towards the sensor side, so that the FPC and the boost circuit stay away from the antenna. Two ways through the board:
+## Circuit
 
-| | Route | Contacts on the component side face | Connector | Board |
-| --- | --- | --- | --- | --- |
-| **A (chosen)** | Through the slot, then **back** under the panel's edge (a U-turn round the slot's edge) | up, away from the board | **dual-contact**: Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, LCSC **C3249999**, flip lock, 2.0 mm high | 103 mm |
-| B | Through the slot and **onwards**, away from the panel (an S-bend) | down, onto the board | bottom-contact: BOOMELE 0.5-24P FG, LCSC **C20688**, flip lock, 2.0 mm high, the common one, about 0.08 USD | longer: the connector has to sit beyond the slot |
+### Panel connector J5
 
-- In route A the connector sits under the panel's edge, with its opening facing the slot. A dual-contact connector also works if the assumption about the contact side above is wrong.
-- **The U-turn reverses the pin order.** The panel's pin 1 is at the top of the tail (drawing, front view; it stays at the top seen from the component side). The connector, turned to face the slot, has its pin 1 at the bottom. So panel pin N lands on connector pin 25 − N, and the schematic wires J5 that way (`FPC_REVERSED` in `gen_schematic.py`). **Verified against the specification on 2026-11-23**, twice and independently (drawing on page 7, block diagram on page 28, and the photos named above for which side the drawing shows): pin 1 is at the top. `FPC_REVERSED` stays `True`.
-- **The connector's front edge is 6.8 mm from the slot (2026-11-22, Norman: J5 1 mm closer to the slot, together with the panel 1 mm further from it; before that 7.8 mm, decided the same day: some slack in the tail is fine, too short would be fatal).** Kinghelm's drawing gives an FPC insertion depth of 2.1 mm, not the 3.7 mm first assumed. With bends of 0.4 mm radius the tail needs about 12.2 mm from the glass edge to full insertion and has 14.3 mm, so about 2 mm of slack remain for real bend radii and tolerances (5.8 mm, the first value, left 4 mm). With the panel and J5 both moved by 1 mm the tail runs 1.8 mm on the back to the slot and 5.0 mm from the glass edge's line to J5's front on the component side; the slack stays at 2.15 mm (`gen_models.py` prints it; with the panel moved alone it would have dropped to about 1.2 mm). **To be confirmed with a 1:1 paper print and the real panel** (`J5_FRONT_TO_SLOT` in `gen_pcb.py`). The 3D view draws the tail along that path, with its spare length as a bow (`board-fpc.png`).
-- **The slack is 1.2 mm, not 2.15 mm (corrected 2026-11-23).** The model behind the figures above let the tail cut both corners of the board in 0.4 mm bends and started it on the board's surface. The tail has to go round the outside of both edges of the slot, Good Display's smallest bend is 0.5 mm, and it leaves the glass on the display side of the panel's back glass, about 0.6 mm off the board. With that, a path that hugs the slot's wall in the tightest bends allowed needs 13.1 mm from the glass edge to full insertion (`gen_models.py` prints it), against 14.3 ± 0.3 mm of tail: 1.2 mm spare, 0.9 mm at the short end of the tolerance. A second, independent estimate from the drawing gave 1.2 to 1.5 mm. A relaxed half-circle bend needs about 14.2 mm, the whole tail. So the tail reaches, in bends somewhat gentler than the tightest allowed; it does not have the 2 mm of spare length the position was chosen for. **Not changed:** J5 stays 6.8 mm from the slot. Moving it 0.9 mm towards the slot would restore 2.15 mm; that means moving the display lines' ends again and is a decision for the paper print (`J5_FRONT_TO_SLOT`). The stiffener (6.0 ± 0.5 mm) ends at least 1.5 mm before the upper bend begins. **When fitting the panel, plug the tail into J5 first and stick the panel down afterwards:** before it is pushed in, the stiff end reaches to within half a millimetre of the slot, and the tail in J5 is what lines the shoulder up with the slot.
-- **Bend and reach checked against the specification (2026-11-23, pages 7 and 35).** Page 7 gives the tail: 14.30 ± 0.30 mm long, the last 6.00 ± 0.5 mm stiffened, 0.30 mm thick there. Page 35 (item 12) gives where it is rigid at the other end: the silicone glue over the driver chip may reach 0.5 mm onto the front of the tail and **1.0 mm onto its back**. The tail folds towards the back, so the fold has to begin beyond that 1.0 mm. On the board it begins 1.3 mm from the glass (slot wall at 1.8 mm, bend radius 0.5 mm): the 1.8 mm chosen on 2026-11-22 is right, the 0.8 mm before it was not. **The panel must not sit nearer the slot than its printed outline**: 0.3 mm nearer and the bend starts on the glue. Length: 13.1 mm needed, 14.3 mm there, 1.2 mm spare. Each of these takes from that one for one: the panel placed 0.3 mm further from the slot, the board at the thick end of its tolerance (+0.16 mm), the tail leaving the glass 0.15 mm higher (thicker glass or tape), J5 0.05 mm further, the tail at its shortest (−0.3 mm). All at once leave 0.15 mm; taken as independent tolerances (0.5 mm together) they leave 0.7 mm. So the tail reaches on the specification's own numbers; a 1:1 paper print is a way to see it, no longer a condition for ordering. The one figure not from the specification is J5's insertion depth of 2.1 mm, from Kinghelm's drawing.
-- **How pin 1 was placed:** in Kinghelm's top view (tails at the back, opening towards the viewer) the "refer pin" triangle marks the left end, so that is pin 1; JLCPCB's own footprint of C3249999 agrees. Turned by 90° so that the opening faces the slot, pin 1 is at the bottom. The fold of the U-turn runs parallel to the slot and keeps each contact's height on the board, so the panel's pin 1 (top of the tail) arrives at connector pin 24. The connector has contacts on both sides, so the face of the tail does not matter. The panel side, that its pin 1 is at the top of the tail seen from the component side, follows from the drawing's main view being the display side, which the photos confirm (see above).
-- **The tail is short.** Of its 14.3 mm, 6 mm are stiff, which leaves about 8 mm to reach the slot, pass through the 1.6 mm board in two bends and come out on top. Feasible, but **check with a 1:1 paper print of the board edge and the real panel** before ordering.
-- Both connectors are extended parts at JLCPCB; for a board assembled at home that costs nothing extra.
-- Footprint: `gen_footprints.py`, from Kinghelm drawing 8.01A0-C rev L; notes in [`footprints.md`](footprints.md).
-- Hand assembly: 0.5 mm pitch is fine with a stencil and a hot plate. Bridges are cleared with the rework station and flux.
-
-## Schematic additions
-
-### Panel connector and boost circuit
-
-From the reference circuit in the GDEY0213B74 specification (page 29). The panel makes its driving voltages itself from the two pins `GDR` (gate drive) and `RESE` (current sense); the board adds a boost converter and a charge pump.
-
-| FPC pin | Name | Connection |
+| Pin | Name | Connection |
 | --- | --- | --- |
 | 1, 4 | NC | open |
-| 2 | GDR | MOSFET gate, 1 MΩ to ground |
-| 3 | RESE | MOSFET source, 2.2 Ω to ground |
-| 5 | VSH2 | 1 µF to ground |
-| 6, 7 | TSCL, TSDA | open (an external temperature sensor; not used) |
+| 2 | GDR | gate of Q1, R18 (1 MΩ) to ground |
+| 3 | RESE | source of Q1, R19 (2.2 Ω) to ground |
+| 5 | VSH2 | C20 |
+| 6, 7 | TSCL, TSDA | open, as in the reference circuit |
 | 8 | BS1 | ground: 4-wire SPI |
 | 9 | BUSY | `EPD_BUSY` |
-| 10 | RES# | `EPD_RST` |
+| 10 | RES# | `EPD_RST`, R21 (100 kΩ) to +3V3 |
 | 11 | D/C# | `EPD_DC` |
-| 12 | CS# | `EPD_CS` |
+| 12 | CS# | `EPD_CS`, R20 (100 kΩ) to +3V3 |
 | 13 | SCL | `EPD_SCK` |
-| 14 | SDA | `EPD_MOSI` |
-| 15, 16 | VDDIO, VCI | +3V3, 1 µF to ground |
+| 14 | SDA | `EPD_MOSI` (also read back on this line) |
+| 15, 16 | VDDIO, VCI | +3V3, C17 |
 | 17 | VSS | ground |
-| 18 | VDD | 1 µF to ground (internal regulator) |
-| 19 | VPP | open (no capacitor drawn in the reference circuit) |
-| 20 | VSH1 | 1 µF to ground |
-| 21 | VGH | `PREVGH`: boost output, 1 µF to ground |
-| 22 | VSL | 1 µF to ground |
-| 23 | VGL | `PREVGL`: charge pump output, 1 µF to ground |
-| 24 | VCOM | 1 µF to ground |
+| 18 | VDD | C18 |
+| 19 | VPP | open |
+| 20 | VSH1 | C19 |
+| 21 | VGH | boost output, C22 at J5 and C27 at the diode |
+| 22 | VSL | C21 |
+| 23 | VGL | charge pump output, C23 at J5 and C28 at the diode |
+| 24 | VCOM | C24 |
 
-Boost and charge pump: 47 µH from +3V3 (4.7 µF at its input) to the switch node; the MOSFET from the switch node to `RESE`; a Schottky diode from the switch node to `PREVGH`; 4.7 µF from the switch node to a junction with two Schottky diodes, one from the junction to ground, one from `PREVGL` to the junction, so that `PREVGL` is pumped negative.
+Boost and charge pump, as the specification's reference circuit (page 29): L2 from +3V3 (C25 at its input) to the switch node; Q1 from the switch node to `RESE`; D2 from the switch node to VGH; C26 from the switch node to the pump node; D3 from the pump node to ground; D4 from VGL to the pump node.
 
-| Ref (Good Display) | Ref (ours) | Part | Good Display's requirement | Chosen | LCSC |
-| --- | --- | --- | --- | --- | --- |
-| P1 | J5 | FPC connector | 24 pins, 0.5 mm | Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, double-sided contacts | C3249999 (980 in stock, from 0.13 USD) |
-| Q1 | Q1 | N-MOSFET | Si1308EDL, or: ≥ 30 V, Vgs(th) ≤ 1.5 V, Rds(on) ≤ 400 mΩ | Vishay SI1308EDL-T1-GE3, SOT-323 | C469327 (39,000 in stock, from 0.12 USD). Fallback AO3400A, C20917, SOT-23 |
-| D1–D3 | D2–D4 | Schottky diodes | MBR0530, or: ≥ 30 V, ≥ 500 mA, Vf ≤ 430 mV | onsemi MBR0530T1G, SOD-123 | **C82046** (166,000 in stock at JLCPCB on 2026-11-23, 430 mV at 0.5 A). C232832, used until then, is another maker's "MBR0530" and had no stock. JSCJ's MBR0530, C77336, specifies 550 mV at 0.5 A |
-| L1 | L2 | Inductor | 47 µH, "refer to NR3015: Io = 500 mA (max)" | Sunlord SWPA4030S470MT, 4 × 4 mm, 720 mA (saturation 950 mA), 0.58 Ω | **C54731** (6,200 in stock on 2026-11-23). It is the part KiCad's footprint was drawn for. APV's copy APSWPA4030S470MTF (C5363795), chosen first, had no stock. NR3015-size parts (3 × 3 mm) carry only 300 mA |
-| R1 | R18 | 1 MΩ | 0603/0805, 1 %, ≥ 0.05 W | UNI-ROYAL 0402WGF1004TCE, 0402 | C26083 |
-| R2 | R19 | 2.2 Ω | as above | YAGEO AC0402FR-072R2L, 0402 | C226973 |
-| C2, C5–C7, C9–C12 | C17–C24 | 8 × 1 µF | 0603/0805, X5R/X7R, ≥ 25 V | Samsung CL10A105KB8NNNC, 0603, **50 V** | C15849 (basic) |
-| C3, C4 | C25, C26 | 2 × 4.7 µF | as above | Samsung CL21A475KAQNNNE, 0805, 25 V | C1779 |
-| – | R20 | Pull-up on `EPD_CS` (not in the reference circuit) | – | 100 kΩ, UNI-ROYAL 0402WGF1003TCE, 0402, the part type of R5 and R15 | C25741 |
+| Ref | Part | LCSC | Notes |
+| --- | --- | --- | --- |
+| J5 | Kinghelm KH-FPC0.5-H2.0SMT-24P-QCHF, contacts on both sides, 2.0 mm high | C3249999 | 981 in stock on 2026-11-24; one maker |
+| Q1 | Vishay SI1308EDL-T1-GE3, SOT-323 | C469327 | 1 gate, 2 source, 3 drain |
+| D2–D4 | onsemi MBR0530T1G, SOD-123 | C82046 | pad 1 is the cathode |
+| L2 | Sunlord SWPA4030S470MT, 47 µH, 4 × 4 mm, 0.72 A (saturation 0.95 A) | C54731 | |
+| R18 | 1 MΩ, 0402 | C26083 | |
+| R19 | 2.2 Ω, 0402 | C226973 | |
+| R20, R21 | 100 kΩ, 0402 | C25741 | not in the reference circuit |
+| C17–C24, C27, C28, and C3, C15 | Samsung CL10A105KB8NNNC, 1 µF, 50 V, X5R, 0603 | C15849 | keeps about 0.15 µF at 20 V, 0.21 µF at 15 V, 0.66 µF at 5 V |
+| C25, C26 | Samsung CL21A475KAQNNNE, 4.7 µF, 25 V, X5R, 0805 | C1779 | C26 keeps about 0.75 µF at 20 V |
 
-Checked at LCSC on 2026-11-22 unless marked, and every line of the whole board again in JLCPCB's parts library on 2026-11-23: all 36 part types are in stock there under the numbers in the schematic (lowest: the display connector J5 with 980, the SCD41 with 1,070). The 1 MΩ and 2.2 Ω resistors are 0402 at 0.0625 W, above the 0.05 W asked for.
+- **C27 and C28 (2026-11-25):** a second capacitor on VGH and on VGL, at the diodes (review, finding 11). The first ones stand at J5, 16 and 26 mm from the diodes, where the panel uses the voltages; the reference circuit draws the one on VGH at its diode.
+- **Not done: 0805 capacitors for the driving voltages** (review, finding 10). They would keep 0.7 µF at 20 V, but the row along the top stands at 1.6 mm pitch and 0.8 mm parts are the widest that fit; it would mean laying out J5's upper pins again. The design equals Good Display's reference as it is.
+- **C3 and C15 (2026-11-25):** the input capacitors of the two linear regulators are this 0603 part too (review, finding 5).
+- **Buttons (2026-11-25):** the two lands of each switch's metal frame are on ground (pad SH), so a discharge from a finger or a plunger onto the frame goes to ground (review, finding 9). The terminals are as before: signal on the two outer ones, ground in the middle. The review's full proposal, signal on the middle terminal and ground on the outer ones, was tried and dropped: the signal then has to leave the middle pad on the bottom layer right below the switch, where the lines from the module's lower pin row pass, and one of them stayed open in every seed of three runs.
 
-- **The 25 V capacitors go to 0603 and 0805, as Good Display asks**, even though the rest of the board is 0402. A 1 µF 0402 ceramic keeps only a small part of its capacitance at 20 V; the larger case keeps more.
-- The panel's voltages are about ±20 V on `VGH`/`VGL`, so 25 V capacitors and 30 V diodes and MOSFET.
+### Pin map
 
-### Pins
+| Module pin | GPIO | Net | Use | In reset |
+| --- | --- | --- | --- | --- |
+| 3 | EN | `EN` | R6 10 kΩ up, C7 1 µF, RESET button | |
+| 4 | IO4 | `EPD_DC` | panel data/command | floats; the panel ignores it while CS is high |
+| 5 | IO5 | `EPD_RST` | panel reset, active low | high by R21 |
+| 6 | IO6 | `I2C_SDA` | sensors, 4.7 kΩ to +3V3_SENS | |
+| 7 | IO7 | `I2C_SCL` | sensors, 4.7 kΩ to +3V3_SENS | |
+| 8 | IO0 | `BMP_INT` | BMP580 interrupt; can wake the chip from deep sleep | floats: internal pull needed |
+| 9 | IO1 | `EPD_BUSY` | panel busy, driven by the panel, active high | floats without a panel |
+| 10 | IO8 | `IO8` | R8 10 kΩ up (needed for download mode) | high |
+| 11 | IO10 | `SENS_EN` | sensor regulator enable | high by R5: sensors on |
+| 12 | IO11 | `QWIIC_EN` | Qwiic regulator enable | low by R15: Qwiic off |
+| 13 | IO12 | `USB_DN` | USB D− | |
+| 14 | IO13 | `USB_DP` | USB D+ | |
+| 15 | IO9 | `BOOT` | R7 10 kΩ up, BOOT/USER button | high |
+| 16 | IO18 | `EPD_SCK` | panel clock | pulled up by the chip |
+| 17 | IO19 | `QWIIC_SDA` | Qwiic, 4.7 kΩ to +3V3_QWIIC | |
+| 18 | IO20 | `QWIIC_SCL` | Qwiic, 4.7 kΩ to +3V3_QWIIC | |
+| 19 | IO21 | `LED_G` | green, active low, 100 Ω | off |
+| 20 | IO22 | `LED_R` | red, active low, 330 Ω | off |
+| 21 | IO23 | `LED_B` | blue, active low, 100 Ω | off |
+| 23 | IO15 | `EPD_CS` | panel chip select, active low | high by R20 |
+| 24 | IO17 | `UART_RX` | UART0, the ESP32's input, pad RX | |
+| 25 | IO16 | `UART_TX` | UART0, the ESP32's output, pad TX | |
+| 26 | IO3 | `EPD_MOSI` | panel data | floats |
+| 27 | IO2 | — | spare, open: enable an internal pull | |
+| 22 | NC | — | | |
 
-The panel needs six GPIOs. IO2, IO3, IO4, IO5 and IO15 were free. **Decided 2026-11-22 (Norman): the 32 kHz crystal option is dropped**, because the device is not battery powered; that frees IO0 and IO1, which revision 1.0 kept unconnected for it. The sixth display pin is IO1, and the BMP580 interrupt stays.
+Changed against revision 1.0: `SENS_EN` IO18 → IO10, `BMP_INT` IO10 → IO0, and the six display lines. IO4, IO5 and IO15 are start-up configuration pins; with what hangs on them here they change nothing (IO4 and IO5 only set an SDIO timing option; IO15 high selects the USB JTAG the board uses). Confirmed against the ESP32-C6 datasheet in the review.
 
-| GPIO | Net | Why this pin |
+For the firmware:
+
+- SPI goes through the GPIO matrix; write at 10 MHz or less in mode 0, read back over `EPD_MOSI` at 2.5 MHz at most.
+- The display lines have no series resistors. Lower the pins' drive strength (`gpio_set_drive_capability`, start with setting 1) and look at SCK on its pad.
+- Pulse `EPD_RST` at start. Give `EPD_BUSY` a timeout: it floats when no panel is plugged in.
+- Turn the picture by 180°.
+- Set the BMP580's interrupt pin to push-pull; it resets to disabled and open-drain.
+
+### Test pads
+
+All on the back, named on the back silkscreen.
+
+| Pad | Name | Net | Where |
+| --- | --- | --- | --- |
+| TP1 | 5V | +5V | beside the fuse |
+| TP2 | 3V3 | +3V3 | at the boost circuit's input |
+| TP3 | 3VS | +3V3_SENS | at the sensor regulator |
+| TP4, TP13 | GND | ground | middle of the board; by the display supply |
+| TP5, TP6, TP7 | SCK, SDI, CS | display SPI | on their lines |
+| TP8, TP11 | BSY, DC | `EPD_BUSY`, `EPD_DC` | on their lines |
+| TP22 | RST | `EPD_RST` | on a via of its line, below the display lines at 52.5 / 18.9 (2026-11-25) |
+| TP9, TP10, TP12 | SDA, SCL, INT | sensor bus | at the start of the bus |
+| TP14, TP15, TP16 | GND, TX, RX | UART0 | under the module, 2.54 mm apart |
+| TP17, TP19, TP21 | SH1, VSL, COM | VSH1, VSL, VCOM | below their capacitors, upper row (2026-11-25) |
+| TP18, TP20 | VGH, VGL | VGH, VGL | below their capacitors, lower row (2026-11-25) |
+
+**VGH and VGL carry about ±20 V**, and their pads stand 2.3 mm from their neighbours: use a fine probe. VDD (1.8 V) and VSH2 (5 V) have no pad. There is none on VBUS and on the Qwiic supply either, and no rail can be isolated without removing a part (the fuse, L1, R5).
+
+## Layout
+
+Generated by `tools/gen_pcb.py`; the rules of revision 1.0 ([`layout.md`](layout.md)) hold. What is particular to 2.0:
+
+- **Drawn by hand** (`PREROUTED`): the six display lines from the module to J5 with their pads in line (`EPD_LINES`); the boost circuit (`BOOST`: input link, switch node 0.3 mm wide, sense and gate lines side by side into J5's pins 3 and 2); the sensor bus along the bottom edge and up to the bridge (`SENSOR_BUS`); J5's pins 17 and 18 (`J5_UPPER`); the stubs and vias of the back pads (`BACK_PAD_STUBS`, `DRIVE_PADS`); the buck converter's ground vias (`BUCK_GND`); the links of C27 and C28 to their diodes.
+- **Nothing lies under the buck inductor L1 on the top layer** (2026-11-25; review, finding 1): no track, no via, no pour (`L1_UNDER`). Murata's specification for the DFE252012F forbids copper under the coil. `QWIIC_EN`, which ran there, passes L1 on the bottom layer through a hand-drawn hop (`L1_HOP`: vias at 34.2 / 13.1 and 37.7 / 12.5). With the strip closed and no hop, none of twelve seeds routed the board. The price is a slit 0.6 mm wide and 3.5 mm long in the bottom ground under the inductor, 5 mm from the converter's input loop.
+- **Kept as ground on the bottom layer** (`DISPLAY_GROUND_AREAS`, `BUCK_AREA`, `USB_GROUND_AREAS`): in front of and behind J5, under the boost circuit's switching loop (x 52.0–59.3, y 23.0–26.3), under the buck converter apart from the hop, behind the USB connector. **Outside that area, bottom tracks do cross under the boost circuit's inductor and capacitors** (review, finding 12, open).
+- **Kept as ground on the top layer** (`EPD_POCKETS`, `BOOST_KEEP_TOP`): between the display lines, under the MOSFET, and between the boost inductor's pads, where VGL (−20 V) used to run 0.25 mm from the switch node's pad (2026-11-25; review, finding 13).
+- **Ground stitching and patches:** one stitching via per 5 mm cell where one fits, under the module too; pieces of pour that tracks close off are tied to ground with a via where one fits (`tie_patches`).
+- **SCD41 paste** (2026-11-25; review, finding 7): the paste openings of its twenty outer pads are pulled in by 0.15 mm all round, 1.6 × 0.55 mm instead of the whole 1.9 × 0.85 mm land. That is 1.28 times the volume of Sensirion's aperture instead of 2.35 times, and 0.46 mm from the vent hole's centre instead of 0.31 mm. The copper is unchanged, so revision 1.0 still proves the island's layout.
+- **Silkscreen** (2026-11-25; review, finding 15): letters 1.0 mm high, lines 0.15 mm wide, JLCPCB's stated minimums. Two outlines stay 0.12 mm wide, those of the SGP41 and of the capacitor C11 beside it: at 0.15 mm they come within 0.08 mm of each other.
+
+How the router is driven (`--keep`, `--seeds`, the audit): [`layout.md`](layout.md) and `CLAUDE.md`.
+
+## Open points
+
+From the review, in its numbering; everything not listed here is done or was a note.
+
+| | What | When |
 | --- | --- | --- |
-| IO3 | `EPD_BUSY` | Driven by the panel, so not on a start-up configuration pin (IO4, IO5, IO15 are) |
-| IO18 | `EPD_RST` | **Decided 2026-11-22 (Norman)**: first moved from IO2 to IO10, then swapped with `SENS_EN` onto IO18 (upper pin row, beside `EPD_CS` and `EPD_BUSY`), because the lower row's lines no longer all fitted through the corridor below the module. IO18 is pulled up while the chip is in reset, so the panel is simply not held in reset then; the firmware pulses `EPD_RST` at start. IO2 is the spare. |
-| IO10 | `SENS_EN` | **Decided 2026-11-22 (Norman)**, swapped with `EPD_RST` (IO18 on 1.0). IO10 floats in reset; R5's 100 kΩ pull-up keeps the sensor regulator on, as before. R5 now sits next to the regulator U3. |
-| IO4 | `EPD_SCK` | Start-up configuration pin; fine as an output that the ESP32 drives only after start |
-| IO5 | `EPD_MOSI` | as IO4 |
-| IO15 | `EPD_CS` | as IO4 |
-| IO1 | `EPD_DC` | |
-| IO0 | `BMP_INT` | **Decided 2026-11-22 (Norman)**: the BMP580 interrupt moves here from IO10. IO0 is one of the pins that can wake the chip from deep sleep and be read by the low-power core, which IO10 cannot (see the BMP580 item in [`next-revision.md`](next-revision.md)); it is not a start-up configuration pin. Costs nothing, since 2.0 changes the pin map anyway. |
+| 2 | JLCPCB's assembly rails at the parts that overhang the long edges (buttons, USB connector): a remark on the order, and a look at the production file | at ordering, see [`ordering.md`](ordering.md#revision-20) |
+| 3 | Revision 1.0 brought up; a 2.0 pin map in the firmware | before ordering |
+| 4 | Frame height | before the frame is printed |
+| 6 | Voltage peak on +5V when a cable is plugged in (calculated: up to 6.6 V in the middle case; the regulators' limit is 6.0 V) | measure on a 1.0 board |
+| 8 | Reverse current through the sensor regulator at unplug | judge after 1.0 |
+| 10 | 0805 driving-voltage capacitors | not planned |
+| 12 | Bottom tracks under the boost circuit outside the reserved area | open |
+| 14 | Antenna: panel 6 mm away, M3 screws 3 mm away | nylon screws; measure on the first board |
+| 9 | Buttons: the frame is on ground; the signal is still on the outer terminals beside it, and `BOOT` has no capacitor | judge on the first board |
+| 17 | No pad on VBUS and the Qwiic supply; no way to isolate a rail | open |
+| 18 | Green and blue LED may be dim on 3.3 V | see on a 1.0 board |
+| 19 | BMP580 land size (Bosch's two documents disagree) | see on a 1.0 board |
+| 20 | Switch boss holes 0.20 mm from the switch's own pads; USB shell slots with a 0.20 mm ring | known, at JLCPCB's limit |
+| 21 | C2's part number is not recommended for new designs; J5 has one maker and low stock | at the next order |
 
-- SPI goes through the GPIO matrix to these pins; fine at the panel's clock (a few MHz to 20 MHz).
-- **`EPD_CS` has a 100 kΩ pull-up to +3V3 (R20, added 2026-11-22)**, so that the panel's chip select is inactive while the ESP32 is in reset or before IO15 is configured. IO15 floats in reset: it has no internal pull resistor (ESP32-C6 datasheet v1.6, table 3-1 and section 3.4). It is a strapping pin, but only for the JTAG signal source, and only when `EFUSE_JTAG_SEL_ENABLE` is burned; with the default eFuses (all three JTAG eFuses 0) IO15 is ignored and JTAG goes to the USB Serial/JTAG controller (table 3-7). Even with that eFuse burned, a high IO15 selects the USB Serial/JTAG controller, which is what the board uses. So the pull-up is harmless at start. The other display lines have no pull resistors: `EPD_RST` sits on IO18, which the chip pulls up in reset, and SCK/SDI/DC do nothing while CS is high.
-- The final order on the module pins is chosen during layout, so that the six tracks reach the connector without crossing.
-- `pins.h` and [`schematic.md`](schematic.md) describe 1.0 and change with the 2.0 firmware (see [Firmware](#firmware)).
-
-## Buttons and LED
-
-The component side faces the wall, so a normal push button and a top-facing LED cannot be seen or pressed from the room.
-
-- **BOOT/USER**: a **side-press button on the top edge** of the board, so a finger or a plunger in the case reaches it from above. The first proposal, Kinghelm KH-3635-CAJ (C530670), was dropped: its drawing and JLCPCB's footprint disagree on which side of the pads the plunger is.
-- **Decided 2026-11-22 (Norman): Alps SKRTLAE010** (LCSC C110293, about 70,000 in stock, 0.14 USD) **for both buttons, as Alps draws it**: 4.5 × 3.4 × 3.3 mm, round button Ø2 mm, two guide bosses in Ø0.9 mm holes. On the top edge, button up, 8 mm apart (BOOT/USER at x 28, RESET at x 36), labels below them. Its holding pads reach 0.3 mm beyond the front of the body, so with the 0.3 mm copper-to-edge rule the body stays 0.6 mm inside the edge and **the button reaches only about 0.2 mm past the edge: the case needs a button of its own that presses on it.** Checked 2026-11-22: JLCPCB's capabilities page gives 0.2 mm copper clearance from a routed edge (0.4 mm from a V-cut), so the switches could sit 0.1 mm further out (0.3 mm past the edge) with a board rule of 0.2 mm for their pads. Not changed: the routed edge's tolerance is ±0.2 mm, so at 0.2 mm the edge may touch the holding pads' copper, and 0.1 mm does not remove the need for a plunger in the case. Two changes from Alps' land pattern, so that the boss holes keep JLCPCB's 0.2 mm to copper (as drawn: 0.08 and 0.15 mm): the outer terminal pads are 0.125 mm narrower on the outside, the holding pads start 0.05 mm further forward. The board's own hole clearance is 0.25 mm; `climasense.kicad_dru` allows 0.2 mm between a switch's holes and its own pads.
-- **RESET**: **decided 2026-11-22 (Norman)**: buttons and LED line up along the top edge so that a case can have them pressed from the top. RESET becomes the same side-press part next to BOOT, about 8–10 mm apart. The case should recess it against accidental presses.
-- **Status LED**: keep the 1.0 LED at the top edge, now as close to it as the copper-to-edge rule allows (centre 1.4 mm from the edge), and let the case carry the light to the room with a light pipe or a thin wall (decided, see below). With a display, the LED matters less: it is mainly for the moments when the display cannot show anything (start, firmware update, crash).
-- Side-view RGB LEDs with a common anode at LCSC (2026-11-22): Amicc A-SP1103R6GHB1C-A01-2C (C5160691, 235 in stock, 0.12 USD; datasheet read: pin 1 common anode, 2 blue, 3 green, 4 red; 3.0 × 1.0 mm with a dome of 1.0 mm radius that emits away from its row of pads, so it can sit at the top edge with the pads on the board and light over the edge). Everlight 12-23C/R6GHBHC-A01/2C (C311716, 17,000 in stock, 0.10 USD) is very likely the same design, but LCSC links Amicc's datasheet for it and Everlight's was not available.
-- **Decided 2026-11-22 (Norman): the side-emitting LED is not used.** It is a niche part with low stock. D1 stays the Everlight 19-337 of 1.0, 1.4 mm from the top edge; the case gets a thin window or a light pipe above it.
-
-## What stays as in 1.0
-
-Supply (USB-C, fuse, buck converter, Qwiic regulator), sensors and their island and tongue, Qwiic connector, the 0402 passives. Changed against 1.0: the sensor regulator U3 (with C3, C4, R5, TP3) and the I2C pull-ups R12/R13 moved (see [Layout as generated](#layout-as-generated)), the buttons, the serial port and the test pads (see above), and **the sensor header J4 is gone (decided 2026-11-22, Norman)**: the sensor side is electrically unchanged, so the 1.0 boards show whether it works; probe pads take over its job for a logic analyser.
-
-**Assumption**: 0402 stays. It can be placed by hand with tweezers and a stencil, and the layout of 1.0 can be reused. 0603 would be easier for a first hand assembly but would need the whole board placed again.
-
-## Firmware
-
-- An SPI display driver for the SSD1680 (no ESP-IDF component fits; a short driver of our own), a display task, and a screen layout. Refresh: partial updates when values change, a full refresh about once an hour.
-- **Drive strength of the display's pins (checked 2026-11-23 in the installed ESP-IDF 6.1.1).** The display lines have no series resistors; the same damping is available in the firmware. `gpio_set_drive_capability(pin, GPIO_DRIVE_CAP_0 … GPIO_DRIVE_CAP_3)` sets the two drive bits in a pin's pad register (`FUN_DRV` in the IO MUX register, default 2). On the ESP32-C6 it does so for every pin, including IO1, IO4 and IO5, which are also low-power pins (only the first ESP32 keeps those settings elsewhere). All five outputs of the display (IO4, IO5, IO15, IO1, IO18) are valid for it. The SPI driver's pin set-up only selects the pin function and never writes the drive bits, so the setting holds whether it is made before or after `spi_bus_initialize()`. The display's clock, data and chip select are not SPI2's dedicated pins (6, 7, 16), so they go through the GPIO matrix, which is fine at 10 MHz. A test project with the bus on these pins and the call on all five built for the ESP32-C6. The source names the four settings weak, stronger, medium (the default) and strongest; Espressif's usual figures are about 5, 10, 20 and 40 mA, not checked against the ESP32-C6 datasheet here. Start with setting 1, roughly what the default gives through a 33 Ω series resistor, and look at SCK on its test pad. **Built, not run on hardware.**
-- **Pin map**: `pins.h` still describes 1.0. 2.0 needs the display pins of the table above and `SENS_EN` on IO10 (was IO18), `BMP_INT` on IO0 (was IO10); a separate step.
-- **Board revision**: 2.0 changes the pin map, so the firmware has to know which board it runs on. **Open**: a build option per board, or detection at run time (for example by reading `EPD_BUSY` with a pull-down: the panel holds it low when present). Not decided.
-
-## Layout as generated
-
-State of 2026-11-22: `gen_pcb.py` gives a fully routed board, 103 × 34 mm; KiCad counts no open connection, DRC has no violation, the board matches the schematic, and the ground pours are one connected piece. Pictures: [`../images/rev-2.0/`](../images/rev-2.0/), including the back with the panel in place (`board-bottom.png`) and the FPC tail running into J5 (`board-fpc.png`). What differs from revision 1.0's layout ([`layout.md`](layout.md)):
-
-- **Sensor bus drawn by hand** (`SENSOR_BUS` in `gen_pcb.py`): `+3V3_SENS`, `I2C_SCL`, `I2C_SDA` and `BMP_INT` run on the top layer along the bottom edge (y 31.9–33.2, below C17–C24), then up the strip right of the FPC slot into the bridge tracks. Left to the router, the bus crossed the display area diagonally, cut pockets out of the pours and left `BMP_INT` without a route. `SENS_EN` runs with it on the bottom layer to R5 (`SENS_EN_FEED`).
-- **Sensor regulator by the bridge**: U3 with C3, C4, R5 and TP3 sits below the FPC slot, where the bus turns up to the bridge; its output joins the bus's supply run directly. The 5 V feed and `SENS_EN` travel instead.
-- **I2C pull-ups at the start of the bus** (decided 2026-11-22, Norman): R12/R13 sit above the free ends of the SDA and SCL runs at the bottom edge, with the SDA/SCL/INT probe pads beside them. The "Up" arrow moved right to make room.
-- **Buttons on the top edge**: the hand-drawn Qwiic lines and `SENS_EN`'s old run, which went under 1.0's BOOT button, moved below the new switches.
-- **USB supply**: the link from the connector's farther supply pad to the fuse is drawn by hand as the router drew it on 1.0 (19 mm, 24 mΩ; 73 mm when left to the router on 2.0).
-- **J5 and the charge pump**: J5 now 6.8 mm from the slot (moved 1 mm right on 2026-11-22; only J5 moved, the display lines' ends follow it and DC's probe pad TP11 moved 1 mm right with DC's run down beside the pad row). Earlier, with J5 7.8 mm from the slot, the boost parts moved 0.7 mm left and the diodes D2–D4 0.8 mm up, so that the lines to J5's pins 14–16 reach them straight from the left.
-- **Bottom layer kept as ground** (`DISPLAY_GROUND_AREAS`): the FPC landing area and the strip between the two slots over the full height (the sensor island's ground return), behind J5, under the boost converter's switching loop, under the RESET switch's ground pad, and a patch round C7's ground via below the module.
-- **Router**: it counts a cut-off pocket of the ground pours as a failure; its start order can be jittered (`ROUTE_SEED`, 4 on this board since the display lines are drawn by hand, found in one batch of eight; 6 of the 8 routed completely); tracks ending on the middle of another track are split there so KiCad sees both ends joined.
-- **Ground stitching vias: one pass over the whole board (2026-11-23, Norman)** (`STITCH_PITCH`, `STITCH_SUBGRID`, `STITCH_CLEAR`, `STITCH_APART`, `STITCH_UNDER_MODULE` in `gen_pcb.py`; the rule itself in `route_board.py`). Added after routing, so they never block a track. One via per 5 mm cell of the pours: at the cell's grid point if a via fits there, otherwise at the free spot nearest to it in that cell, looked for on a 0.5 mm raster. A via fits where the pours are on both layers and joined to the bulk of the ground, with room for the pour all round, 0.5 mm from every pad, not under the USB connector or a silkscreen label, not within 1 mm of a test pad (`stitch_avoid()`), not within 2 mm of another ground via, and, off its grid point, not within 3.5 mm of another stitching via. **Under the ESP32 module too** (2026-11-23, Norman), between its pad rows: the router keeps tracks and its own vias out from under the module, but the top layer there is ground pour throughout, and until then only the twelve vias of the module's ground pad tied it to the bottom layer, all in one spot. The antenna keep-out stays free of copper. **57 vias on the current board**: 25 on their grid point, 32 beside it; 12 of the 57 stand under the module. Before, only the grid points themselves were tried, plus extra rows at 1.5 to 2.5 mm pitch in four places: on this crowded board 77 of 98 grid points stayed empty, so the vias stood in a block in the empty area left of the FPC slot and hardly anywhere else (28 in all; 31 on the board of 2026-11-22). The extra rows are gone; the strip between the slots, which carries the sensor island's ground return, gets its vias by the same rule. The two ground vias in that 3 mm strip stand one above the other on its centre line, x 74.5 (2026-11-23, Norman; `STRIP_X` in `gen_pcb.py`): the stitching via at y 11.0 (`STITCH_PREFER`; the rule alone puts it at the nearest free spot, 0.7 mm beside the FPC slot) and the via of the ground track that crosses the bridge at y 15.3 (it stood at x 74.2). The 41 cells that stay empty lie under the USB connector, where no via may go, and where both layers are full of tracks. A via that the router's estimate of the pours gets wrong is taken out again after KiCad's own fill (`fill_pours()` in `gen_pcb.py`); on the current board that was not needed. A change to these settings needs no re-route: `gen_pcb.py --keep` keeps every track and makes only the stitching and the patch vias (next point) anew, in about 40 s, most of it KiCad filling the pours.
-
-- **Patches of ground pour tied to ground instead of being left out (2026-11-23, Norman)** (`PATCH_MIN_AREA`, `PATCH_REACH`, `PATCH_VIA_EDGE`, `PATCH_VIA_SPACING`, `PATCH_VIA_PAD` and `tie_patches()` in `gen_pcb.py`). Where tracks close off a piece of pour that holds no ground pad or via, KiCad leaves the piece out of the pour: 93 pieces on the board with its 57 stitching vias (78 on the top layer, 15 on the bottom), 206 mm² together. Among them were two holes of 12.5 and 11.4 mm² in the bottom ground, and nearly all the top-layer ground between the display lines that `EPD_POCKETS` keeps free of other tracks. After KiCad's fill, every such patch of 1 mm² or more gets a via where one fits: the via lies wholly in the patch's copper and, on the other layer, wholly in ground copper that is already connected (so it keeps the pour's 0.2 mm from every other net on both layers), 0.9 mm from every other via, 0.5 mm from every pad, not under the USB connector or a label, not within 1 mm of a test pad. It goes to the fitting spot deepest inside the patch; a patch whose fitting spots reach more than 5 mm from that via gets further ones. The fill is then made again, and the patches looked through again, since a patch that is now ground can carry the via of a patch on the other layer. **16 vias tie 15 patches**: 87 mm² of ground copper is back, 63 mm² on the top layer (13 patches) and 24 mm² on the bottom (the two holes named above, two vias each). **78 patches stay left out, 119 mm²** (65 on the top layer with 79 mm², 13 on the bottom with 40 mm²). 50 of them are under 1 mm² (19 mm² together). Of the other 28, 13 are strips no wider than a via (28 mm²; among them the 0.4 mm strips between RST and CS and between CS and SCK, 5.2 and 3.5 mm²), 4 lie at a test pad or under a label (15 mm²; the largest, 7.6 mm², round TP1), and 11 have no connected ground on the other layer where a via would fit (57 mm²). The last group holds the two largest holes that remain in the bottom ground: 13.0 mm² under the fan-out of the module's upper pad row (x 19 to 26.5, y 3 to 6.7) and 12.7 mm² between two bottom tracks by J2 (x 37.5 to 43.4, y 2.4 to 8.9). Above both, the top layer is tracks and patches that are themselves cut off; closing them needs a re-route. On the top layer they are crossed by the Qwiic bus (2.4 to 5 mm), `EPD_BUSY` (2.5 and 3.2 mm), the Qwiic supply and, for a few tenths of a millimetre each, `EPD_DC`, `LED_G` and +3V3: nothing fast. Two tied patches are strips held at one end, because no via fits further along: the 0.6 mm strip of ground between two display lines at y 18.3 (it reaches 13.6 mm from its via; test pads and their labels take the room where it widens) and a strip from (40.9, 21.7) down to y 30 (8.3 mm). Before, neither was there at all.
-- **Top layer kept as ground between the display lines** (`EPD_POCKETS`, `reserve_top` in `route_board.py`): the pocket that RST closes in above CS's run down at x 40, and the gaps between RST, CS, SCK and SDI along the staircase, round the probe pads. In the first runs with the hand-drawn lines the router threaded a 0.4 mm +3V3 track through such a gap between two vias, squeezed between two display lines; on the board before the staircase a +5V track ran 9.5 mm between the SCK and SDI dips. Now no supply track runs between the display lines.
-- **Ground test pads and R15 with their via drawn by hand** (`GND_PAD_VIAS`, 2026-11-22, Norman): the router puts a ground pad's via right beside the pad. TP4 (GND, middle) moved 0.8 mm down to y 24.2, its via 1 mm above its edge at (44.6, 22.4), label below at y 25.9; TP13 (GND, top) stays at (60.0, 2.4), its via 1 mm to its right at (61.8, 2.4); TP14 (UART GND) has its via midway to the TX pad at (10.3, 4.0), clear of the labels above (it was under the GND label; that was the pad's own via, not a stitching via). R15's ground pad has its via below it at (42.3, 13.5): with the SPI lines in the staircase the router had put it on the left, where I2C_SDA and the RST and CS vias cut it off from the pours.
-- **Test and probe pads, all KiCad's 1.0 mm pad (decided 2026-11-22, Norman)**: 5V, 3V3, 3VS and GND (TP1–TP4), a second GND by the boost converter (TP13), UART0 GND/TX/RX (TP14–TP16), SDA, SCL and INT at the bus start (TP9, TP10, TP12), and the display's SCK, SDI, CS, BSY and DC (TP5–TP8, TP11, see the next point). The display's driving voltages are measured on the pads of C18–C23, which carry silkscreen names (VDD, VSH1, VSH2, VSL, VGH, VGL; VCOM's does not fit beside J5).
-- **Display lines drawn by hand** (`EPD_LINES` in `gen_pcb.py`, 2026-11-22): all six, from the module to J5, on the paths the router had found for the clean board of commit `e8b8ee3`, with the probe pads placed **in line** on top-layer sections, so that a pad adds no branch (a row of pads beside the lines had forced every line into a detour). **Left of J5 the three SPI lines run as a staircase (2026-11-22, Norman)**: CS straight at y 16.5 from x 40.5 into its pin (54.1 mm instead of 55.4 mm with its former U), SCK 1.2 mm below it at y 17.7, SDI (MOSI) another 1.2 mm below at y 18.9, each rising to its pin after its pad; the bundle sits 1.5 mm higher than with the former nested U shapes, which leaves more ground below it. Their probe pads sit on the lines 4.4 mm apart (`SPI_PAD_X`): CS (45.4, 16.5), SCK (49.8, 17.7), SDI (54.2, 18.9). BSY's pad sits above the bundle on its run down past C26, DC's on its run down the right of J5's pad row, now at y 6.6 with its label 0.5 mm clear of the ground via below it (the stitching via that was above it went with the rule below); RST has none. **Labels beside the pads**: CS, SCK, SDI and DC to the right of their pads, each ending before the next pad begins; BSY's left of its pad (below it sat on a via). **Every test pad's label is placed by one rule** (`TP_LABELS`, `pad_label_position()` in `gen_pcb.py`, 2026-11-22, Norman): 0.4 mm (`TP_LABEL_GAP`) between the outer edge of the pad's silkscreen circle and the nearest edge of the letters as KiCad draws them, the letters centred on the pad across that direction. 5V's label is below its pad (beside it, it touched a +3V3 via), 3VS's to the right of its pad (above it, it touched U3's outline). R20, the pull-up on CS, sits in line on CS's run down from its via at x 40, its +3V3 pad towards the feedback divider.
-- The rules of 1.0 hold unchanged: nothing under the USB connector on either layer (checked on the generated board), ground behind it, the SCD41 supply link clear of the vent hole.
-- From `audit_pcb.py` (2.0 / 1.0): sensor regulator to the SCD41's supply pin 35.9 mm, 51 mΩ / 22.8 mm, 34 mΩ; to its emitter supply 51.8 mm, 72 mΩ / 38.6 mm, 55 mΩ; to the SHT45 57.7 mm, 100 mΩ / 49.8 mm, 94 mΩ; fuse to sensor regulator 38.4 mm, 55 mΩ (a few tens of mA); buck output capacitor to the ESP32's supply pin 45.5 mm, 37 mΩ. No net crosses itself or has a loop; 9 right-angle corners remain, none on one of the six display lines. Figures of the board with the SPI staircase (2026-11-22): fuse to sensor regulator now 37.9 mm, 54 mΩ, the rest unchanged. Routed from scratch with `ROUTE_SEED` 7 (2026-11-22: of seeds 1–8 only 7 routed completely and passed the audit; no routed via may sit under a silkscreen label since then), then the board name and the Up arrow moved with `--keep`. Checked 2026-11-22: one plain run of `gen_pcb.py` (no `--keep`, seed 7) gives exactly the committed tracks and vias, so the board is reproducible from scratch. **Board of 2026-11-23** (longer slot, boost converter by hand): again seed 7, one plain run from scratch, complete at the seventh attempt in three minutes (in a batch just before, with the slot still 1 mm shorter at its lower end, seeds 2 and 7 routed completely, 4 and 6 did not, and the other eight were not waited for). 857 track segments, 236 vias (133 of them ground: 57 stitching vias and 16 patch vias among them); a plain run from scratch gives exactly this board, patch vias included (checked 2026-11-23, six minutes). Supply paths: fuse to sensor regulator 38.5 mm, 58 mΩ; sensor regulator to the SCD41's supply pin 37.9 mm, 59 mΩ, to its emitter supply 53.7 mm, 79 mΩ, to the SHT45 62.1 mm, 127 mΩ; buck output capacitor to the ESP32's supply pin 45.5 mm, 37 mΩ. No net crosses itself or has a loop; 8 right-angle corners, none on a display line.
-- **Boost converter drawn by hand** (`BOOST` in `gen_pcb.py`, 2026-11-23): the sense resistor R19 below Q1 at (54.0, 6.6), where the gate pull-down R18 stood; R18 at (58.2, 9.4) on a stub from the gate line just before J5, clear of J5's courtyard (the flip lock opens over it). Source to R19 1.4 mm, 0.3 mm wide; R19's ground via at (54.5, 7.5), C25's at (52.2, 7.6), both into the bottom ground kept under the converter. Switch node 0.3 mm wide from L2 over Q1's gate pin into the drain and down to D2; its branch to C26 as before (under L2, between C25's pads, 1.1 mm on the bottom layer under `EPD_BUSY`). Gate and sense lines on the paths the router had found, the sense line now without a via.
-- **FPC slot 18.3 mm long** (`FPC_SHOULDER`, `FPC_SLOT`, 2026-11-23), y 7.65 to 25.95, symmetric about J5.
-- **Board name and Up arrow on the sensor island** (2026-11-22, Norman): arrow, "Up" and "ClimaSense Rev 2.0" on one line, centred in the free area below the BMP580 (`NAME_AREA`: x 78.0–96.0, y 28.4–33.7, between the island's slot, the lower mounting hole's keep-out, the BMP580 group's copper and the bottom edge), at y 31.05; across, the whole line (x 79.45–95.95) is centred between the island slot's edge (x 77.5) and the edge of the lower mounting hole (x 97.9), 1.95 mm either side (`NAME_X_SPAN`); the arrow starts at the foot of the letters and rises above them.
-- The panel's outline is on the back silkscreen (broken where it would cross a through-hole pad), with two ticks and "FPC" at the edge the tail leaves from. Simple models of the panel and its tail exist for the 3D view only.
-
-## Check before ordering (2026-11-23)
-
-The whole revision 2.0 design was gone through once more, the way revision 1.0 was before its order: every part against JLCPCB's parts library and JLCPCB's own footprint of it, the schematic against the panel's specification, the copper (ground, stitching, noise), and the panel's drawing against the board. KiCad's checks were clean before and are clean after; everything below is what they cannot see.
-
-### Found and fixed
-
-1. **The FPC slot was too short for the tail.** The tail is 14.3 mm wide where it passes through the board, not 12.5 mm; the slot was 13.5 mm and ended 0.9 mm inside the tail's upper edge. The panel could not have been plugged in. Now 18.3 mm, y 7.65 to 25.95, symmetric about J5 ([FPC slot and connector](#fpc-slot-and-connector)).
-2. **Two part numbers.** The Schottky diodes' number was another maker's part with no stock (now C82046, onsemi, as the design names it); the inductor chosen had no stock (now Sunlord's own part, C54731, the one the footprint was drawn for). See the parts table above.
-3. **The boost converter's current path.** The MOSFET's source reached the sense resistor R19, 3 mm away, through 18.6 mm of 0.2 mm track and two vias: the router had closed the source pin in with the gate and switch-node tracks. The inductor's whole current runs there, and the charge pump's pulses. R19 now sits below the MOSFET, 1.4 mm from the source pin, with its ground via 2.3 mm from the input capacitor's; the gate pull-down R18, which stood there, hangs on the gate line just before J5 (it only holds the gate low while the panel does not drive it). The loop, the switch node (0.3 mm wide) and the gate and sense lines are drawn by hand (`BOOST` in `gen_pcb.py`).
-4. **The placement file** had no corrections for the three new parts that JLCPCB draws differently (MOSFET, display connector, switches); added to `gen_fab.py`, see [`footprints.md`](footprints.md). This only matters once boards are assembled at JLCPCB.
-5. **The tail's slack** was overstated by the 3D model (2.15 mm; 1.2 mm is right). Model and notes corrected, J5 not moved ([FPC slot and connector](#fpc-slot-and-connector)).
-6. **The ground stitching was uneven, and the strip between the two slots had none.** That strip carries the sensor island's ground return; its row of vias stood where no via fits between the sensor bus and the island's slot. Over the whole board only 21 of 98 grid points took a via, nearly half of them in the empty area left of the FPC slot, and none stood under the ESP32 module. One rule now places the stitching everywhere, 57 vias, about one per 5 mm cell wherever a via fits, under the module too ([Layout as generated](#layout-as-generated)).
-7. **The buck converter's ground had one via where revision 1.0 has two.** The converter's ground pin (with its input capacitor) and its output capacitor each sit in a small patch of top pour; on 1.0 each patch has two vias into the bottom ground, on 2.0's denser board each was left with one, a single point of failure for the 3.3 V supply. Both now have two, drawn by hand (`BUCK_GND` in `gen_pcb.py`).
-8. **Ground copper that was drawn but not there.** KiCad leaves out every piece of pour that nothing ties to ground: 93 pieces, 206 mm², among them two holes of 12.5 and 11.4 mm² in the bottom ground and most of the top-layer ground between the display lines. 15 of them, 87 mm², now carry a via and are ground; the other 78 cannot take one ([Layout as generated](#layout-as-generated)).
-
-### Checked and found right
-
-- **Schematic against the reference circuit** (specification page 29) and the pin table (page 8), net by net: inductor, MOSFET (gate on `GDR`, source on `RESE`, drain on the switch node), the three diodes' directions, the ten capacitors and both resistors, `BS1` low, `VDDIO` and `VCI` on 3.3 V, `VPP`, `TSCL`, `TSDA` and both `NC` pins open.
-- **Pin order through the U-turn.** In the drawing's main view the tail leaves to the left with pin 1 at the top; that view shows the display side (active area, the driver chip on the glass ledge, the contacts, and the side view with the stiffener behind them), and the block diagram on page 28 agrees. Seen from the room the tail leaves towards the sensor side, which is left, so pin 1 is at the top; the fold keeps each contact's height, and J5's pin 24 is at the top. Panel pin N on connector pin 25 − N, as wired. That the main view is the display side is confirmed by Good Display's photos of the real panel ([FPC slot and connector](#fpc-slot-and-connector)). A second derivation, made independently from the specification alone, came to the same table for all 24 pins.
-- **Every part in JLCPCB's library**, under the number in the schematic, with stock (table above), and its footprint against JLCPCB's ([`footprints.md`](footprints.md)).
-- **Start-up levels:** as described under [Pins](#pins); nothing new.
-- **Ground:** the bottom pour is one main piece (97 % of it) and three pieces that bottom tracks close off, each tied to the top pour by its own vias (32 mm² under the module, 12.5 and 11.4 mm²); KiCad finds no ground via left hanging; the areas reserved for ground on the bottom layer are free of other tracks (under both converters, behind the USB connector apart from the hand-drawn D+ link, behind J5, the strip between the slots); nothing lies under the USB connector on either layer; the antenna keep-out is free of copper; the SCD41's supply link keeps 0.38 mm from the vent hole's centre.
-- **The 20 V nets:** 30 V diodes and MOSFET, 50 V and 25 V capacitors, 0.15 mm clearance under solder mask.
-
-### Looked at and left alone
-
-- **One signal ran on the top layer under the buck inductor L1**, between its pads (on the board of 2026-11-24 it was `QWIIC_EN`, 0.45 mm from the pad of the switch node; this note used to name `BMP_INT`). Left alone on 2026-11-23 because the board did not route without that lane. **Changed on 2026-11-25:** nothing lies under L1 on the top layer, and `QWIIC_EN` passes it on the bottom layer (see the top of this document).
-- **The capacitors of `VGH` and `VGL` are 15 to 20 mm from their diodes** (decided 2026-11-23, Norman: they stay there, and no second pair is added at the diodes), in the row below J5 next to the panel's pins, joined by 0.2 mm tracks with two vias each. The panel's pins for these voltages are at the opposite end of the connector from its gate-drive pins, so one end is always far; the capacitors are where the panel regulates and uses the voltages. The track adds about 0.05 Ω and 20 nH to pulses of about 0.25 A: a few tenths of a volt on a 30 V switch.
-- **`EPD_BUSY` runs between the pads of the charge pump capacitor C26** and between the switch node's two vias (0.17 mm each side). It is driven by the panel; the coupling is millivolts.
-- **`EPD_SCK` runs 0.8 mm from the top board edge** on the bottom layer for 3 mm, round the switches' guide holes. No ground lies between it and the edge there.
-- **The display lines have no series resistors** (decided 2026-11-23, Norman: none are added). 42 to 80 mm long, to be driven at 10 MHz or less; the ESP32's drive strength can be lowered in the firmware, which was checked in the installed ESP-IDF ([Firmware](#firmware)).
-- **21 small pieces of the top ground pour hang on a single via** (1.6 to 15 mm²): eleven are patches held by their patch via, five are held by one stitching via, three lie round a ground pad with its via (R4, feedback divider; R15, Qwiic enable pull-down; R19, the boost converter's sense resistor) and two round the via at the end of a ground stub. On the bottom layer the 32 mm² piece that bottom tracks close off under the module hangs on one stitching via; further vias fit only within 3.4 mm of that one. A via carries amperes; none of these is a supply's only ground.
-- **Two holes remain in the bottom ground**, 13.0 and 12.7 mm², and 76 smaller patches of pour stay left out: no via fits that would tie them ([Layout as generated](#layout-as-generated)). The Qwiic bus, `EPD_BUSY` and the Qwiic supply cross the two holes on the top layer; nothing fast does.
-- **The via of `EPD_DC` at (38.8, 2.7) reaches 0.1 mm into the box round the letters of the QWIIC label.** The router keeps a via's centre out of a label's box, not its rim. The via is covered by solder mask; at most a tenth of a millimetre of a letter's stroke lies on its rim.
-- **The sensor bus is 180 mm long now** (100 mm on 1.0), with clock and data side by side for 55 mm. About 40 pF with the four sensors: 0.16 µs rise time with the 4.7 kΩ pull-ups, inside the 0.3 µs of 400 kHz.
-- **The sensor regulator U3 by the bridge** (about 35 mW) is 15 mm from the BMP580 and 33 mm from the SHT45, behind the island's slot. Decided on 2026-11-22; to be judged on the first board.
-
-### What only real parts can show
-
-Listed under [Not checked yet](#not-checked-yet). In short: the J5 and switch footprints; the antenna behind the panel and against the wall; and everything revision 2.0 takes over from revision 1.0 unchanged (the ESP32, USB, the supplies and all four sensors), which is unproven until the revision 1.0 boards have been brought up. **Ordering revision 2.0 before revision 1.0 has run means ordering it with all of 1.0's open questions.**
-
-## Not checked yet
-
-- The GDEY0213B74 specification ([`docs/datasheets/`](../datasheets/README.md)) was read on 2026-11-22 (37 pages, revision 1.0 of 2021-03-17): pin table, drawing, reference circuit. Read on 2026-11-23 (images in the PDF, pages 10 and 13): supply 2.2 to 3.7 V (the board gives 3.32 V), inputs high from 0.8 × supply, 3.5 mA and 10.5 mW typical during an update, 1 µA in deep sleep (5 µA at most), full update 3 s, fast 1.5 s, partial 0.42 s. **SPI for the firmware:** writing up to 20 MHz, but the data has to stay 40 ns after the rising clock edge, so with data changing on the falling edge (SPI mode 0) 10 MHz is the limit; reading goes over the same data line (`EPD_MOSI`, half duplex) at 2.5 MHz at most.
-- Nothing about the panel's pins or its tail is open any more. The pin order and the contact side are verified against the specification and Good Display's photos; the tail's bend and reach against the specification's pages 7 and 35 ([FPC slot and connector](#fpc-slot-and-connector)). When a panel arrives, one look repeats the first check: display towards you, tail to the left, the contacts are visible and the tail's larger step is at the top. A 1:1 paper print shows the second.
-- The J5 and switch footprints on a real board (JLCPCB's placement preview, then the first assembly); the switch's narrowed pads.
-- How the case presses the buttons (they reach only about 0.2 mm past the edge).
-- Whether the USB connector's four shell legs stand proud of the back of the board: the two rear ones lie under the panel, 4 mm inside its lower edge, the two front ones under that edge. To be looked at on a revision 1.0 board (same connector, same board thickness). If they do, the tape under the panel has to be thicker than they are high.
-- Whether the panel can be bought as a single piece at a sensible price outside Good Display's own shop (LCSC listings were out of stock on 2026-11-22).
+Only real parts can show: the J5 and switch footprints, the antenna behind the panel, the temperature under the panel (rated to 50 °C), and how the case presses the buttons, which reach only 0.2 mm past the edge.
 
 ## Next steps
 
-1. Optional: a 1:1 paper print with the real panel, to see the tail's run round the slot before boards are ordered.
+1. Bring up a revision 1.0 board and make the measurements above.
 2. Firmware: board revision mechanism, 2.0 pin map, display driver.
-3. Order bare boards and a stencil only after Norman's go-ahead.
+3. Decide the frame height; design frame and case.
+4. Order as described in [`ordering.md`](ordering.md#revision-20), only after Norman's go-ahead.
